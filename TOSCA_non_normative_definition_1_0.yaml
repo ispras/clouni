@@ -1,0 +1,168 @@
+#    Licensed under the Apache License, Version 2.0 (the "License"); you may
+#    not use this file except in compliance with the License. You may obtain
+#    a copy of the License at
+#
+#         http://www.apache.org/licenses/LICENSE-2.0
+#
+#    Unless required by applicable law or agreed to in writing, software
+#    distributed under the License is distributed on an "AS IS" BASIS, WITHOUT
+#    WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the
+#    License for the specific language governing permissions and limitations
+#    under the License.
+
+##########################################################################
+# The content of this file reflects TOSCA Simple Profile in YAML version
+# 1.0.0. It describes the definition for TOSCA types including Node Type,
+# Relationship Type, Capability Type and Interfaces.
+##########################################################################
+tosca_definitions_version: tosca_simple_yaml_1_0
+
+##########################################################################
+ # Artifact Type.
+ # An Artifact Type is a reusable entity that defines the type of one or more
+ # files which Node Types or Node Templates can have dependent relationships
+ # and used during operations such as during installation or deployment.
+##########################################################################
+artifact_types:
+  tosca.artifacts.Deployment.Image.Container.Docker:
+    derived_from: tosca.artifacts.Deployment.Image
+    description: Docker container image
+
+  tosca.artifacts.Deployment.Image.VM.ISO:
+    derived_from: tosca.artifacts.Deployment.Image.VM
+    description: Virtual Machine (VM) image in ISO disk format
+    mime_type: application/octet-stream
+    file_ext: [ iso ]
+
+  tosca.artifacts.Deployment.Image.VM.QCOW2:
+    derived_from: tosca.artifacts.Deployment.Image.VM
+    description: Virtual Machine (VM) image in QCOW v2 standard disk format
+    mime_type: application/octet-stream
+    file_ext: [ qcow2 ]
+
+##########################################################################
+# Capability Type.
+# A Capability Type is a reusable entity that describes a kind of
+# capability that a Node Type can declare to expose.
+##########################################################################
+capability_types:
+  tosca.capabilities.Container.Docker:
+    derived_from: tosca.capabilities.Container
+    properties:
+      version:
+        type: list
+        required: false
+        entry_schema:
+          type: version
+        description: >
+          The Docker version capability.
+      publish_all:
+        type: boolean
+        default: false
+        required: false
+        description: >
+          Indicates that all ports (ranges) listed in the dockerfile
+          using the EXPOSE keyword be published.
+      publish_ports:
+        type: list
+        entry_schema:
+          type: tosca.datatypes.network.PortSpec
+        required: false
+        description: >
+          List of ports mappings from source (Docker container)
+          to target (host) ports to publish.
+      expose_ports:
+        type: list
+        entry_schema:
+          type: tosca.datatypes.network.PortSpec
+        required: false
+        description: >
+          List of ports mappings from source (Docker container) to expose
+          to other Docker containers (not accessible outside host).
+      volumes:
+        type: list
+        entry_schema:
+          type: string
+        required: false
+        description: >
+          The dockerfile VOLUME command which is used to enable access
+          from the Docker container to a directory on the host machine.
+      host_id:
+        type: string
+        required: false
+        description: >
+            The optional identifier of an existing host resource
+            that should be used to run this container on.
+      volume_id:
+        type: string
+        required: false
+        description: >
+          The optional identifier of an existing storage volume (resource)
+          that should be used to create the container's mount point(s) on.
+
+##########################################################################
+# Node Type.
+# A Node Type is a reusable entity that defines the type of one or more
+# Node Templates.
+##########################################################################
+node_types:
+  tosca.nodes.Database.MySQL: # TODO
+    derived_from: tosca.nodes.Database
+    requirements:
+      - host:
+          node: tosca.nodes.DBMS.MySQL
+
+  tosca.nodes.DBMS.MySQL: # TODO
+    derived_from: tosca.nodes.DBMS
+    properties:
+      port:
+        description: reflect the default MySQL server port
+        default: 3306
+      root_password:
+        # MySQL requires a root_password for configuration
+        # Override parent DBMS definition to make this property required
+        required: true
+    capabilities:
+      # Further constrain the ‘host’ capability to only allow MySQL databases
+      host:
+        valid_source_types: [ tosca.nodes.Database.MySQL ]
+
+  tosca.nodes.WebServer.Apache: # TODO
+    derived_from: tosca.nodes.WebServer
+
+  tosca.nodes.WebApplication.WordPress: # TODO
+    derived_from: tosca.nodes.WebApplication
+    properties:
+      admin_user:
+        type: string
+      admin_password: 
+        type: string
+      db_host:
+        type: string
+    requirements:
+      - database_endpoint:
+          capability: tosca.capabilities.Endpoint.Database
+          node: tosca.nodes.Database
+          relationship: tosca.relationships.ConnectsTo
+
+  tosca.nodes.WebServer.Nodejs: # TODO
+    derived_from: tosca.nodes.WebServer
+    properties:
+      # Property to supply the desired implementation in the Github repository
+      github_url:
+        required: no
+        type: string
+        description: location of the application on the github.
+        default: https://github.com/mmm/testnode.git
+    interfaces:
+      Standard:
+        inputs:
+          github_url:
+            type: string
+
+
+  tosca.nodes.Container.Application.Docker:
+    derived_from: tosca.nodes.Container.Application
+    requirements:
+      - host:
+          capability: tosca.capabilities.Container.Docker

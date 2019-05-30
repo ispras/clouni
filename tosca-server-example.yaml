@@ -30,8 +30,8 @@ topology_template:
         host:
           properties:
             num_cpus: 1
-            disk_size: 160
-            mem_size: 1741
+            disk_size: 160 MiB
+            mem_size: 1741 MiB
         endpoint:
           properties:
             protocol: tcp
