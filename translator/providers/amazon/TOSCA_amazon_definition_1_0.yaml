@@ -1,0 +1,311 @@
+##########################################################################
+
+##########################################################################
+# The content of this file reflects TOSCA Simple Profile in YAML version
+# 1.0.0. It describes the definition for TOSCA types including Node Type,
+# Relationship Type, Capability Type and Interfaces.
+##########################################################################
+tosca_definitions_version: tosca_simple_yaml_1_0
+
+##########################################################################
+ # Data Type.
+ # A Datatype is a complex data type declaration which contains other
+ # complex or simple data types.
+##########################################################################
+data_types:
+  amazon.datatypes.Root:
+    derived_from: tosca.datatypes.Root
+
+  amazon.datatypes.SecurityGroupRule:
+    derived_from: amazon.datatypes.Root
+    properties:
+      proto:
+        type: string
+        required: false
+      ports:
+        type: list
+        entry_schema:
+          type: integer
+        required: false
+      cidr_ip:
+        type: string
+        required: false
+      from_port:
+        type: integer
+        required: false
+      to_port:
+        type: integer
+        required: false
+
+##########################################################################
+# Capability Type.
+# A Capability Type is a reusable entity that describes a kind of
+# capability that a Node Type can declare to expose.
+##########################################################################
+capability_types:
+  amazon.capabilities.Root:
+    derived_from: tosca.capabilities.Root
+
+  amazon.capabilities.network.Bindable:
+    derived_from: amazon.capabilities.Node
+
+  amazon.capabilities.network.Linkable:
+    derived_from: amazon.capabilities.Node
+
+  amazon.capabilities.Container:
+    derived_from: tosca.capabilities.Container
+
+  amazon.capabilities.Attachment:
+    derived_from: tosca.capabilities.Attachment
+
+  amazon.capabilities.Node:
+    derived_from: tosca.capabilities.Node
+
+  amazon.capabilities.ElasticNetworkInterface:
+    derived_from: amazon.capabilities.Root
+    properties:
+      mac_address:
+        type: string
+        required: false
+      network_interface_id:
+        type: string
+        required: false
+      private_ip_address:
+        type: string
+        required: false
+
+  amazon.capabilities.Image:
+    derived_from: amazon.capabilities.Root
+    properties:
+      architecture:
+        type: string
+        required: false
+      image_id:
+        type: string
+        required: false
+      name:
+        type: string
+        required: false
+
+  amazon.capabilities.VirtualPrivateCloud:
+    derived_from: amazon.capabilities.Root
+    properties:
+      cidr_block:
+        type: string
+        required: true
+      is_default:
+        type: boolean
+        required: false
+      vpc_id:
+        type: string
+        required: false
+
+  amazon.capabilities.VirtualPrivateCloudSubnet:
+    derived_from: amazon.capabilities.Root
+    properties:
+      cidr_block:
+        type: string
+        required: false
+      default_for_az:
+        type: boolean
+        required: false
+      map_public_ip_on_launch:
+        type: boolean
+        required: false
+      subnet_id:
+        type: string
+        required: false
+
+##########################################################################
+# Node Type.
+# A Node Type is a reusable entity that defines the type of one or more
+# Node Templates.
+##########################################################################
+node_types:
+  amazon.nodes.Root:
+    derived_from: tosca.nodes.Root
+    capabilities:
+      feature:
+        type: amazon.capabilities.Node
+        occurrences: [ 1, 1 ]
+    requirements:
+      - dependency:
+          capability: amazon.capabilities.Node
+          node: amazon.nodes.Root
+          relationship: amazon.relationships.DependsOn
+          occurrences: [ 0, UNBOUNDED ]
+
+  amazon.nodes.ElasticIP:
+    derived_from: amazon.nodes.Root
+    properties:
+      private_ip_address:
+        type: string
+        required: false
+      public_ip_address:
+        type: string
+        required: false
+    requirements:
+      - device_id:
+          capability: amazon.capabilities.network.Bindable
+          node: amazon.nodes.Instance
+          relationship: amazon.relationships.network.BindsTo
+          occurrences: [ 0, 1 ]
+      - device_id:
+          capability: amazon.capabilities.network.Bindable
+          node: amazon.nodes.ElasticNetworkInterface
+          relationship: amazon.relationships.network.BindsTo
+          occurrences: [ 0, 1 ]
+
+  amazon.nodes.ElasticNetworkInterface:
+    derived_from: amazon.nodes.Root
+    capabilities:
+      self:
+        type: amazon.capabilities.ElasticNetworkInterface
+        occurrences: [ 1, 1 ]
+      bind:
+        type: amazon.capabilities.network.Bindable
+        occurrences: [ 0, UNBOUNDED ]
+    requirements:
+      - security_groups:
+          capability: amazon.capabilities.SecurityGroup
+          node: amazon.nodes.SecurityGroup
+          relationship: amazon.relationships.DependsOn
+          occurrences: [ 0, UNBOUNDED ]
+      - subnet_id:
+          capability: amazon.capabilities.VirtualPrivateCloudSubnet
+          node: amazon.nodes.VirtualPrivateCloudSubnet
+          relationship: amazon.relationships.DependsOn
+          occurrences: [ 0, 1 ]
+
+  amazon.nodes.Image:
+    derived_from: amazon.nodes.Root
+    capabilities:
+      self:
+        type: amazon.capabilities.Image
+        occurrences: [ 1, 1 ]
+
+  amazon.nodes.Instance:
+    derived_from: amazon.nodes.Root
+    properties:
+      instance_type:
+        type: string
+        default: t2.micro
+    capabilities:
+      bind:
+        type: amazon.capabilities.network.Bindable
+        occurrences: [ 0, UNBOUNDED ]
+    requirements:
+      - image_id:
+          capability: amazon.capabilities.Image
+          node: amazon.nodes.Image
+          relationship: amazon.relationships.DependsOn
+          occurrences: [ 0, 1 ]
+      - network:
+          capability: amazon.capabilities.ElasticNetworkInterface
+          node: amazon.nodes.ElasticNetworkInterface
+          relationship: amazon.relationships.DependsOn
+          occurrences: [ 0, UNBOUNDED ]
+      - security_groups:
+          capability: amazon.capabilities.Node
+          node: amazon.nodes.SecurityGroup
+          relationship: amazon.relationships.DependsOn
+          occurrences: [ 0, UNBOUNDED ]
+      - vpc_subnet_id:
+          capability: amazon.capabilities.VirtualPrivateCloudSubnet
+          node: amazon.nodes.VirtualPrivateCloudSubnet
+          relationship: amazon.relationships.DependsOn
+          occurrences: [ 0, 1 ]
+
+  amazon.nodes.SecurityGroup:
+    derived_from: amazon.nodes.Root
+    properties:
+      name:
+        type: string
+        required: false
+      rules:
+        type: list
+        entry_schema:
+          type: amazon.datatypes.SecurityGroupRule
+        required: false
+      rules_egress:
+        type: list
+        entry_schema:
+          type: amazon.datatypes.SecurityGroupRule
+        required: false
+    requirements:
+      - vpc_id:
+          capability: amazon.capabilities.VirtualPrivateCloud
+          node: amazon.nodes.VirtualPrivateCloud
+          relationship: amazon.relationships.DependsOn
+          occurrences: [ 0, 1 ]
+
+  amazon.nodes.VirtualPrivateCloud:
+    derived_from: amazon.nodes.Root
+    properties:
+      name:
+        type: string
+        required: true
+    capabilities:
+      self:
+        type: amazon.capabilities.VirtualPrivateCloud
+        occurrences: [ 1, 1 ]
+
+  amazon.nodes.VirtualPrivateCloudSubnet:
+    derived_from: amazon.nodes.Root
+    capabilities:
+      self:
+        type: amazon.capabilities.VirtualPrivateCloudSubnet
+        occurrences: [ 1, 1 ]
+    requirements:
+      - vpc_id:
+          capability: amazon.capabilities.VirtualPrivateCloud
+          node: amazon.nodes.VirtualPrivateCloud
+          relationship: amazon.relationships.DependsOn
+          occurrences: [ 1, 1 ]
+
+##########################################################################
+# Relationship Type.
+# A Relationship Type is a reusable entity that defines the type of one
+# or more relationships between Node Types or Node Templates.
+##########################################################################
+relationship_types:
+  amazon.relationships.DependsOn:
+    description: This type results in ordering of initializing objects.
+    derived_from: tosca.relationships.DependsOn
+    valid_target_types: [ amazon.capabilities.Node ]
+
+  amazon.relationships.HostedOn:
+    description: This type represents the object to be the part of another object.
+    derived_from: tosca.relationships.HostedOn
+
+  amazon.relationships.ConnectsTo:
+    description: This type represents the network connection between to instances or two software components.
+    derived_from: tosca.relationships.Root
+
+  amazon.relationships.AttachesTo:
+    description: This type represents the attachment of volume to the server
+    derived_from: tosca.relationships.Root
+    valid_target_types: [ amazon.capabilities.Attachment ]
+
+  amazon.relationships.network.LinksTo:
+    description: This type appears between FloatingIp and Network
+    derived_from: tosca.relationships.network.LinksTo
+    valid_target_types: [ amazon.capabilities.network.Linkable ]
+
+  amazon.relationships.network.BindsTo:
+    description: This type appears between FloatingIp and Server
+    derived_from: tosca.relationships.network.BindsTo
+    valid_target_types: [ amazon.capabilities.network.Bindable ]
+
+##########################################################################
+ # Artifact Type.
+ # An Artifact Type is a reusable entity that defines the type of one or more
+ # files which Node Types or Node Templates can have dependent relationships
+ # and used during operations such as during installation or deployment.
+##########################################################################
+artifact_types:
+  amazon.artifacts.File:
+    derived_from: toscsa.artifacts.File
+
+  amazon.artifacts.Deployment.Image:
+    derived_from: tosca.artifacts.Deployment.Image

@@ -1,0 +1,378 @@
+tosca_definitions_version: tosca_simple_yaml_1_0
+
+##########################################################################
+# Capability Type.
+# A Capability Type is a reusable entity that describes a kind of
+# capability that a Node Type can declare to expose.
+##########################################################################
+capability_types:
+  openstack.capabilities.KeystoneDomain:
+    derived_from: tosca.capabilities.Root
+    properties:
+      description:
+        type: string
+        required: false
+      enabled:
+        type: boolean
+        required: false
+      id:
+        type: string
+        required: false
+      name:
+        type: string
+        required: false
+
+  openstack.capabilities.Project:
+    derived_from: tosca.capabilities.Root
+    properties:
+      description:
+        type: string
+        required: false
+      domain_id:
+        type: string
+        required: false
+      enabled:
+        type: boolean
+        required: false
+      id:
+        type: string
+        required: false
+      name:
+        type: string
+        required: false
+
+  openstack.capabilities.User:
+    derived_from: tosca.capabilities.Root
+    properties:
+      default_project_id:
+        type: string
+        required: false
+      domain_id:
+        type: string
+        required: false
+      email:
+        type: string
+        required: false
+      enabled:
+        type: boolean
+        required: false
+      id:
+        type: string
+        required: false
+      name:
+        type: string
+        required: false
+      username:
+        type: string
+        required: false
+
+##########################################################################
+ # Data Type.
+ # A Datatype is a complex data type declaration which contains other
+ # complex or simple data types.
+##########################################################################
+data_types:
+  openstack.datatypes.DriverInfo:
+    derived_from: tosca.datatypes.Root
+    properties:
+      console:
+        type: string
+        required: false
+      deploy:
+        type: string
+        required: false
+      management:
+        type: string
+        required: true
+      power:
+        type: string
+        required: true
+
+  openstack.datatypes.IronicProperties:
+    derived_from: tosca.datatypes.Root
+    properties:
+      cpu_arch:
+        type: string
+        default: x86_64
+      cpus:
+        type: integer
+        default: 1
+      disk_size:
+        type: scalar-unit.size
+        default: 1 GiB
+      ram:
+        type: scalar-unit.size
+        default: 1 MiB
+
+##########################################################################
+# Node Type.
+# A Node Type is a reusable entity that defines the type of one or more
+# Node Templates.
+##########################################################################
+node_types:
+  openstack.nodes.Group:
+    derived_from: tosca.nodes.Root
+    properties:
+      description:
+        type: string
+        required: false
+      domain:
+        type: string
+        required: false
+      name:
+        type: string
+        required: true
+
+  openstack.nodes.Ironic:
+    derived_from: tosca.nodes.Root
+    properties:
+      chassis_uuid:
+        type: string
+        required: false
+      driver:
+        type: string
+        required: true
+      driver_info:
+        type: openstack.datatypes.DriverInfo
+        required: true
+      ironic_url:
+        type: string
+        required: false
+      name:
+        type: string
+        required: false
+      nics:
+        type: list
+        entry_schema:
+          type: string
+        required: true
+      properties:
+        type: openstack.datatypes.IronicProperties
+        required: false
+      uuid:
+        type: string
+        required: false
+
+  openstack.nodes.KeystoneDomain:
+    derived_from: tosca.nodes.Root
+    properties:
+      description:
+        type: string
+        required: false
+      enabled:
+        type: boolean
+        default: true
+      name:
+        type: string
+        required: true
+
+  openstack.nodes.KeystoneEndpoint:
+    derived_from: tosca.nodes.Root
+    properties:
+      enabled:
+        type: boolean
+        default: true
+      interface:
+        type: string
+        default: public
+        constraints:
+          valid_values: [admin, public, internal]
+      region:
+        type: string
+        required: false
+      service:
+        type: string
+        required: true
+      url:
+        type: string
+        required: true
+
+  openstack.nodes.KeystoneRole:
+    derived_from: tosca.nodes.Root
+    properties:
+      name:
+        type: string
+        required: true
+
+  openstack.nodes.KeystoneService:
+    derived_from: tosca.nodes.Root
+    properties:
+      description:
+        type: string
+        required: false
+      enabled:
+        type: boolean
+        default: true
+      name:
+        type: string
+        required: true
+      service_type:
+        type: string
+        required: true
+
+  openstack.nodes.Listener:
+    derived_from: tosca.nodes.Root
+    properties:
+      loadbalancer:
+        type: string
+        required: true
+      name:
+        type: string
+        required: true
+      protocol:
+        type: string
+        default: HTTP
+        constraints:
+          valid_values: [ HTTP, HTTPS, TCP, TERMINATED_HTTPS ]
+      protocol_port:
+        type: string
+        default: 80
+    requirements:
+      - loadbalancer:
+          capability: openstack.capabilities.Node
+          node: openstack.nodes.Loadbalancer
+          relationship: openstack.relationships.DependsOn
+          occurrences: [ 1, 1 ]
+
+  openstack.nodes.Loadbalancer:
+    derived_from: tosca.nodes.Root
+    properties:
+      name:
+        type: string
+        required: true
+      vip_address:
+        type: string
+        required: false
+      vip_network:
+        type: string
+        required: false
+      vip_port:
+        type: string
+        required: false
+      vip_subnet:
+        type: string
+        required: false
+
+#  openstack.nodes.Member:
+#    derived_from: tosca.nodes.Root
+#    properties:
+
+#  openstack.nodes.Pool:
+#    derived_from: tosca.nodes.Root
+#    properties:
+
+  openstack.nodes.Project:
+    derived_from: tosca.nodes.Root
+    properties:
+      description:
+        type: string
+        required: false
+      domain:
+        type: string
+        required: false
+      enabled:
+        type: boolean
+        default: true
+      name:
+        type: string
+        required: true
+
+#  openstack.nodes.Quota:
+#    derived_from: tosca.nodes.Root
+#    properties:
+
+#  openstack.nodes.Recordset:
+#    derived_from: tosca.nodes.Root
+#    properties:
+
+#  openstack.nodes.ServerGroup:
+#    derived_from: tosca.nodes.Root
+#    properties:
+
+#  openstack.nodes.ServerMetadata:
+#    derived_from: tosca.nodes.Root
+#    properties:
+
+#  openstack.nodes.ServerVolume:
+#    derived_from: tosca.nodes.Root
+#    properties:
+
+  openstack.nodes.Stack:
+    derived_from: openstack.nodes.Root
+    properties:
+      action:
+        type: string
+        required: false
+      creation_time:
+        type: scalar-unit.time
+        required: false
+      description:
+        type: string
+        required: false
+      environment:
+        type: list
+        entry_schema:
+          type: string
+        required: false
+      name:
+        type: string
+        required: true
+      parameters:
+        type: map
+        entry_schema:
+          type: string
+        required: false
+
+  openstack.nodes.User:
+    derived_from: tosca.nodes.Root
+    properties:
+      default_project:
+        type: string
+        required: false
+      description:
+        type: string
+        required: false
+      domain:
+        type: string
+        required: false
+      email:
+        type: string
+        required: false
+      enabled:
+        type: boolean
+        default: true
+      name:
+        type: string
+        required: true
+      password:
+        type: string
+        required: false
+
+  openstack.nodes.VolumeSnapshot:
+    derived_from: tosca.nodes.Root
+    properties:
+      display_description:
+        type: string
+        required: false
+      display_name:
+        type: string
+        required: true
+      force:
+        type: boolean
+        default: false
+      volume:
+        type: string
+        required: true
+
+#  openstack.nodes.Zone:
+#    derived_from: tosca.nodes.Root
+#    properties:
+
+##########################################################################
+# Relationship Type.
+# A Relationship Type is a reusable entity that defines the type of one
+# or more relationships between Node Types or Node Templates.
+##########################################################################
+relationship_types:
+  openstack.relationships.RoutesTo:
+    derived_from: openstack.relationships.ConnectsTo:

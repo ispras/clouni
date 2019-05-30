@@ -1,0 +1,712 @@
+##########################################################################
+
+##########################################################################
+# The content of this file reflects TOSCA Simple Profile in YAML version
+# 1.0.0. It describes the definition for TOSCA types including Node Type,
+# Relationship Type, Capability Type and Interfaces.
+##########################################################################
+tosca_definitions_version: tosca_simple_yaml_1_0
+
+##########################################################################
+# Capability Type.
+# A Capability Type is a reusable entity that describes a kind of
+# capability that a Node Type can declare to expose.
+##########################################################################
+capability_types:
+  openstack.capabilities.Root:
+    derived_from: tosca.capabilities.Root
+
+  openstack.capabilities.network.Bindable:
+    derived_from: openstack.capabilities.Node
+
+  openstack.capabilities.network.Linkable:
+    derived_from: openstack.capabilities.Node
+
+  openstack.capabilities.Container:
+    derived_from: tosca.capabilities.Container
+
+  openstack.capabilities.Attachment:
+    derived_from: tosca.capabilities.Attachment
+
+  openstack.capabilities.Node:
+    derived_from: tosca.capabilities.Node
+
+  openstack.capabilities.Flavor:
+    derived_from: openstack.capabilities.Root
+    properties:
+      disk:
+        type: scalar-unit.size
+        required: false
+      ephemeral:
+        type: scalar-unit.size
+        default: 0 GiB
+      id:
+        type: string
+        required: false
+      is_public:
+        type: boolean
+        default: true
+      name:
+        type: string
+        required: true
+      ram:
+        type: scalar-unit.size
+        required: false
+      swap:
+        type: scalar-unit.size
+        default: 0 MiB
+      vcpus:
+        type: integer
+        required: false
+
+  openstack.capabilities.Image:
+    derived_from: openstack.capabilities.Root
+    properties:
+      checksum:
+        type: string
+        required: false
+      container_format:
+        type: string
+        default: bare
+      created_at:
+        type: scalar-unit.time
+        required: false
+      disk_format:
+        type: string
+        required: false
+      id:
+        type: string
+        required: false
+      is_public:
+        type: boolean
+        required: false
+      min_disk:
+        type: scalar-unit.size
+        required: false
+      min_ram:
+        type: scalar-unit.size
+        required: false
+      name:
+        type: string
+        required: true
+      owner:
+        type: string
+        required: false
+      properties:
+        type: map
+        entry_schema:
+          type: string
+        default: {}
+      protected:
+        type: boolean
+        required: false
+      size:
+        type: scalar-unit.size
+        required: false
+      updated_at:
+        type: scalar-unit.time
+        required: false
+
+  openstack.capabilities.Network:
+    derived_from: openstack.capabilities.Root
+    properties:
+      id:
+        type: string
+        required: false
+      name:
+        type: string
+        required: true
+      shared:
+        type: boolean
+        default: false
+      router:external:
+        type: boolean
+        default: false
+
+  openstack.capabilities.Port:
+    derived_from: openstack.capabilities.Root
+    properties:
+      admin_state_up:
+        type: boolean
+        required: false
+      allowed_address_pairs:
+        type: list
+        entry_schema:
+          type: string
+        required: false
+      binding_host_id:
+        type: string
+        required: false
+      binding_profile:
+        type: map
+        entry_schema:
+          type: string
+        required: false
+      binding_vif_details:
+        type: map
+        entry_schema:
+          type: string
+        required: false
+      binding_vif_type:
+        type: map
+        entry_schema:
+          type: string
+        required: false
+      binding_vnic_type:
+        type: string
+        required: false
+      device_id:
+        type: string
+        required: false
+      device_owner:
+        type: string
+        required: false
+      dns_assignment:
+        type: list
+        entry_schema:
+          type: string
+        required: false
+      dns_name:
+        type: string
+        required: false
+      extra_dhcp_opts:
+        type: list
+        entry_schema:
+          type: string
+        required: false
+      fixed_ips:
+        type: list
+        entry_schema:
+          type: map
+          entry_schema:
+            type: string
+        required: false
+      id:
+        type: string
+        required: false
+      mac_address:
+        type: string
+        required: false
+      name:
+        type: string
+        required: false
+      port_security_enabled:
+        type: boolean
+        required: false
+
+  openstack.capabilities.Server:
+    derived_from: openstack.capabilities.Root
+    properties:
+      auto_ip:
+        type: boolean
+        required: false
+      config_drive:
+        type: boolean
+        default: false
+      floating_ip_pools:
+        type: string
+        required: false
+      meta:
+        type: list
+        entry_schema:
+          type: string
+        required: false
+      name:
+        type: string
+        required: true
+      reuse_ips:
+        type: boolean
+        default: true
+      schedular_hints:
+        type: map
+        entry_schema:
+          type: string
+        required: false
+      userdata:
+        type: string
+        required: false
+
+  openstack.capabilities.Subnet:
+    derived_from: openstack.capabilities.Root
+    properties:
+      allocation_pools:
+        type: list
+        entry_schema:
+          type: map
+          entry_schema:
+            type: string
+        required: false
+      cidr:
+        type: string
+        required: false
+      dns_nameservers:
+        type: list
+        entry_schema:
+          type: string
+        required: false
+      enable_dhcp:
+        type: boolean
+        default: true
+      gateway_ip:
+        type: string
+        required: false
+      id:
+        type: string
+        required: false
+      ip_version:
+        type: integer
+        default: 4
+      name:
+        type: string
+        required: true
+
+##########################################################################
+# Node Type.
+# A Node Type is a reusable entity that defines the type of one or more
+# Node Templates.
+##########################################################################
+node_types:
+  openstack.nodes.Root:
+    derived_from: tosca.nodes.Root
+    capabilities:
+      feature:
+        type: openstack.capabilities.Node
+        occurrences: [ 1, 1 ]
+    requirements:
+      - dependency:
+          capability: openstack.capabilities.Node
+          node: openstack.nodes.Root
+          relationship: openstack.relationships.DependsOn
+          occurrences: [ 0, UNBOUNDED ]
+
+  openstack.nodes.Flavor:
+    derived_from: openstack.nodes.Root
+    properties:
+      extra_specs:
+        type: map
+        required: false
+    capabilities:
+      self:
+        type: openstack.capabilities.Flavor
+        occurrences: [ 1, 1 ]
+
+  openstack.nodes.FloatingIp:
+    derived_from: openstack.nodes.Root
+    properties:
+      fixed_address:
+        type: string
+        required: false
+      floating_ip_address:
+        type: string
+        required: false
+      nat_destination:
+        type: string
+        required: false
+    requirements:
+      - server:
+          capability: openstack.capabilities.network.Bindable
+          relationship: openstack.relationships.network.BindsTo
+          node: openstack.nodes.Server
+          occurrences: [ 1, 1 ]
+      - network:
+          capability: openstack.capabilities.network.Linkable
+          relationship: openstack.relationships.network.LinksTo
+          node: openstack.nodes.Network
+          occurrences: [ 0, 1 ]
+
+  openstack.nodes.Image:
+    derived_from: openstack.nodes.Root
+    properties:
+      kernel:
+        type: string
+        required: false
+      ramdisk:
+        description: >
+          The name of an existing ramdisk image that will be associated with this image
+        type: string
+        required: false
+    artifacts:
+      filename:
+        type: openstack.artifacts.Deployment.Image
+        required: false
+    capabilities:
+      self:
+        type: openstack.capabilities.Image
+        occurrences: [ 1, 1 ]
+
+
+  openstack.nodes.Keypair:
+    derived_from: openstack.nodes.Root
+    properties:
+      name:
+        type: string
+        required: true
+      public_key:
+        type: string
+        required: false
+    artifacts:
+      public_key:
+        type: openstack.artifacts.File
+        required: false
+
+  openstack.nodes.Network:
+    derived_from: openstack.nodes.Root
+    properties:
+      admin_state_up:
+        type: boolean
+        default: true
+      provider_network_type:
+        type: string
+        required: false
+      provider_physical_network:
+        type: string
+        required: false
+      provider_segmentation_id:
+        type: string
+        required: false
+    capabilities:
+      self:
+        type: openstack.capabilities.Network
+        occurrences: [ 1, 1 ]
+      link:
+        type: openstack.capabilities.network.Linkable
+        occurrences: [0, UNBOUNDED ]
+
+  openstack.nodes.NovaHostAggregate:
+    derived_from: openstack.nodes.Root
+    properties:
+      hosts:
+        type: list
+        entry_schema:
+          type: string
+        required: false
+      metadata:
+        type: map
+        entry_schema:
+          type: string
+        required: false
+      name:
+        type: string
+        required: true
+
+  openstack.nodes.Object:
+    derived_from: openstack.nodes.Root
+    properties:
+      container:
+        type: string
+        requied: true
+      container_access:
+        type: string
+        default: private
+        constraints:
+          - valid_values: [ private, public ]
+      name:
+        type: string
+        required: false
+    artifacts:
+      filename:
+        type: openstack.artifacts.Deployment.Image
+        required: false
+
+  openstack.nodes.Port:
+    derived_from: openstack.nodes.Root
+    capabilities:
+      self:
+        type: openstack.capabilities.Port
+        occurrences: [ 1, 1 ]
+    requirements:
+      - network:
+          capability: openstack.capabilities.Network
+          node: openstack.nodes.Network
+          relationships: openstack.relationships.DependsOn
+          occurrences: [1, 1]
+      - security_groups:
+          capability: openstack.capabilities.Container
+          node: openstack.nodes.SecurityGroup
+          relationships: openstack.relationships.DependsOn
+          occurrences: [0, UNBOUNDED]
+
+  openstack.nodes.Router:
+    derived_from: openstack.nodes.Root
+    properties:
+      admin_state_up:
+        type: boolean
+        default: true
+      enable_snat:
+        type: boolean
+        required: false
+      external_fixed_ips:
+        type: list
+        entry_schema:
+          type: string
+        required: false
+      name:
+        type: string
+        required: true
+      project:
+        type: string
+        required: false
+    requirements:
+      - network: # external gateway network
+          capability: openstack.capabilities.Network
+          node: openstack.nodes.Network
+          relationships: openstack.relationships.DependsOn
+          occurrences: [ 1, 1 ]
+      - interfaces:
+          capability: openstack.capabilities.Subnet
+          node: openstack.nodes.Subnet
+          relationships: openstack.relationships.DependsOn
+          occurrences: [ 0, UNBOUNDED ]
+
+  openstack.nodes.SecurityGroup:
+    derived_from: openstack.nodes.Root
+    properties:
+      description:
+        type: string
+        required: false
+      name:
+        type: string
+        required: true
+      project:
+        type: string
+        required: false
+    capabilities:
+      host:
+        type: openstack.capabilities.Container
+        occurrences: [0, UNBOUNDED ]
+
+  openstack.nodes.SecurityGroupRule:
+    derived_from: openstack.nodes.Root
+    properties:
+      direction:
+        type: string
+        default: ingress
+        constraints:
+          - valid_values: [ egress, ingress ]
+      ethertype:
+        type: string
+        default: IPv4
+        constraints:
+          - valid_values: [ IPv4, IPv6 ]
+      port_range_max:
+        type: integer
+        required: false
+      port_range_min:
+        type: integer
+        required: false
+      protocol:
+        type: string
+        constraints:
+          - valid_values: [ tcp, udp, icmp, 112, None ]
+        required: false
+      remote_ip_prefix:
+        type: string
+        required: false
+    requirements:
+      - security_group:
+          capability: openstack.capabilities.Container
+          node: openstack.nodes.SecurityGroup
+          relationship: openstack.relationships.HostedOn
+          occurrences: [ 1, 1 ]
+
+  openstack.nodes.Server:
+    derived_from: openstack.nodes.Root
+    properties:
+      boot_from_volume:
+        type: boolean
+        default: false
+      floating_ips:
+        type: list
+        entry_schema:
+          type: string
+        required: false
+    capabilities:
+      self:
+        type: openstack.capabilities.Server
+        occurrences: [ 1, 1 ]
+      bind:
+        type: openstack.capabilities.network.Bindable
+        occurrences: [ 0, UNBOUNDED ]
+      host:
+        type: openstack.capabilities.Container
+        occurrences: [ 0, UNBOUNDED ]
+    requirements:
+      - volumes:
+          capability: openstack.capabilities.Attachment
+          node: openstack.nodes.Volume
+          relationship: openstack.relationships.AttachesTo
+          occurrences: [ 0, UNBOUNDED ]
+      - boot_volume:
+          capability: openstack.capabilities.Node
+          node: openstack.nodes.Volume
+          relationship: openstack.relationships.DependsOn
+          occurrences: [ 0, 1 ]
+      - key_name:
+          capability: openstack.capabilities.Node
+          node: openstack.nodes.Keypair
+          relationship: openstack.relationships.DependsOn
+          occurrences: [ 0, 1 ]
+      - security_groups:
+          capability: openstack.capabilities.Node
+          node: openstack.nodes.SecurityGroup
+          relationship: openstack.relationships.DependsOn
+          occurrences: [ 0, UNBOUNDED ]
+      - flavor:
+         capability: openstack.capabilities.Flavor
+         node: openstack.nodes.Flavor
+         relationship: openstack.relationships.DependsOn
+         occurrences: [ 1, 1 ]
+      - network:
+         capability: openstack.capabilities.Network
+         node: openstack.nodes.Network
+         relationship: openstack.relationships.DependsOn
+         occurrences: [ 1, 1 ]
+      - nics:
+         capability: openstack.capabilities.Network
+         node: openstack.nodes.Network
+         relationship: openstack.relationships.DependsOn
+         occurrences: [ 0, UNBOUNDED ]
+      - nics:
+         capability: openstack.capabilities.Port
+         node: openstack.nodes.Port
+         relationship: openstack.relationships.DependsOn
+         occurrences: [0, UNBOUNDED]
+      - image:
+         capability: openstack.capabilities.Image
+         node: openstack.nodes.Image
+         relationship: openstack.relationships.DependsOn
+         occurrences: [ 1, 1 ]
+
+  openstack.nodes.Subnet:
+    derived_from: openstack.nodes.Root
+    properties:
+      extra_specs:
+        type: map
+        entry_schema:
+          type: string
+        default: {}
+      host_routes:
+        type: list
+        entry_schema:
+          type: string
+        required: false
+      ipv6_address_mode:
+        type: string
+        required: false
+        constraints:
+          - valid_values: [ dhcpv6-stateful, dhcpv6-stateless ]
+      ipv6_ra_mode:
+        type: string
+        required: false
+        constraints:
+          - valid_values: [ dhcpv6-stateful, dhcpv6-stateless, slaac ]
+      no_gateway_ip:
+        type: boolean
+        default: false
+      project:
+        type: string
+        required: false
+      use_default_subnetpool:
+        type: boolean
+        default: false
+    capabilities:
+      self:
+        type: openstack.capabilities.Subnet
+        occurrences: [ 1, 1 ]
+    requirements:
+      - network_name:
+          capability: openstack.capabilities.Container
+          node: openstack.nodes.Network
+          relationship: openstack.relationships.HostedOn
+          occurrences: [ 1, 1 ]
+
+  openstack.nodes.Volume:
+    derived_from: openstack.nodes.Root
+    properties:
+      display_description:
+        type: string
+        required: false
+      display_name:
+        type: string
+        required: true
+      scheduler_hints:
+        type: string
+        required: false
+      size:
+        type: scalar-unit.size
+        required: false
+      volume_type:
+        type: string
+        required: false
+    capabilities:
+      attachment:
+        type: openstack.capabilities.Attachment
+        occurrences: [ 0, 1 ]
+    requirements:
+      - image:
+          capability: openstack.capabilities.Image
+          node: openstack.nodes.Image
+          relationship: openstack.relationships.DependsOn
+          occurrences: [ 0, 1 ]
+      - snapshot_id:
+          capability: openstack.capabilities.Node
+          node: openstack.nodes.Volume
+          relationship: openstack.relationships.DependsOn
+          occurrences: [ 0, 1 ]
+      - volume:
+          capability: openstack.capabilities.Node
+          node: openstack.nodes.Volume
+          relationship: openstack.relationships.DependsOn
+          occurrences: [ 0, 1 ]
+
+##########################################################################
+# Relationship Type.
+# A Relationship Type is a reusable entity that defines the type of one
+# or more relationships between Node Types or Node Templates.
+##########################################################################
+relationship_types:
+  openstack.relationships.DependsOn:
+    description: This type results in ordering of initializing objects.
+    derived_from: tosca.relationships.DependsOn
+    valid_target_types: [ openstack.capabilities.Node ]
+
+  openstack.relationships.HostedOn:
+    description: This type represents the object to be the part of another object.
+    derived_from: tosca.relationships.HostedOn
+
+  openstack.relationships.ConnectsTo:
+    description: This type represents the network connection between to instances or two software components.
+    derived_from: tosca.relationships.Root
+    valid_target_types: [ openstack.capabilities.Network ]
+
+  openstack.relationships.AttachesTo:
+    description: This type represents the attachment of volume to the server
+    derived_from: tosca.relationships.Root
+    valid_target_types: [ openstack.capabilities.Attachment ]
+    properties:
+      device:
+        type: string
+        required: false
+
+  openstack.relationships.network.LinksTo:
+    description: This type appears between FloatingIp and Network
+    derived_from: openstack.relationships.network.LinksTo
+    valid_target_types: [ openstack.capabilities.network.Linkable ]
+
+  openstack.relationships.network.BindsTo:
+    description: This type appears between FloatingIp and Server
+    derived_from: openstack.relationships.network.BindsTo
+    valid_target_types: [ openstack.capabilities.network.Bindable ]
+
+##########################################################################
+ # Artifact Type.
+ # An Artifact Type is a reusable entity that defines the type of one or more
+ # files which Node Types or Node Templates can have dependent relationships
+ # and used during operations such as during installation or deployment.
+##########################################################################
+artifact_types:
+  openstack.artifacts.File:
+    derived_from: toscsa.artifacts.File
+
+  openstack.artifacts.Deployment.Image:
+    derived_from: tosca.artifacts.Deployment.Image
