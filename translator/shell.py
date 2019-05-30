@@ -13,7 +13,7 @@ class TranslatorShell(object):
         parser.add_argument('--template-file',
                             metavar='<filename>',
                             required=True,
-                            help='YAML template or CSAR file to parse.')
+                            help='YAML template to parse.')
         parser.add_argument('--validate-only',
                             action='store_true',
                             default=False,
