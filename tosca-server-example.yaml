@@ -1,5 +1,8 @@
 tosca_definitions_version: tosca_simple_yaml_1_0
 
+imports:
+  - translator/common/TOSCA_definition_1_0.yaml
+
 topology_template:
   node_templates:
     instance:
@@ -51,9 +54,3 @@ topology_template:
             min_instances: 1
             max_instances: 1
             default_instances: 1
-
-#      requirements:
-#        - local_storage:
-#            node_filter:
-#              properties:
-#                size: 0 MiB
