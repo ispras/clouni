@@ -1,2 +1,21 @@
+# pbr generates these
+AUTHORS
+ChangeLog
+
+# Packages
+.eggs
+*.egg
+*.egg-info
+build
+
+# Editor
 .idea/
 *.pyc
+
+# Ansible credentials
+clouds.yaml
+ansible-hosts
+
+# Examples
+*example*.yaml
+*facts.json
