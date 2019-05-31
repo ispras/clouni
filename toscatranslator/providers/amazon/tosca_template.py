@@ -25,11 +25,10 @@ class AmazonToscaTemplate(ProviderToscaTemplate):
     )
 
     TYPE_FACTS = {'ElasticNetworkInterface', 'Image', 'VirtualPrivateCloud', 'VirtualPrivateCloudSubnet'}
+    PROVIDER = 'amazon'
 
-    def __init__(self, path=None, parsed_params=None, a_file=True,
-                 yaml_dict_tpl=None, yaml_tpl=None, facts=None):
+    def __init__(self, tosca_parser_template, facts):
 
         self.definition_file = os.path.join(os.path.dirname(__file__), self.FILE_DEFINITION)
 
-        super(AmazonToscaTemplate, self).__init__("amazon", path=path, parsed_params=parsed_params, a_file=a_file,
-                                                  yaml_dict_tpl=yaml_dict_tpl, yaml_tpl=yaml_tpl, facts=facts)
+        super(AmazonToscaTemplate, self).__init__(tosca_parser_template, facts)

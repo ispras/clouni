@@ -20,8 +20,12 @@ class ProviderToscaTemplate (object):
         assert self.PROVIDER is not None
 
         self.tosca_parser_template = tosca_parser_template  # toscaparser.tosca_template:ToscaTemplate
-        yaml_dict_tpl = translate_to_provider(self.PROVIDER, self.tosca_parser_template, facts, self.definition_file)
-        print(json.dumps(yaml_dict_tpl))
+
+        self.provider_specific_parser_template = translate_to_provider(self.PROVIDER, self.tosca_parser_template, facts,
+                                                                       self.definition_file)
+        print(json.dumps(self.provider_specific_parser_template.tpl))
+
+        self.parser_topology_template = self.provider_specific_parser_template.topology_template
 
         self.extended_facts = self.extend_facts(facts)
         ProviderNodeFilter.facts = self.extended_facts
