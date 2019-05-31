@@ -47,12 +47,9 @@ debug_output:
   sample: openstack-infra-playbook.yaml
 '''
 
-import os
 from ansible.module_utils.basic import AnsibleModule
 
 import ansible.module_utils.cloud_infra_by_tosca as cibt
-
-# NOTE: Libraries' import is duplicated from toscatranslator.common.combine_ansible_parameters
 
 
 def main():
