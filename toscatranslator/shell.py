@@ -1,13 +1,28 @@
 import sys
-import os
 import argparse
-from toscaparser.tosca_template import ToscaTemplate
+import os
 
 from toscatranslator.common.translator_to_ansible import translate
 
 
 class TranslatorShell(object):
-    def get_parser(self, argv):
+    def __init__(self, argv):
+
+        parser = self.get_parser()
+        (args, args_list) = parser.parse_known_args(argv)
+
+        self.template_file = args.template_file
+        self.validate_only = args.validate_only
+        self.provider = args.provider
+        self.facts = args.facts
+        self.output_file = args.output_file
+
+        self.working_dir = os.getcwd()
+
+        output = translate(self.template_file, self.validate_only, self.provider, self.facts, self.working_dir)
+        self.output_print(output)
+
+    def get_parser(self):
         parser = argparse.ArgumentParser(prog="tosca-tool")
 
         parser.add_argument('--template-file',
@@ -25,32 +40,25 @@ class TranslatorShell(object):
                             metavar='<filename>',
                             required=False,
                             help='Facts for cloud provider if provider parameter is used.')
+        parser.add_argument('--output-file',
+                            metavar='<filename>',
+                            required=False,
+                            help='')
 
         return parser
 
-    def main(self, argv):
-
-        parser = self.get_parser(argv)
-        (args, args_list) = parser.parse_known_args(argv)
-        template_path = args.template_file
-
-        parsed_params={}
-        a_file = os.path.isfile(template_path)
-        if args.validate_only:
-            ToscaTemplate(template_path, parsed_params, a_file)
-            msg = ('The input "%(template_file)s" successfully passed '
-                     'validation.') % {'template_file': template_path}
-            print(msg)
-            return
-        if args.provider:
-            output = translate(args.provider, template_path, args.facts, True)
-            print (output)
+    def output_print(self, output_msg):
+        if self.output_file:
+            with open(self.output_file, 'w') as file_obj:
+                file_obj.write(output_msg)
+        else:
+            print(output_msg)
 
 
 def main(args=None):
     if args is None:
         args = sys.argv[1:]
-    TranslatorShell().main(args)
+    TranslatorShell(args)
 
 
 if __name__ == '__main__':

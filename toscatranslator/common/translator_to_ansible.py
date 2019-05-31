@@ -2,38 +2,39 @@ import json
 import os
 
 from toscaparser.common.exception import ExceptionCollector
-from toscaparser.utils.gettextutils import _
+from toscaparser.utils.yamlparser import simple_parse as yaml_parse
+from toscaparser.tosca_template import ToscaTemplate
 
-from toscatranslator.common.exception import UnknownProvider
+from toscatranslator.common.exception import UnknownProvider, UnsupportedFactsFormat
 from toscatranslator.common.combine_templates import PROVIDER_TEMPLATES
 
 
-def translate(provider, tosca_template, _facts, a_file=False):
-    if type(_facts) is dict:
-        facts = _facts
-    elif os.path.isfile(_facts):
-        with open(_facts, "r") as ff:
-            facts = json.load(ff)
+def translate(template_file, validate_only, provider, _facts, a_file=True):
+    if a_file:
+        tosca_parser_template_object = ToscaTemplate(path=template_file, a_file=a_file)
     else:
-        facts = _facts
+        template_content = template_file
+        template = yaml_parse(template_content)
+        tosca_parser_template_object = ToscaTemplate(yaml_dict_tpl=template, a_file=a_file)
 
-    yaml_tpl = None
-    if os.path.isfile(tosca_template):
-        if a_file:
-            with open(tosca_template) as tf:
-                yaml_tpl = tf.read()
+    if _facts is not None:
+        if type(_facts) is dict:
+            facts = _facts
+        elif os.path.isfile(_facts):
+            with open(_facts, "r") as ff:
+                facts = json.load(ff)
         else:
-            ExceptionCollector.appendException(IOError(_('%s is a file') % tosca_template))
-    else:
-        if a_file:
-            ExceptionCollector.appendException(IOError(_('Template parameter is not a file or not found')))
-        else:
-            yaml_tpl = tosca_template
+            raise UnsupportedFactsFormat()
+
+    if validate_only:
+        msg = 'The input "%(template_file)s" successfully passed validation.' \
+              % {'template_file': template_file if a_file else 'template'}
+        return msg
 
     tosca_template_class = PROVIDER_TEMPLATES.get(provider)
     if not tosca_template_class:
         ExceptionCollector.appendException(UnknownProvider(
             what=provider
         ))
-    tosca = tosca_template_class(yaml_tpl=yaml_tpl, a_file=False, facts=facts)
+    tosca = tosca_template_class(tosca_parser_template_object, facts)
     return tosca.to_ansible()
