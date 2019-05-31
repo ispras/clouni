@@ -1,4 +1,4 @@
-from toscatranslator.common.tosca_node_for_translate import ToscaNodeForTranslate
+from toscatranslator.providers.common.tosca_node_for_translate import ToscaNodeForTranslate
 
 from netaddr import IPRange, IPAddress
 

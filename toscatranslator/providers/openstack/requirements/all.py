@@ -6,7 +6,7 @@ from toscatranslator.providers.openstack.requirements.server import OpenstackSer
 from toscatranslator.providers.openstack.requirements.subnet import OpenstackSubnetRequirement
 from toscatranslator.providers.openstack.requirements.volume import OpenstackVolumeRequirement
 
-from toscatranslator.common.all_requirements import ProviderRequirements
+from toscatranslator.providers.common.all_requirements import ProviderRequirements
 
 
 class OpenstackRequirements (ProviderRequirements):

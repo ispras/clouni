@@ -1,5 +1,5 @@
 from toscatranslator.providers.openstack.nodefilters.image import OpenstackImageNodeFilter
-from toscatranslator.common.requirement import ProviderRequirement
+from toscatranslator.providers.common.requirement import ProviderRequirement
 
 
 class OpenstackImageRequirement(ProviderRequirement):

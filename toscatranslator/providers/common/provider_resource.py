@@ -1,5 +1,5 @@
 import yaml
-from toscatranslator.common.combine_requirements import PROVIDER_REQUIREMENTS
+from toscatranslator.providers.combined.combine_requirements import PROVIDER_REQUIREMENTS
 
 
 class ProviderResource(object):

@@ -1,4 +1,4 @@
-from toscatranslator.common.requirement import ProviderRequirement
+from toscatranslator.providers.common.requirement import ProviderRequirement
 from toscatranslator.providers.openstack.nodefilters.server import OpenstackServerNodeFilter
 
 

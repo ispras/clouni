@@ -13,7 +13,7 @@ from toscatranslator.providers.openstack.nodes.server import OpenstackServerNode
 from toscatranslator.providers.openstack.nodes.subnet import OpenstackSubnetNode
 from toscatranslator.providers.openstack.nodes.volume import OpenstackVolumeNode
 
-from toscatranslator.common.tosca_template import ProviderToscaTemplate
+from toscatranslator.providers.common.tosca_template import ProviderToscaTemplate
 
 
 class OpenstackToscaTemplate(ProviderToscaTemplate):
@@ -37,11 +37,10 @@ class OpenstackToscaTemplate(ProviderToscaTemplate):
 
     # NOTE: FACTS have properties of correspond capability
     TYPE_FACTS = {'Flavor', 'Image', 'Network', 'Port', 'Server', 'Subnet'}
+    PROVIDER = 'openstack'
 
-    def __init__(self, path=None, parsed_params=None, a_file=True,
-                 yaml_dict_tpl=None, yaml_tpl=None, facts=None):
+    def __init__(self, tosca_parser_template_object, facts):
 
         self.definition_file = os.path.join(os.path.dirname(__file__), self.FILE_DEFINITION)
 
-        super(OpenstackToscaTemplate, self).__init__("openstack", path=path, parsed_params=parsed_params, a_file=a_file,
-                                                     yaml_dict_tpl=yaml_dict_tpl, yaml_tpl=yaml_tpl, facts=facts)
+        super(OpenstackToscaTemplate, self).__init__(tosca_parser_template_object, facts)

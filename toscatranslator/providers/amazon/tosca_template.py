@@ -8,7 +8,7 @@ from toscatranslator.providers.amazon.nodes.securty_group import AmazonSecurityG
 from toscatranslator.providers.amazon.nodes.virtual_private_cloud import AmazonVirtualPrivateCloudNode
 from toscatranslator.providers.amazon.nodes.virtual_private_cloud_subnet import AmazonVirtualPrivateCloudSubnetNode
 
-from toscatranslator.common.tosca_template import ProviderToscaTemplate
+from toscatranslator.providers.common.tosca_template import ProviderToscaTemplate
 
 
 class AmazonToscaTemplate(ProviderToscaTemplate):

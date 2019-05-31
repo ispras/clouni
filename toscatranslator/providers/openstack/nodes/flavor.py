@@ -1,4 +1,4 @@
-from toscatranslator.common.provider_resource import ProviderResource
+from toscatranslator.providers.common.provider_resource import ProviderResource
 
 
 class OpenstackFlavorNode(ProviderResource):

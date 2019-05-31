@@ -1,4 +1,4 @@
-from toscatranslator.common.requirement import ProviderRequirement
+from toscatranslator.providers.common.requirement import ProviderRequirement
 from toscatranslator.common.exception import UnavailableNodeFilterError
 from toscaparser.common.exception import ExceptionCollector
 

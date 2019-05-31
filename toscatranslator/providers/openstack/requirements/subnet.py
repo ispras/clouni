@@ -1,5 +1,5 @@
 from toscatranslator.providers.openstack.nodefilters.subnet import OpenstackSubnetNodeFilter
-from toscatranslator.common.requirement import ProviderRequirement
+from toscatranslator.providers.common.requirement import ProviderRequirement
 
 
 class OpenstackSubnetRequirement(ProviderRequirement):

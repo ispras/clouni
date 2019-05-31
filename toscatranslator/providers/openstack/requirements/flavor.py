@@ -1,5 +1,5 @@
 from toscatranslator.providers.openstack.nodefilters.flavor import OpenstackFlavorNodeFilter
-from toscatranslator.common.requirement import ProviderRequirement
+from toscatranslator.providers.common.requirement import ProviderRequirement
 
 
 class OpenstackFlavorRequirement(ProviderRequirement):

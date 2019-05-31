@@ -1,5 +1,5 @@
 from toscatranslator.providers.amazon.nodefilters.virtual_private_cloud import AmazonVirtualPrivateCloudNodeFilter
-from toscatranslator.common.requirement import ProviderRequirement
+from toscatranslator.providers.common.requirement import ProviderRequirement
 
 
 class AmazonVirtualPrivateCloudRequirement(ProviderRequirement):

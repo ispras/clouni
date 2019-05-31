@@ -6,7 +6,7 @@ from toscaparser.utils.yamlparser import simple_parse as yaml_parse
 from toscaparser.tosca_template import ToscaTemplate
 
 from toscatranslator.common.exception import UnknownProvider, UnsupportedFactsFormat
-from toscatranslator.common.combine_templates import PROVIDER_TEMPLATES
+from toscatranslator.providers.combined.combine_templates import PROVIDER_TEMPLATES
 
 
 def translate(template_file, validate_only, provider, _facts, a_file=True):

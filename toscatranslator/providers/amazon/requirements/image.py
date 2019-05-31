@@ -1,5 +1,5 @@
 from toscatranslator.providers.amazon.nodefilters.image import AmazonImageNodeFilter
-from toscatranslator.common.requirement import ProviderRequirement
+from toscatranslator.providers.common.requirement import ProviderRequirement
 
 
 class AmazonImageRequirement(ProviderRequirement):

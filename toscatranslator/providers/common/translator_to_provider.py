@@ -2,10 +2,11 @@ from toscatranslator import tosca_type
 from toscaparser.common.exception import ExceptionCollector
 from toscatranslator.common.exception import UnspecifiedTranslatorForProviderError, \
     UnspecifiedProviderTranslatorForNamespaceError
-from toscatranslator.common.combine_translators import TRANSLATE_FUNCTION
+from toscatranslator.providers.combined.combine_translators import TRANSLATE_FUNCTION
 
 
-def translate(provider, dict_tpl, facts, definition_file):
+def translate(provider, tosca_parser_template, facts, definition_file):
+    dict_tpl = tosca_parser_template.tpl
     translator_funcs = TRANSLATE_FUNCTION.get(provider)
     if not translator_funcs:
         ExceptionCollector.appendException(UnspecifiedTranslatorForProviderError(

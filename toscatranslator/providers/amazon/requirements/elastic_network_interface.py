@@ -1,5 +1,5 @@
 from toscatranslator.providers.amazon.nodefilters.elastic_network_interface import AmazonElasticNetworkInterfaceNodeFilter
-from toscatranslator.common.requirement import ProviderRequirement
+from toscatranslator.providers.common.requirement import ProviderRequirement
 
 
 class AmazonElasticNetworkInterfaceRequirement(ProviderRequirement):

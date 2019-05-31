@@ -5,7 +5,7 @@ from toscatranslator.providers.amazon.requirements.security_group import AmazonS
 from toscatranslator.providers.amazon.requirements.virtual_private_cloud import AmazonVirtualPrivateCloudRequirement
 from toscatranslator.providers.amazon.requirements.virtual_private_cloud_subnet import AmazonVirtualPrivateCloudSubnetRequirement
 
-from toscatranslator.common.all_requirements import ProviderRequirements
+from toscatranslator.providers.common.all_requirements import ProviderRequirements
 
 
 class AmazonRequirements(ProviderRequirements):

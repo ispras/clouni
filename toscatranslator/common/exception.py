@@ -35,4 +35,9 @@ class UnspecifiedProviderTranslatorForNamespaceError(TOSCAException):
 
 
 class UnspecifiedFactsParserForProviderError(TOSCAException):
-    msg_fmt = _('Ansible facts parser for provider "%(what)s is not specified"')
+    msg_fmt = _('Ansible facts parser for provider "%(what)s" is not specified"')
+
+
+class UnsupportedFactsFormat(TOSCAException):
+    msg_fmt = _('Input error for parameter "facts": "dict" or "path" is required. If path is provided, '
+                'then path is incorrect.')

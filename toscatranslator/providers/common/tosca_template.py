@@ -1,36 +1,28 @@
 import json
 
-from toscaparser.tosca_template import ToscaTemplate
 from toscaparser.common.exception import ExceptionCollector
-from toscaparser.utils.yamlparser import simple_parse as yaml_parse
 
-from toscatranslator.common.translator_to_provider import translate as translate_to_provider
+from toscatranslator.providers.common.translator_to_provider import translate as translate_to_provider
 
 from toscatranslator.common.exception import UnsupportedNodeTypeError
 
-from toscatranslator.common.nodefilter import ProviderNodeFilter
-from toscatranslator.common.provider_resource import ProviderResource
+from toscatranslator.providers.common.nodefilter import ProviderNodeFilter
+from toscatranslator.providers.common.provider_resource import ProviderResource
 
 from toscatranslator import tosca_type
 
 
-class ProviderToscaTemplate (ToscaTemplate):
-    def __init__(self, provider, path=None, parsed_params=None, a_file=True,
-                 yaml_dict_tpl=None, yaml_tpl=None, facts=None):
+class ProviderToscaTemplate (object):
+    def __init__(self, tosca_parser_template, facts):
         assert self.definition_file is not None
         assert self.TYPE_FACTS is not None
         assert self.TYPE_NODES is not None
+        assert self.PROVIDER is not None
 
-        if not yaml_dict_tpl:
-            if yaml_tpl:
-                yaml_dict_tpl = yaml_parse(yaml_tpl)
-
-        yaml_dict_tpl = translate_to_provider(provider, yaml_dict_tpl, facts, self.definition_file)
+        self.tosca_parser_template = tosca_parser_template  # toscaparser.tosca_template:ToscaTemplate
+        yaml_dict_tpl = translate_to_provider(self.PROVIDER, self.tosca_parser_template, facts, self.definition_file)
         print(json.dumps(yaml_dict_tpl))
 
-        super(ProviderToscaTemplate, self).__init__(path=path, parsed_params=parsed_params, a_file=a_file,
-                                                    yaml_dict_tpl=yaml_dict_tpl)
-        self.provider = provider
         self.extended_facts = self.extend_facts(facts)
         ProviderNodeFilter.facts = self.extended_facts
         self.resolve_in_template_dependencies()

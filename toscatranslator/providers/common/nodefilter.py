@@ -2,7 +2,7 @@ class ProviderNodeFilter(object):
 
     CAPABILITY_NAME = 'self'
     """
-    facts attribute: Class has additional attribute filled in translator.common.translator_to_ansible translate()
+    facts attribute: Class has additional attribute filled in toscatranslator.common.translator_to_ansible translate()
     """
     def __init__(self):
         assert self.FACTS_KEY is not None
