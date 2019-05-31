@@ -12,9 +12,9 @@
 
 
 # Keep this file around for backwards compatibility, and make it call the
-# new translator's shell file instead, as it's now packaged
+# new toscatranslator's shell file instead, as it's now packaged
 
-from translator import shell as translator_shell
+from toscatranslator import shell as translator_shell
 
 if __name__ == '__main__':
     translator_shell.main()
