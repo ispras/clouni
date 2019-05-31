@@ -22,6 +22,10 @@ class InappropriateParameterValueError (TOSCAException):
     msg_fmt = _('Assigned value of parameter "%(what)s" is not appropriate. Please change the value')
 
 
+class UnspecifiedParameter(TOSCAException):
+    msg_fmt = _('One of parameters %(what)s must be specified')
+
+
 class UnknownProvider(TOSCAException):
     msg_fmt = _('Provider "%(what)s" is not supported')
 

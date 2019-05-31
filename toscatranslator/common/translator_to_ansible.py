@@ -5,7 +5,7 @@ from toscaparser.common.exception import ExceptionCollector
 from toscaparser.utils.yamlparser import simple_parse as yaml_parse
 from toscaparser.tosca_template import ToscaTemplate
 
-from toscatranslator.common.exception import UnknownProvider, UnsupportedFactsFormat
+from toscatranslator.common.exception import UnknownProvider, UnsupportedFactsFormat, UnspecifiedParameter
 from toscatranslator.providers.combined.combine_templates import PROVIDER_TEMPLATES
 
 
@@ -17,6 +17,7 @@ def translate(template_file, validate_only, provider, _facts, a_file=True):
         template = yaml_parse(template_content)
         tosca_parser_template_object = ToscaTemplate(yaml_dict_tpl=template, a_file=a_file)
 
+    facts = dict()
     if _facts is not None:
         if type(_facts) is dict:
             facts = _facts
@@ -30,6 +31,11 @@ def translate(template_file, validate_only, provider, _facts, a_file=True):
         msg = 'The input "%(template_file)s" successfully passed validation.' \
               % {'template_file': template_file if a_file else 'template'}
         return msg
+
+    if not provider:
+        ExceptionCollector.appendException(UnspecifiedParameter(
+            what=('validate-only', 'provider')
+        ))
 
     tosca_template_class = PROVIDER_TEMPLATES.get(provider)
     if not tosca_template_class:
