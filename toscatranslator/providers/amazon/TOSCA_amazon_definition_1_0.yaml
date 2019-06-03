@@ -16,6 +16,19 @@ data_types:
   amazon.datatypes.Root:
     derived_from: tosca.datatypes.Root
 
+  amazon.datatypes.Image:
+    derived_from: amazon.datatypes.Root
+    properties:
+      id:
+        type: string
+        required: false
+      ramdisk:
+        type: string
+        required: false
+      kernel:
+        type: string
+        required: false
+
   amazon.datatypes.SecurityGroupRule:
     derived_from: amazon.datatypes.Root
     properties:
@@ -61,60 +74,6 @@ capability_types:
   amazon.capabilities.Node:
     derived_from: tosca.capabilities.Node
 
-  amazon.capabilities.ElasticNetworkInterface:
-    derived_from: amazon.capabilities.Root
-    properties:
-      mac_address:
-        type: string
-        required: false
-      network_interface_id:
-        type: string
-        required: false
-      private_ip_address:
-        type: string
-        required: false
-
-  amazon.capabilities.Image:
-    derived_from: amazon.capabilities.Root
-    properties:
-      architecture:
-        type: string
-        required: false
-      image_id:
-        type: string
-        required: false
-      name:
-        type: string
-        required: false
-
-  amazon.capabilities.VirtualPrivateCloud:
-    derived_from: amazon.capabilities.Root
-    properties:
-      cidr_block:
-        type: string
-        required: true
-      is_default:
-        type: boolean
-        required: false
-      vpc_id:
-        type: string
-        required: false
-
-  amazon.capabilities.VirtualPrivateCloudSubnet:
-    derived_from: amazon.capabilities.Root
-    properties:
-      cidr_block:
-        type: string
-        required: false
-      default_for_az:
-        type: boolean
-        required: false
-      map_public_ip_on_launch:
-        type: boolean
-        required: false
-      subnet_id:
-        type: string
-        required: false
 
 ##########################################################################
 # Node Type.
@@ -135,130 +94,209 @@ node_types:
           relationship: amazon.relationships.DependsOn
           occurrences: [ 0, UNBOUNDED ]
 
-  amazon.nodes.ElasticIP:
+  amazon.nodes.ElasticIP: # ec2_eip, ec2_eip_facts
     derived_from: amazon.nodes.Root
     properties:
       private_ip_address:
         type: string
         required: false
-      public_ip_address:
+      public_ip: # not used when create
         type: string
         required: false
     requirements:
-      - device_id:
+      - device_id: # instance_id in facts
           capability: amazon.capabilities.network.Bindable
           node: amazon.nodes.Instance
           relationship: amazon.relationships.network.BindsTo
           occurrences: [ 0, 1 ]
-      - device_id:
+      - device_id: # network_interface_id in facts
           capability: amazon.capabilities.network.Bindable
           node: amazon.nodes.ElasticNetworkInterface
           relationship: amazon.relationships.network.BindsTo
           occurrences: [ 0, 1 ]
 
-  amazon.nodes.ElasticNetworkInterface:
+  amazon.nodes.ElasticNetworkInterface: # ec2_eni, ec2_eni_facts
     derived_from: amazon.nodes.Root
+    properties:
+      eni_id: # output after create is [interface, id], network_interface_id in facts
+        type: string
+        required: false
+      mac_address: # not used when create
+        type: string
+        required: false
+      private_ip_address:
+        type: string
+        required: false
     capabilities:
-      self:
-        type: amazon.capabilities.ElasticNetworkInterface
-        occurrences: [ 1, 1 ]
       bind:
         type: amazon.capabilities.network.Bindable
         occurrences: [ 0, UNBOUNDED ]
     requirements:
-      - security_groups:
+      - security_groups: # output after create is groups, groups in facts
           capability: amazon.capabilities.SecurityGroup
           node: amazon.nodes.SecurityGroup
           relationship: amazon.relationships.DependsOn
           occurrences: [ 0, UNBOUNDED ]
       - subnet_id:
-          capability: amazon.capabilities.VirtualPrivateCloudSubnet
+          capability: amazon.capabilities.Node
           node: amazon.nodes.VirtualPrivateCloudSubnet
           relationship: amazon.relationships.DependsOn
           occurrences: [ 0, 1 ]
 
-  amazon.nodes.Image:
+  amazon.nodes.Image: # ec2_ami, ec2_ami_facts
     derived_from: amazon.nodes.Root
-    capabilities:
-      self:
-        type: amazon.capabilities.Image
-        occurrences: [ 1, 1 ]
-
-  amazon.nodes.Instance:
-    derived_from: amazon.nodes.Root
+    attributes:
+      description:
+        type: string
+        required: false
+      instance_id:
+        type: string
+        required: false
+      kernel_id:
+        type: string
+        required: false
+      ramdisk_id:
+        type: string
+        required: false
     properties:
+      architecture:
+        type: string
+        required: false
+      creation_date: # not used when create, after create creatingDate
+        type: string
+        required: false
+      hypervisor: # not used when create
+        type: string
+        required: false
+      image_id: # not used when create
+        type: string
+        required: false
+      name:
+        type: string
+        required: false
+      root_device_name:
+        type: string
+        required: false
+      virtualization_type:
+        type: string
+        required: false
+
+  amazon.nodes.Instance: # ec2_instance, ec2_instance_facts
+    derived_from: amazon.nodes.Root
+    attributes:
+      image: # parameters to override for image when create
+        type: amazon.datatypes.Image
+        required: false
+      name:
+        type: string
+        required: false
+    properties:
+      instance_id: # not used when create
+        type: string
+        required: false
       instance_type:
         type: string
         default: t2.micro
+      key_name:
+        type: string
+        required: false
+      public_ip_address: # not used when create
+        type: string
+        required: false
+      tags:
+        type: map
+        required: false
     capabilities:
       bind:
         type: amazon.capabilities.network.Bindable
         occurrences: [ 0, UNBOUNDED ]
     requirements:
       - image_id:
-          capability: amazon.capabilities.Image
+          capability: amazon.capabilities.Node
           node: amazon.nodes.Image
           relationship: amazon.relationships.DependsOn
           occurrences: [ 0, 1 ]
-      - network:
-          capability: amazon.capabilities.ElasticNetworkInterface
+      - network: # network_interfaces after create, network_interfaces in facts
+          capability: amazon.capabilities.Node
           node: amazon.nodes.ElasticNetworkInterface
           relationship: amazon.relationships.DependsOn
           occurrences: [ 0, UNBOUNDED ]
-      - security_groups:
+      - security_groups: # contains only id after create, contains only id in facts
           capability: amazon.capabilities.Node
           node: amazon.nodes.SecurityGroup
           relationship: amazon.relationships.DependsOn
           occurrences: [ 0, UNBOUNDED ]
-      - vpc_subnet_id:
-          capability: amazon.capabilities.VirtualPrivateCloudSubnet
+      - vpc_subnet_id: # subnet_id after create, subnet_id in facts
+          capability: amazon.capabilities.Node
           node: amazon.nodes.VirtualPrivateCloudSubnet
           relationship: amazon.relationships.DependsOn
           occurrences: [ 0, 1 ]
 
-  amazon.nodes.SecurityGroup:
+  amazon.nodes.SecurityGroup: # ec2_group, ec2_group_facts
     derived_from: amazon.nodes.Root
-    properties:
-      name:
+    attributes:
+      description:
         type: string
         required: false
-      rules:
+    properties:
+      group_id: # not used with create
+        type: string
+        required: false
+      name: # after create group_name
+        type: string
+        required: true
+      rules: # after create ip_permissions
         type: list
         entry_schema:
           type: amazon.datatypes.SecurityGroupRule
         required: false
-      rules_egress:
+      rules_egress: # after create ip_permissions_egress
         type: list
         entry_schema:
           type: amazon.datatypes.SecurityGroupRule
         required: false
     requirements:
       - vpc_id:
-          capability: amazon.capabilities.VirtualPrivateCloud
+          capability: amazon.capabilities.Node
           node: amazon.nodes.VirtualPrivateCloud
           relationship: amazon.relationships.DependsOn
           occurrences: [ 0, 1 ]
 
-  amazon.nodes.VirtualPrivateCloud:
+  amazon.nodes.VirtualPrivateCloud: # ec2_vpc_net, ec2_vpc_net_facts
     derived_from: amazon.nodes.Root
     properties:
-      name:
+      cidr_block:
         type: string
         required: true
-    capabilities:
-      self:
-        type: amazon.capabilities.VirtualPrivateCloud
-        occurrences: [ 1, 1 ]
+      is_default: # not used when create
+        type: boolean
+        required: false
+      name: # after create [tags, Name], tags in facts
+        type: string
+        required: true
+      tags:
+        type: map
+      vpc_id: # not used when create, after create id
+        type: string
+        required: false
 
-  amazon.nodes.VirtualPrivateCloudSubnet:
+  amazon.nodes.VirtualPrivateCloudSubnet: # ec2_vpc_subnet, ec2_vpc_subnet_facts
     derived_from: amazon.nodes.Root
-    capabilities:
-      self:
-        type: amazon.capabilities.VirtualPrivateCloudSubnet
-        occurrences: [ 1, 1 ]
+    properties:
+      cidr: # after create cidr_block, in facts cidr_block
+        type: string
+        required: false
+      map_public: # after create map_public_ip_on_launch, in facts map_public_ip_on_launch
+        type: boolean
+        required: false
+      subnet_id: # not used when create
+        type: string
+        required: false
+      tags:
+        type: map
     requirements:
-      - vpc_id:
-          capability: amazon.capabilities.VirtualPrivateCloud
+      - vpc_id: # after create id
+          capability: amazon.capabilities.Node
           node: amazon.nodes.VirtualPrivateCloud
           relationship: amazon.relationships.DependsOn
           occurrences: [ 1, 1 ]

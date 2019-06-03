@@ -31,235 +31,6 @@ capability_types:
   openstack.capabilities.Node:
     derived_from: tosca.capabilities.Node
 
-  openstack.capabilities.Flavor:
-    derived_from: openstack.capabilities.Root
-    properties:
-      disk:
-        type: scalar-unit.size
-        required: false
-      ephemeral:
-        type: scalar-unit.size
-        default: 0 GiB
-      id:
-        type: string
-        required: false
-      is_public:
-        type: boolean
-        default: true
-      name:
-        type: string
-        required: true
-      ram:
-        type: scalar-unit.size
-        required: false
-      swap:
-        type: scalar-unit.size
-        default: 0 MiB
-      vcpus:
-        type: integer
-        required: false
-
-  openstack.capabilities.Image:
-    derived_from: openstack.capabilities.Root
-    properties:
-      checksum:
-        type: string
-        required: false
-      container_format:
-        type: string
-        default: bare
-      created_at:
-        type: scalar-unit.time
-        required: false
-      disk_format:
-        type: string
-        required: false
-      id:
-        type: string
-        required: false
-      is_public:
-        type: boolean
-        required: false
-      min_disk:
-        type: scalar-unit.size
-        required: false
-      min_ram:
-        type: scalar-unit.size
-        required: false
-      name:
-        type: string
-        required: true
-      owner:
-        type: string
-        required: false
-      properties:
-        type: map
-        entry_schema:
-          type: string
-        default: {}
-      protected:
-        type: boolean
-        required: false
-      size:
-        type: scalar-unit.size
-        required: false
-      updated_at:
-        type: scalar-unit.time
-        required: false
-
-  openstack.capabilities.Network:
-    derived_from: openstack.capabilities.Root
-    properties:
-      id:
-        type: string
-        required: false
-      name:
-        type: string
-        required: true
-      shared:
-        type: boolean
-        default: false
-      router:external:
-        type: boolean
-        default: false
-
-  openstack.capabilities.Port:
-    derived_from: openstack.capabilities.Root
-    properties:
-      admin_state_up:
-        type: boolean
-        required: false
-      allowed_address_pairs:
-        type: list
-        entry_schema:
-          type: string
-        required: false
-      binding_host_id:
-        type: string
-        required: false
-      binding_profile:
-        type: map
-        entry_schema:
-          type: string
-        required: false
-      binding_vif_details:
-        type: map
-        entry_schema:
-          type: string
-        required: false
-      binding_vif_type:
-        type: map
-        entry_schema:
-          type: string
-        required: false
-      binding_vnic_type:
-        type: string
-        required: false
-      device_id:
-        type: string
-        required: false
-      device_owner:
-        type: string
-        required: false
-      dns_assignment:
-        type: list
-        entry_schema:
-          type: string
-        required: false
-      dns_name:
-        type: string
-        required: false
-      extra_dhcp_opts:
-        type: list
-        entry_schema:
-          type: string
-        required: false
-      fixed_ips:
-        type: list
-        entry_schema:
-          type: map
-          entry_schema:
-            type: string
-        required: false
-      id:
-        type: string
-        required: false
-      mac_address:
-        type: string
-        required: false
-      name:
-        type: string
-        required: false
-      port_security_enabled:
-        type: boolean
-        required: false
-
-  openstack.capabilities.Server:
-    derived_from: openstack.capabilities.Root
-    properties:
-      auto_ip:
-        type: boolean
-        required: false
-      config_drive:
-        type: boolean
-        default: false
-      floating_ip_pools:
-        type: string
-        required: false
-      meta:
-        type: list
-        entry_schema:
-          type: string
-        required: false
-      name:
-        type: string
-        required: true
-      reuse_ips:
-        type: boolean
-        default: true
-      schedular_hints:
-        type: map
-        entry_schema:
-          type: string
-        required: false
-      userdata:
-        type: string
-        required: false
-
-  openstack.capabilities.Subnet:
-    derived_from: openstack.capabilities.Root
-    properties:
-      allocation_pools:
-        type: list
-        entry_schema:
-          type: map
-          entry_schema:
-            type: string
-        required: false
-      cidr:
-        type: string
-        required: false
-      dns_nameservers:
-        type: list
-        entry_schema:
-          type: string
-        required: false
-      enable_dhcp:
-        type: boolean
-        default: true
-      gateway_ip:
-        type: string
-        required: false
-      id:
-        type: string
-        required: false
-      ip_version:
-        type: integer
-        default: 4
-      name:
-        type: string
-        required: true
-
 ##########################################################################
 # Node Type.
 # A Node Type is a reusable entity that defines the type of one or more
@@ -279,20 +50,40 @@ node_types:
           relationship: openstack.relationships.DependsOn
           occurrences: [ 0, UNBOUNDED ]
 
-  openstack.nodes.Flavor:
+  openstack.nodes.Flavor: # os_nova_flavor, os_flavor_facts
     derived_from: openstack.nodes.Root
-    properties:
-      extra_specs:
+    properties: # output in flavor
+      disk:
+        type: scalar-unit.size
+        required: false
+      ephemeral:
+        type: scalar-unit.size
+        default: 0 GiB
+      extra_specs: # no in facts
         type: map
         required: false
-    capabilities:
-      self:
-        type: openstack.capabilities.Flavor
-        occurrences: [ 1, 1 ]
+      id:
+        type: string
+        required: false
+      is_public:
+        type: boolean
+        default: true
+      name:
+        type: string
+        required: true
+      ram:
+        type: scalar-unit.size
+        required: false
+      swap:
+        type: scalar-unit.size
+        default: 0 MiB
+      vcpus:
+        type: integer
+        required: false
 
-  openstack.nodes.FloatingIp:
+  openstack.nodes.FloatingIp: # os_floating_ip, no facts
     derived_from: openstack.nodes.Root
-    properties:
+    attributes:
       fixed_address:
         type: string
         required: false
@@ -314,9 +105,9 @@ node_types:
           node: openstack.nodes.Network
           occurrences: [ 0, 1 ]
 
-  openstack.nodes.Image:
+  openstack.nodes.Image: # os_image, os_image_facts
     derived_from: openstack.nodes.Root
-    properties:
+    attributes:
       kernel:
         type: string
         required: false
@@ -329,93 +120,183 @@ node_types:
       filename:
         type: openstack.artifacts.Deployment.Image
         required: false
-    capabilities:
-      self:
-        type: openstack.capabilities.Image
-        occurrences: [ 1, 1 ]
-
-
-  openstack.nodes.Keypair:
-    derived_from: openstack.nodes.Root
     properties:
+      checksum:
+        type: string
+        required: false
+      container_format:
+        type: string
+        default: bare
+      disk_format:
+        type: string
+        required: false
+      id:
+        type: string
+        required: false
+      is_public:
+        type: boolean
+        required: false
+      created_at: # not used in create
+        type: scalar-unit.time
+        required: false
+      min_disk:
+        type: scalar-unit.size
+        required: false
+      min_ram:
+        type: scalar-unit.size
+        required: false
       name:
         type: string
         required: true
+      owner:
+        type: string
+        required: false
+      properties:
+        type: map
+        entry_schema:
+          type: string
+        default: {}
+      protected: # not used in create
+        type: boolean
+        required: false
+      size: # not used in create
+        type: scalar-unit.size
+        required: false
+      updated_at: # not used in create
+        type: scalar-unit.time
+        required: false
+
+  openstack.nodes.Keypair: # os_keypair
+    derived_from: openstack.nodes.Root
+    attributes:
+      name:
+        type: string
+        required: true
+      private_key:  # not used in create
+        type: string
+        required: false
       public_key:
         type: string
         required: false
     artifacts:
-      public_key:
+      public_key_file:
         type: openstack.artifacts.File
         required: false
 
-  openstack.nodes.Network:
+  openstack.nodes.Network: # os_network, os_networks_facts
+    derived_from: openstack.nodes.Root
+    attributes:
+      admin_state_up:
+        type: boolean
+        default: true
+      external: # router:external after create
+        type: boolean
+        default: false
+      port_security_enabled:
+        type: boolean
+        required: false
+      provider_network_type: # provider:network_type after create
+        type: string
+        required: false
+      provider_physical_network: # provider:physical_network after create
+        type: string
+        required: false
+      provider_segmentation_id: # provider:segmentation_id after create
+        type: string
+        required: false
+    capabilities:
+      link:
+        type: openstack.capabilities.network.Linkable
+        occurrences: [0, UNBOUNDED ]
+    properties:
+      id:
+        type: string
+        required: false
+      name:
+        type: string
+        required: true
+      shared:
+        type: boolean
+        default: false
+
+  openstack.nodes.Port: # os_port, os_port_facts
     derived_from: openstack.nodes.Root
     properties:
       admin_state_up:
         type: boolean
-        default: true
-      provider_network_type:
-        type: string
         required: false
-      provider_physical_network:
-        type: string
-        required: false
-      provider_segmentation_id:
-        type: string
-        required: false
-    capabilities:
-      self:
-        type: openstack.capabilities.Network
-        occurrences: [ 1, 1 ]
-      link:
-        type: openstack.capabilities.network.Linkable
-        occurrences: [0, UNBOUNDED ]
-
-  openstack.nodes.NovaHostAggregate:
-    derived_from: openstack.nodes.Root
-    properties:
-      hosts:
+      allowed_address_pairs:
         type: list
         entry_schema:
           type: string
         required: false
-      metadata:
+      binding:host_id: # not used in create
+        type: string
+        required: false
+      binding:profile: # not used in create
         type: map
         entry_schema:
           type: string
         required: false
-      name:
+      binding:vif_details: # not used in create
+        type: map
+        entry_schema:
+          type: string
+        required: false
+      binding:vif_type: # not used in create
+        type: map
+        entry_schema:
+          type: string
+        required: false
+      binding:vnic_type: # not used in create
         type: string
-        required: true
-
-  openstack.nodes.Object:
-    derived_from: openstack.nodes.Root
-    properties:
-      container:
+        required: false
+      device_id: # no output after create
         type: string
-        requied: true
-      container_access:
+        required: false
+      device_owner: # no output after create
         type: string
-        default: private
-        constraints:
-          - valid_values: [ private, public ]
+        required: false
+      dns_assignment: # not used in create
+        type: list
+        entry_schema:
+          type: string
+        required: false
+      dns_name: # not used in create
+        type: string
+        required: false
+      extra_dhcp_opts: # no output after create
+        type: list
+        entry_schema:
+          type: string
+        required: false
+      fixed_ips:
+        type: list
+        entry_schema:
+          type: map
+          entry_schema:
+            type: string
+        required: false
+      id: # not used in create
+        type: string
+        required: false
+      ip_address: # not used in create
+        type: string
+        required: false
+      mac_address: # no output after create
+        type: string
+        required: false
       name:
         type: string
         required: false
-    artifacts:
-      filename:
-        type: openstack.artifacts.Deployment.Image
+      port_security_enabled:
+        type: boolean
         required: false
-
-  openstack.nodes.Port:
-    derived_from: openstack.nodes.Root
-    capabilities:
-      self:
-        type: openstack.capabilities.Port
-        occurrences: [ 1, 1 ]
+      vnic_type: # no in facts
+        type: string
+        default: normal
     requirements:
-      - network:
+      - network: # network_id in facts
           capability: openstack.capabilities.Network
           node: openstack.nodes.Network
           relationships: openstack.relationships.DependsOn
@@ -426,20 +307,23 @@ node_types:
           relationships: openstack.relationships.DependsOn
           occurrences: [0, UNBOUNDED]
 
-  openstack.nodes.Router:
+  openstack.nodes.Router: # os_router
     derived_from: openstack.nodes.Root
-    properties:
+    attributes:
       admin_state_up:
         type: boolean
         default: true
-      enable_snat:
+      enable_snat: # after create [external_gateway_info, enable_snat]
         type: boolean
         required: false
-      external_fixed_ips:
+      external_fixed_ips: # after create [external_gateway_info, external_fixed_ips]
         type: list
         entry_schema:
           type: string
         required: false
+      ip_address:
+        type: string
+        required: false # not used in create, after create [external_gateway_info, ip_address]
       name:
         type: string
         required: true
@@ -458,26 +342,23 @@ node_types:
           relationships: openstack.relationships.DependsOn
           occurrences: [ 0, UNBOUNDED ]
 
-  openstack.nodes.SecurityGroup:
+  openstack.nodes.SecurityGroup: # os_security_group
     derived_from: openstack.nodes.Root
-    properties:
+    attributes:
       description:
         type: string
         required: false
       name:
         type: string
         required: true
-      project:
-        type: string
-        required: false
     capabilities:
       host:
         type: openstack.capabilities.Container
         occurrences: [0, UNBOUNDED ]
 
-  openstack.nodes.SecurityGroupRule:
+  openstack.nodes.SecurityGroupRule: # os_security_group_rule
     derived_from: openstack.nodes.Root
-    properties:
+    attributes:
       direction:
         type: string
         default: ingress
@@ -488,6 +369,9 @@ node_types:
         default: IPv4
         constraints:
           - valid_values: [ IPv4, IPv6 ]
+      id: # not used in create
+        type: string
+        required: false
       port_range_max:
         type: integer
         required: false
@@ -503,27 +387,52 @@ node_types:
         type: string
         required: false
     requirements:
-      - security_group:
+      - security_group: # after create security_group_id
           capability: openstack.capabilities.Container
           node: openstack.nodes.SecurityGroup
           relationship: openstack.relationships.HostedOn
           occurrences: [ 1, 1 ]
 
-  openstack.nodes.Server:
+  openstack.nodes.Server: # os_server, os_server_facts
     derived_from: openstack.nodes.Root
     properties:
+      auto_ip:
+        type: boolean
+        required: false
       boot_from_volume:
         type: boolean
         default: false
+      config_drive:
+        type: boolean
+        default: false
+      floating_ip_pools:
+        type: string
+        required: false
       floating_ips:
         type: list
         entry_schema:
           type: string
         required: false
+      meta:
+        type: list
+        entry_schema:
+          type: string
+        required: false
+      name:
+        type: string
+        required: true
+      reuse_ips:
+        type: boolean
+        default: true
+      schedular_hints:
+        type: map
+        entry_schema:
+          type: string
+        required: false
+      userdata:
+        type: string
+        required: false
     capabilities:
-      self:
-        type: openstack.capabilities.Server
-        occurrences: [ 1, 1 ]
       bind:
         type: openstack.capabilities.network.Bindable
         occurrences: [ 0, UNBOUNDED ]
@@ -531,31 +440,26 @@ node_types:
         type: openstack.capabilities.Container
         occurrences: [ 0, UNBOUNDED ]
     requirements:
-      - volumes:
-          capability: openstack.capabilities.Attachment
-          node: openstack.nodes.Volume
-          relationship: openstack.relationships.AttachesTo
-          occurrences: [ 0, UNBOUNDED ]
       - boot_volume:
           capability: openstack.capabilities.Node
           node: openstack.nodes.Volume
           relationship: openstack.relationships.DependsOn
           occurrences: [ 0, 1 ]
-      - key_name:
-          capability: openstack.capabilities.Node
-          node: openstack.nodes.Keypair
-          relationship: openstack.relationships.DependsOn
-          occurrences: [ 0, 1 ]
-      - security_groups:
-          capability: openstack.capabilities.Node
-          node: openstack.nodes.SecurityGroup
-          relationship: openstack.relationships.DependsOn
-          occurrences: [ 0, UNBOUNDED ]
       - flavor:
          capability: openstack.capabilities.Flavor
          node: openstack.nodes.Flavor
          relationship: openstack.relationships.DependsOn
          occurrences: [ 1, 1 ]
+      - image:
+         capability: openstack.capabilities.Image
+         node: openstack.nodes.Image
+         relationship: openstack.relationships.DependsOn
+         occurrences: [ 1, 1 ]
+      - key_name:
+          capability: openstack.capabilities.Node
+          node: openstack.nodes.Keypair
+          relationship: openstack.relationships.DependsOn
+          occurrences: [ 0, 1 ]
       - network:
          capability: openstack.capabilities.Network
          node: openstack.nodes.Network
@@ -571,64 +475,97 @@ node_types:
          node: openstack.nodes.Port
          relationship: openstack.relationships.DependsOn
          occurrences: [0, UNBOUNDED]
-      - image:
-         capability: openstack.capabilities.Image
-         node: openstack.nodes.Image
-         relationship: openstack.relationships.DependsOn
-         occurrences: [ 1, 1 ]
+      - security_groups:
+          capability: openstack.capabilities.Node
+          node: openstack.nodes.SecurityGroup
+          relationship: openstack.relationships.DependsOn
+          occurrences: [ 0, UNBOUNDED ]
+      - volumes:
+          capability: openstack.capabilities.Attachment
+          node: openstack.nodes.Volume
+          relationship: openstack.relationships.AttachesTo
+          occurrences: [ 0, UNBOUNDED ]
 
-  openstack.nodes.Subnet:
+  openstack.nodes.Subnet: # os_subnet, os_subnets_facts
     derived_from: openstack.nodes.Root
     properties:
-      extra_specs:
-        type: map
-        entry_schema:
-          type: string
-        default: {}
-      host_routes:
+      allocation_pool_end: # in facts allocation_pools
+        type: string
+        required: false
+      allocation_pool_start:
+        type: string
+        required: false
+      cidr:
+        type: string
+        required: false
+      dns_nameservers:
         type: list
         entry_schema:
           type: string
         required: false
-      ipv6_address_mode:
+      enable_dhcp:
+        type: boolean
+        default: true
+      extra_specs: # no in facts
+        type: map
+        entry_schema:
+          type: string
+        default: {}
+      gateway_ip:
+        type: string
+        required: false
+      host_routes: # no in facts
+        type: list
+        entry_schema:
+          type: string
+        required: false
+      id: # not used in create
+        type: string
+        required: false
+      ip_version:
+        type: integer
+        default: 4
+      ipv6_address_mode: # no in facts
         type: string
         required: false
         constraints:
           - valid_values: [ dhcpv6-stateful, dhcpv6-stateless ]
-      ipv6_ra_mode:
+      ipv6_ra_mode: # no in facts
         type: string
         required: false
         constraints:
           - valid_values: [ dhcpv6-stateful, dhcpv6-stateless, slaac ]
-      no_gateway_ip:
+      name:
+        type: string
+        required: true
+      no_gateway_ip: # no in facts
         type: boolean
         default: false
-      project:
+      project: # no in facts
         type: string
         required: false
-      use_default_subnetpool:
+      use_default_subnetpool: # no in facts
         type: boolean
         default: false
-    capabilities:
-      self:
-        type: openstack.capabilities.Subnet
-        occurrences: [ 1, 1 ]
     requirements:
-      - network_name:
+      - network_name: # network_id in facts
           capability: openstack.capabilities.Container
           node: openstack.nodes.Network
           relationship: openstack.relationships.HostedOn
           occurrences: [ 1, 1 ]
 
-  openstack.nodes.Volume:
+  openstack.nodes.Volume: # os_volume
     derived_from: openstack.nodes.Root
-    properties:
+    attributes:
       display_description:
         type: string
         required: false
       display_name:
         type: string
         required: true
+      metadata:
+        type: string
+        required: false
       scheduler_hints:
         type: string
         required: false
