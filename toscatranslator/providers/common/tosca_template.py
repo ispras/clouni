@@ -11,23 +11,44 @@ from toscatranslator.providers.common.provider_resource import ProviderResource
 
 from toscatranslator import tosca_type
 
+from toscatranslator.providers.combined.combined_facts import FACTS_BY_PROVIDER, FACT_NAME_BY_NODE_NAME
+from toscaparser.imports import ImportsLoader
+
 
 class ProviderToscaTemplate (object):
+    ALL_TYPES = ['imports', 'node_types', 'capability_types', 'relationship_types',
+                 'data_types', 'interface_types', 'policy_types', 'group_types']
+
     def __init__(self, tosca_parser_template, facts):
         assert self.definition_file is not None
         assert self.TYPE_FACTS is not None
         assert self.TYPE_NODES is not None
         assert self.PROVIDER is not None
 
-        self.tosca_parser_template = tosca_parser_template  # toscaparser.tosca_template:ToscaTemplate
+        # toscaparser.tosca_template:ToscaTemplate
+        self.tosca_parser_template = tosca_parser_template
+        # toscaparser.topology_template:TopologyTemplate
+        self.tosca_topology_template = tosca_parser_template.topology_template
 
-        self.provider_specific_parser_template = translate_to_provider(self.PROVIDER, self.tosca_parser_template, facts,
-                                                                       self.definition_file)
-        print(json.dumps(self.provider_specific_parser_template.tpl))
+        self.input_facts = facts
+        self.extended_facts = None  # refactored and extended facts
+        self.facts = None  # refactored input_facts
+        # REFACTOR FACTS
+        self.facts = ProviderNodeFilter.refactor_facts(facts)
 
-        self.parser_topology_template = self.provider_specific_parser_template.topology_template
+        import_definition_file = ImportsLoader([self.definition_file], None, self.ALL_TYPES,
+                                               self.tosca_topology_template.tpl)
+        self.provider_defs = import_definition_file.get_custom_defs()
 
-        self.extended_facts = self.extend_facts(facts)
+        self.topology_template = translate_to_provider(self.PROVIDER, self.tosca_topology_template, self.facts,
+                                                       self.provider_defs)
+        self.node_templates = self.topology_template
+
+        self.extended_facts = None
+        not_refactored_extending_facts = self._extending_facts()
+        extending_facts = ProviderNodeFilter.refactor_facts(not_refactored_extending_facts)
+        self.extend_facts(extending_facts)  # fulfill self.extended_facts
+
         ProviderNodeFilter.facts = self.extended_facts
         self.resolve_in_template_dependencies()
         self.ansible_playbook = ''
@@ -40,9 +61,9 @@ class ProviderToscaTemplate (object):
 
     def _provider_nodes(self):
         provider_nodes = list()
-        for node in self.nodetemplates:
+        for node in self.node_templates:
             (namespace, category, type_name) = tosca_type.parse(node.type)
-            if namespace != self.provider or category != 'nodes':
+            if namespace != self.PROVIDER or category != 'nodes':
                 ExceptionCollector.appendException(Exception('Unexpected values'))
             provider_node_class = self.get_node(type_name)
             if provider_node_class:
@@ -78,37 +99,32 @@ class ProviderToscaTemplate (object):
             nodes.extend(self.provider_nodes_by_priority[i])
         return nodes
 
-    def extend_facts(self, facts):
+    def _extending_facts(self):
         """
-        Add some nodes to facts if they are created during script
-        :param facts: existing facts
+        Make facts if they are created during script
         :return:
         """
         # NOTE: optimize this part in future, searching by param, tradeoff between cpu and ram ( N * O(k) vs N * O(1) )
-        new_facts = dict(
-            flavors=[],
-            images=[],
-            networks=[],
-            ports=[],
-            servers=[],
-            subnets=[]
-        )
-        for node in self.nodetemplates:
-            (_, _, type_name) = tosca_type.parse(node.type)
-            if type_name in self.TYPE_FACTS:
-                fact_name = type_name.lower() + 's'
-                caps = node.entity_tpl.get('capabilities')
-                cap = caps.get('self')
-                fact = cap.get('properties')
-                new_facts[fact_name].append(fact)
+        new_facts_key_list = FACTS_BY_PROVIDER.get(self.PROVIDER).keys()
+        new_facts = dict()
+        for key in new_facts_key_list:
+            new_facts[key] = []
 
-        for k, v in new_facts.items():
-            for i in v:
-                facts[k].append(i)
-        return facts
+        for node in self.node_templates:  # node is toscaparser.nodetemplate:NodeTemplate
+            (_, _, type_name) = tosca_type.parse(node.type)
+            fact_name = FACT_NAME_BY_NODE_NAME.get(self.PROVIDER, {}).get(type_name)
+            if fact_name:
+                new_facts[fact_name].append(node.entity_tpl.get('properties'))
+        return new_facts
+
+    def extend_facts(self, facts):
+        if not self.extended_facts:
+            self.extended_facts = self.facts
+        for k, v in facts:
+            self.extended_facts[k] = self.extended_facts.get(k, []).extend(v)
 
     def resolve_in_template_dependencies(self):
-        for node in self.nodetemplates:
+        for node in self.node_templates:
             for req in node.requirements:
                 for k, v in req.items():
                     if type(v) is str:

@@ -4,32 +4,40 @@ from toscatranslator.common.exception import UnspecifiedTranslatorForProviderErr
     UnspecifiedProviderTranslatorForNamespaceError
 from toscatranslator.providers.combined.combine_translators import TRANSLATE_FUNCTION
 
+from toscaparser.topology_template import TopologyTemplate
 
-def translate(provider, tosca_parser_template, facts, definition_file):
-    dict_tpl = tosca_parser_template.tpl
+import copy
+
+
+def translate(provider, tosca_topology_template, facts, custom_defs):
+    dict_tpl = copy.deepcopy(tosca_topology_template.tpl)
     translator_funcs = TRANSLATE_FUNCTION.get(provider)
     if not translator_funcs:
         ExceptionCollector.appendException(UnspecifiedTranslatorForProviderError(
             what=provider
         ))
+
     new_node_templates = {}
-    nodetemplates = dict_tpl.get('topology_template', {}).get('node_templates', {})
-    for node_name, node in nodetemplates.items():
-        (namespace, _, _) = tosca_type.parse(node['type'])
+    nodetemplates = tosca_topology_template.nodetemplates
+    for node in nodetemplates:
+        (namespace, _, _) = tosca_type.parse(node.type)
         translator = translator_funcs.get(namespace)
         if not translator:
             ExceptionCollector.appendException(UnspecifiedProviderTranslatorForNamespaceError(
                 what=namespace
             ))
-        temp_node_templates = translator(node_name, node, facts)
+        temp_node_templates = translator(node, facts)  # returns dict_tpl
         for k, v in temp_node_templates.items():
-            new_node_templates[k] = v
+            new_node_templates[k] = copy.deepcopy(v)
 
     for k, v in new_node_templates.items():
-        dict_tpl['topology_template']['node_templates'][k] = v
-    if not dict_tpl.get('imports'):
-        dict_tpl['imports'] = [definition_file]
-    else:
-        dict_tpl['imports'].append(definition_file)
+        dict_tpl['node_templates'][k] = v
 
-    return dict_tpl
+    rel_types = []
+    for k, v in custom_defs.items():
+        (_, element_type, _) = tosca_type.parse(k)
+        if element_type == 'relationship_types':
+            rel_types.append(v)
+    topology_tpl = TopologyTemplate(dict_tpl, custom_defs, rel_types)
+
+    return topology_tpl

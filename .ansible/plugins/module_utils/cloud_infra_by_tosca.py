@@ -31,14 +31,6 @@ from ansible.module_utils.ec2 import ec2_argument_spec
 
 # TODO place to fulfil if new provider is added
 
-openstack_facts = dict(openstack_flavor_facts=['ansible_facts', 'openstack_flavors'],
-                       openstack_image_facts=['ansible_facts', 'openstack_image'],
-                       openstack_network_facts=['ansible_facts', 'openstack_networks'],
-                       openstack_port_facts=['ansible_facts', 'openstack_ports'],
-                       openstack_server_facts=['ansible_facts', 'openstack_servers'],
-                       openstack_subnet_facts=['ansible_facts', 'openstack_subnets']
-                       )
-
 openstack_facts_module_params_map = dict(
     openstack_flavor_facts='openstack_flavors',
     openstack_image_facts='openstack_image',
@@ -48,23 +40,12 @@ openstack_facts_module_params_map = dict(
     openstack_subnet_facts='openstack_subnets'
 )
 
-amazon_facts = dict(ec2_eni_facts=['network_interfaces'],
-                    ec2_ami_facts=['images'],
-                    ec2_vpc_facts=['vpcs'],
-                    ec2_subnet_facts=['subnets'],
-                    ec2_instance_type_facts=['ansible_facts', 'amazon_instance_types'])
-
 amazon_facts_module_params_map = dict(
     ec2_instance_type_facts='amazon_instance_types'
 )
 
 # IMPORTED PARAMETERS
 
-
-FACTS_BY_PROVIDER = dict(
-    amazon=amazon_facts,
-    openstack=openstack_facts
-)
 
 FACTS_MODULE_PARAMS_MAP_BY_PROVIDER = dict(
     amazon=amazon_facts_module_params_map,
@@ -87,8 +68,11 @@ def get_auth_params_dict():
 
 
 def get_full_facts_list():
+    import importlib
+    facts_by_provider = importlib.import_module('toscatranslator.providers.combined', 'combined_facts')\
+        .FACTS_BY_PROVIDER
     facts = list()
-    for provider, elems in FACTS_BY_PROVIDER.items():
+    for provider, elems in facts_by_provider.items():
         facts.extend(elems.keys())
     return facts
 
@@ -96,7 +80,10 @@ def get_full_facts_list():
 def combine_facts_from_ansible_params(provider, ansible_params):
     if provider is None:
         return dict()
-    fact_keys = FACTS_BY_PROVIDER.get(provider)
+    import importlib
+    facts_by_provider = importlib.import_module('toscatranslator.providers.combined', 'combined_facts')\
+        .FACTS_BY_PROVIDER
+    fact_keys = facts_by_provider.get(provider)
     if not fact_keys:
         return None
     ansible_facts_key_map = FACTS_MODULE_PARAMS_MAP_BY_PROVIDER.get(provider, {})

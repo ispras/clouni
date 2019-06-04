@@ -19,7 +19,7 @@ class TranslatorShell(object):
 
         self.working_dir = os.getcwd()
 
-        output = translate(self.template_file, self.validate_only, self.provider, self.facts, self.working_dir)
+        output = translate(self.template_file, self.validate_only, self.provider, self.facts)
         self.output_print(output)
 
     def get_parser(self):

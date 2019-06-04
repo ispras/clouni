@@ -39,3 +39,6 @@ class ProviderNodeFilter(object):
     def get_facts(self):
         return self.facts
 
+    @staticmethod
+    def refactor_facts(facts):
+        return facts

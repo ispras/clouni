@@ -6,16 +6,16 @@ TOSCA_ELEMENTS = dict(
 )
 
 
-def translate_from_tosca(node_name, node_template, facts):
-    (_, _, type_name) = tosca_type.parse(node_template['type'])
-    tosca_elem = TOSCA_ELEMENTS.get(type_name)(node_name, node_template, facts)
+def translate_from_tosca(node, facts):
+    (_, _, type_name) = tosca_type.parse(node.type)
+    tosca_elem = TOSCA_ELEMENTS.get(type_name)(node.name, node.entity_tpl, facts)
 
     return tosca_elem.amazon_elements()
 
 
-def translate_from_amazon(node_name, node_template, facts):
+def translate_from_amazon(node, facts):
     nodetemplates = dict()
-    nodetemplates[node_name] = node_template
+    nodetemplates[node.name] = node.entity_tpl
     return nodetemplates
 
 
