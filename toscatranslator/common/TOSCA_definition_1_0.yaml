@@ -155,6 +155,9 @@ node_types:
       along with other essential local resources.
     derived_from: tosca.nodes.Root
     attributes:
+      meta:
+        type: map
+        required: false
       private_address:
         type: string
         required: false

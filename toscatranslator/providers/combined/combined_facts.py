@@ -25,12 +25,12 @@ amazon_fact_name_by_node_name = dict(
 )
 
 openstack_fact_name_by_node_name = dict(
-    Flavor='openstack_flavor_facts',
-    Image='openstack_image_facts',
-    Network='openstack_network_facts',
-    Port='openstack_port_facts',
-    Server='openstack_server_facts',
-    Subnet='openstack_subnet_facts'
+    flavor='openstack_flavor_facts',
+    image='openstack_image_facts',
+    network='openstack_network_facts',
+    port='openstack_port_facts',
+    server='openstack_server_facts',
+    subnet='openstack_subnet_facts'
 )
 FACTS_BY_PROVIDER = dict(
     amazon=amazon_facts,
@@ -41,3 +41,4 @@ FACT_NAME_BY_NODE_NAME = dict(
     amazon=amazon_fact_name_by_node_name,
     openstack=openstack_fact_name_by_node_name
 )
+

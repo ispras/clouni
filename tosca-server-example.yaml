@@ -5,9 +5,10 @@ imports:
 
 topology_template:
   node_templates:
-    instance:
+    server_kube_master:
       type: tosca.nodes.Compute
       attributes:
+        meta: "cube_master=true"
         private_address: 192.168.1.5
         public_address: 10.100.114.14
         networks:
@@ -54,3 +55,7 @@ topology_template:
             min_instances: 1
             max_instances: 1
             default_instances: 1
+
+  outputs:
+    server_ip:
+      value: instance.private_ip_address

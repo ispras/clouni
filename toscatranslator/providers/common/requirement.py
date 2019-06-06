@@ -1,34 +1,58 @@
-from toscatranslator.common.exception import FulfillRequirementError
+from toscatranslator.common.exception import FulfillRequirementError, UnavailableNodeFilterError
 from toscaparser.common.exception import ExceptionCollector
 
 
 class ProviderRequirement (object):
 
-    CAPABILITY_NAME = 'self'
+    NAME_SUFFIX = '_name'
+    ID_SUFFIX = '_id'
+    DEFAULT_REQUIRED_PARAMS = ['name', 'id']
 
-    def __init__(self, data):
+    def __init__(self, name, key, data, node_filter_class=None):
+        self.name = name
+        self.key = key
         self.data = data
-        self.name = None
-        self.id = None
+        self.node_filter_class = node_filter_class
+        self.value = None
+
+        self.requires = self.DEFAULT_REQUIRED_PARAMS
+        if self.name[-5:] == self.NAME_SUFFIX:
+            self.requires = ['name']
+        elif self.name[-3:] == self.ID_SUFFIX:
+            self.requires = ['id']
+
+        self.filter()
 
     def filter(self):
+        """
+        Search for required parameters
+        :return:
+        """
         # NOTE: only node_filter supported
-        self.data = self.data.get('node_filter', {})
-        self.name = self.data.get('properties', {}).get('name')
-        self.name = self.data.get('capabilities', {}).get(self.CAPABILITY_NAME, {}).get('properties', {}).get('name') \
-            if not self.name else self.name
-        self.id = self.data.get('properties', {}).get('id')
-        self.id = self.data.get('capabilities', {}).get(self.CAPABILITY_NAME, {}).get('properties', {}).get('id') \
-            if not self.id else self.id
-        if self.NODE_FILTER and not self.name and not self.id:
-            node_filter = self.NODE_FILTER()
-            node_filter.get_name_or_id(self)
+        self.data = self.data.get('node_filter')
+        if self.data is None:
+            ExceptionCollector.appendException(UnavailableNodeFilterError(
+                what=self.name
+            ))
+        capabilities = self.data.get('capabilities', {})
+        for requires in self.requires:
+            self.value = self.data.get('properties', {}).get(requires)
+            if self.value:
+                return
 
-        if not self.name and not self.id:
+            for cap_name, cap_val in capabilities.items():
+                self.value = cap_val.get('properties', {}).get(requires)
+                if self.value:
+                    return
+
+        if self.node_filter_class and not self.value:
+            node_filter = self.node_filter_class(self.key)
+            self.value = node_filter.get_required_value(self.data, self.requires)
+
+        if not self.value:
             raise ExceptionCollector.appendException(FulfillRequirementError(
-                what=self.NAME
+                what=self.name
             ))
 
-    def to_ansible(self):
-        name_or_id = self.id if self.id else self.name
-        return name_or_id
+    def get_value(self):
+        return self.value

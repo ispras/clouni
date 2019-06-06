@@ -43,4 +43,4 @@ def translate(template_file, validate_only, provider, _facts, a_file=True):
             what=provider
         ))
     tosca = tosca_template_class(tosca_parser_template_object, facts)
-    return tosca.to_ansible()
+    return tosca.to_ansible_role_for_create()
