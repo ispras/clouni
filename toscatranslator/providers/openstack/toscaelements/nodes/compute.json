@@ -1,0 +1,75 @@
+{
+  "tosca.nodes.compute.attributes.private_address": {
+    "namespace": "openstack.nodes.Port",
+    "parameter": "properties.fixed_ips",
+    "value": {
+      "parameter": {
+        "namespace": "openstack_network_facts",
+        "value": "name",
+        "function": "equals",
+        "arguments": [
+          "id",
+          {
+            "namespace": "openstack_subnet_facts",
+            "value": "network_id",
+            "function": "contains",
+            "arguments": [
+              "openstack_subnet_facts",
+              "%(self.value)s"
+            ]
+          }
+        ]
+      },
+      "value": "%(self.value)s"
+    }
+  },
+  "tosca.nodes.compute.attributes.public_address": [
+    {
+      "namespace": "openstack.nodes.FloatingIp",
+      "parameter": "attributes.floating_ip_address",
+      "value": "%(self.value)s"
+    },
+    {
+      "namespace": "openstack.nodes.FloatingIp",
+      "parameter": "requirement.network.node_filter",
+      "value": {
+        "parameter": "properties.name",
+        "value": "openstack_network_facts.name",
+        "function": "equals",
+        "arguments": [
+          "id",
+          {
+            "namespace": "openstack_subnet_facts",
+            "value": "network_id",
+            "function": "contains",
+            "arguments": [
+              "openstack_subnet_facts",
+              "%(self.value)s"
+            ]
+          }
+        ]
+      }
+    }
+  ],
+  "tosca.nodes.compute.attributes.networks.network_name": "openstack.nodes.Server.requirements.nics.node_filter.properties.name",
+  "tosca.nodes.compute.attributes.networks.network_id": "openstack.nodes.Server.requirements.nics.node_filter.properties.id",
+  "tosca.nodes.compute.attributes.ports.port_name": "openstack.nodes.Server.requirements.nics.node_filter.properties.name",
+  "tosca.nodes.compute.capabilities.host.num_cpus": "openstack.nodes.Server.requirements.flavor.node_filter.properties.vcpus",
+  "tosca.nodes.compute.capabilities.host.cpu_frequency": {
+    "error": true,
+    "reason": "Openstack doesn't support parameter %(self.parameter)s"
+  },
+  "tosca.nodes.Compute.capabilities.os": {
+    "namespace": "openstack.nodes.Server.requirements.image.node_filter",
+    "parameter": "properties.name",
+    "value": {
+      "namespace": "openstack_image_facts",
+      "value": "name",
+      "funtion": "contains",
+      "arguments": [
+        "name",
+        "%(self),"
+      ]
+    }
+  }
+}

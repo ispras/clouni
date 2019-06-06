@@ -14,7 +14,7 @@ def translate_from_openstack(node, facts):
 
 def translate_from_tosca(node, facts):
     (_, _, type_name) = tosca_type.parse(node.type)
-    tosca_elem = TOSCA_ELEMENTS.get(type_name)(node.name, node.entity_tpl, facts)
+    tosca_elem = TOSCA_ELEMENTS.get(type_name)(node, facts)
 
     return tosca_elem.openstack_elements()
 

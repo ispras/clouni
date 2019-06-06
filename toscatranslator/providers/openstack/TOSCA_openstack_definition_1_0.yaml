@@ -297,7 +297,7 @@ node_types:
         default: normal
     requirements:
       - network: # network_id in facts
-          capability: openstack.capabilities.Network
+          capability: openstack.capabilities.Node
           node: openstack.nodes.Network
           relationships: openstack.relationships.DependsOn
           occurrences: [1, 1]
@@ -332,12 +332,12 @@ node_types:
         required: false
     requirements:
       - network: # external gateway network
-          capability: openstack.capabilities.Network
+          capability: openstack.capabilities.Node
           node: openstack.nodes.Network
           relationships: openstack.relationships.DependsOn
           occurrences: [ 1, 1 ]
       - interfaces:
-          capability: openstack.capabilities.Subnet
+          capability: openstack.capabilities.Node
           node: openstack.nodes.Subnet
           relationships: openstack.relationships.DependsOn
           occurrences: [ 0, UNBOUNDED ]
@@ -446,12 +446,12 @@ node_types:
           relationship: openstack.relationships.DependsOn
           occurrences: [ 0, 1 ]
       - flavor:
-         capability: openstack.capabilities.Flavor
+         capability: openstack.capabilities.Node
          node: openstack.nodes.Flavor
          relationship: openstack.relationships.DependsOn
          occurrences: [ 1, 1 ]
       - image:
-         capability: openstack.capabilities.Image
+         capability: openstack.capabilities.Node
          node: openstack.nodes.Image
          relationship: openstack.relationships.DependsOn
          occurrences: [ 1, 1 ]
@@ -461,17 +461,17 @@ node_types:
           relationship: openstack.relationships.DependsOn
           occurrences: [ 0, 1 ]
       - network:
-         capability: openstack.capabilities.Network
+         capability: openstack.capabilities.Node
          node: openstack.nodes.Network
          relationship: openstack.relationships.DependsOn
          occurrences: [ 1, 1 ]
       - nics:
-         capability: openstack.capabilities.Network
+         capability: openstack.capabilities.Node
          node: openstack.nodes.Network
          relationship: openstack.relationships.DependsOn
          occurrences: [ 0, UNBOUNDED ]
       - nics:
-         capability: openstack.capabilities.Port
+         capability: openstack.capabilities.Node
          node: openstack.nodes.Port
          relationship: openstack.relationships.DependsOn
          occurrences: [0, UNBOUNDED]
@@ -581,7 +581,7 @@ node_types:
         occurrences: [ 0, 1 ]
     requirements:
       - image:
-          capability: openstack.capabilities.Image
+          capability: openstack.capabilities.Node
           node: openstack.nodes.Image
           relationship: openstack.relationships.DependsOn
           occurrences: [ 0, 1 ]
@@ -614,7 +614,7 @@ relationship_types:
   openstack.relationships.ConnectsTo:
     description: This type represents the network connection between to instances or two software components.
     derived_from: tosca.relationships.Root
-    valid_target_types: [ openstack.capabilities.Network ]
+    valid_target_types: [ openstack.capabilities.Node ]
 
   openstack.relationships.AttachesTo:
     description: This type represents the attachment of volume to the server

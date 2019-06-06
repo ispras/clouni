@@ -7,7 +7,9 @@ from toscatranslator.common.exception import InappropriateParameterValueError
 
 
 class ToscaComputeNode(ToscaNodeForTranslate):
-    def __init__(self, name, template, facts):
+    def __init__(self, node, facts):
+        name = node.name
+        template = node.entity_tpl
         super(ToscaComputeNode, self).__init__(name, template, facts)
         attributes = self.template.get("attributes", {})
         # capability server

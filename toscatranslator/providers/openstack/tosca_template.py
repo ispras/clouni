@@ -35,8 +35,6 @@ class OpenstackToscaTemplate(ProviderToscaTemplate):
         Volume=OpenstackVolumeNode
     )
 
-    # NOTE: FACTS have properties of correspond capability
-    TYPE_FACTS = {'Flavor', 'Image', 'Network', 'Port', 'Server', 'Subnet'}
     PROVIDER = 'openstack'
 
     def __init__(self, tosca_parser_template_object, facts):
