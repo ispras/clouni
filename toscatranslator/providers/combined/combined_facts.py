@@ -69,4 +69,37 @@ PROVIDER_NODEFILTER_FACTS_BY_KEY = dict(
 ##########################################################################
 # FACTS REFACTORING
 ##########################################################################
+refactoring_flavor_keys = dict(
 
+)
+refactoring_image_keys = dict(
+
+)
+refactoring_network_keys = dict(
+
+)
+refactoring_port_keys = dict(
+
+)
+refactoring_server_keys = dict(
+
+)
+refactoring_subnet_keys = dict(
+
+)
+
+REFACTORING_FACT_KEYS = dict(
+    ec2_eni_facts=None,
+    ec2_ami_facts=None,
+    ec2_vpc_facts=None,
+    ec2_subnet_facts=None,
+    ec2_instance_type_facts=None,
+
+    openstack_flavor_facts=refactoring_flavor_keys,
+    openstack_image_facts=refactoring_image_keys,
+    openstack_network_facts=refactoring_network_keys,
+    openstack_port_facts=refactoring_port_keys,
+    openstack_server_facts=refactoring_server_keys,
+    openstack_subnet_facts=refactoring_subnet_keys
+
+)
