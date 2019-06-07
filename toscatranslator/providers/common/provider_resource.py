@@ -1,23 +1,23 @@
 import yaml
 import copy
-from toscatranslator.providers.combined.combine_requirements import PROVIDER_REQUIREMENTS
+from toscatranslator.common import tosca_type
+
+MAX_NUM_PRIORITIES = 5
 
 
 class ProviderResource(object):
-
-    MAX_NUM_PRIORITIES = 5
 
     def __init__(self, node):
         """
 
         :param node: class NodeTemplate from toscaparser
         """
-        assert self.PRIORITY is not None
-        assert self.ANSIBLE_DESCRIPTION is not None
-        assert self.ANSIBLE_MODULE is not None
         # NOTE: added as a parameter in toscatranslator.providers.common.tosca_template:ProviderToscaTemplate
-        assert self.PROVIDER is not None
 
+        self.nodetemplate = node
+        self.type = node.type
+        (_, _, type_name) = tosca_type.parse(self.type)
+        self.type_name = type_name
         # NOTE: filling the parameters from openstack definition to parse from input template
         node_type = node.type_definition  # toscaparser.elements.nodetype.NodeType
         self.definitions_by_name = None
@@ -57,7 +57,7 @@ class ProviderResource(object):
             for key, value in node.artifacts:
                 self.ansible_args[key] = value
 
-        provider_requirements = PROVIDER_REQUIREMENTS[self.PROVIDER](self.requirement_definitions)
+        provider_requirements = self.all_provider_requirements()(self.requirement_definitions)
         self.requirements = provider_requirements.get_requirements(node)
         for key, req in self.requirements.items():
             if type(req) is list:
@@ -133,8 +133,21 @@ class ProviderResource(object):
         ansible_args['state'] = 'present'
         ansible_args.update(additional_args)
         self.ansible_task_as_dict = dict()
-        self.ansible_task_as_dict['name'] = self.ANSIBLE_DESCRIPTION
-        self.ansible_task_as_dict[self.ANSIBLE_MODULE] = self.ansible_args
+        self.ansible_task_as_dict['name'] = self.ansible_description_by_type()
+        self.ansible_task_as_dict[self.ansible_module_by_type()] = self.ansible_args
         self.ansible_task = yaml.dump(self.ansible_task_as_dict)
 
         return self.ansible_task
+
+    def node_priority_by_type(self):
+        raise NotImplementedError()
+
+    def ansible_description_by_type(self):
+        raise NotImplementedError()
+
+    def ansible_module_by_type(self):
+        raise NotImplementedError()
+
+    def all_provider_requirements(self):
+        assert self.PROVIDER_REQUIREMENTS is not None
+        return self.PROVIDER_REQUIREMENTS

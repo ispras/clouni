@@ -4,16 +4,20 @@ from toscatranslator.providers.combined.combined_facts import FACT_NAME_BY_NODE_
 class ProviderNodeFilter(object):
 
     """
-    facts attribute: Class has additional attribute filled in toscatranslator.common.translator_to_ansible translate()
+    facts attribute: Class has additional attribute filled in toscatranslator.providers.common.tosca_template
     """
-    def __init__(self, key):
+    def __init__(self, provider, key):
+        self.provider = provider
 
-        self.facts_key = FACT_NAME_BY_NODE_NAME.get(key)
-        self.all_facts = self.facts
-        if self.facts_key:
-            self.facts = self.all_facts.get(self.facts_key, [])
+        if isinstance(key, tuple):
+            self.facts_keys = set(self.fact_name_by_node_name(k) for k in key)
         else:
-            self.facts = []
+            self.facts_keys = set()
+        self.all_facts = self.facts
+        self.facts = []
+        for facts_key in self.facts_keys:
+            self.facts += self.all_facts.get(facts_key, [])
+
         # TODO Make dictionary plain, deprecated after refactor
         for i in range(0, len(self.facts)):
             self.facts[i] = dict((str(k), str(v)) for k, v in self.facts[i].items())
@@ -55,3 +59,6 @@ class ProviderNodeFilter(object):
         :return: dictionary contains parameters as in provider definition
         """
         return facts
+
+    def fact_name_by_node_name(self, node_name):
+        return FACT_NAME_BY_NODE_NAME.get(self.provider).get(node_name)

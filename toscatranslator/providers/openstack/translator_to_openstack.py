@@ -1,5 +1,5 @@
 from toscatranslator.providers.openstack.toscaelements.nodes.compute import ToscaComputeNode
-from toscatranslator import tosca_type
+from toscatranslator.common import tosca_type
 
 TOSCA_ELEMENTS = dict(
     Compute=ToscaComputeNode

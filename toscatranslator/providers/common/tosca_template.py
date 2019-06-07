@@ -1,18 +1,19 @@
-import json
+import os
+import copy
 
 from toscaparser.common.exception import ExceptionCollector
 
 from toscatranslator.providers.common.translator_to_provider import translate as translate_to_provider
 
-from toscatranslator.common.exception import UnsupportedNodeTypeError
-
 from toscatranslator.providers.common.nodefilter import ProviderNodeFilter
-from toscatranslator.providers.common.provider_resource import ProviderResource
+from toscatranslator.providers.common.provider_resource import MAX_NUM_PRIORITIES
 
-from toscatranslator import tosca_type
+from toscatranslator.common import tosca_type
 
 from toscatranslator.providers.combined.combined_facts import FACTS_BY_PROVIDER, FACT_NAME_BY_NODE_NAME
 from toscaparser.imports import ImportsLoader
+
+from toscaparser.topology_template import TopologyTemplate
 
 
 class ProviderToscaTemplate (object):
@@ -20,11 +21,6 @@ class ProviderToscaTemplate (object):
                  'data_types', 'interface_types', 'policy_types', 'group_types']
 
     def __init__(self, tosca_parser_template, facts):
-        assert self.definition_file is not None
-        assert self.TYPE_NODES is not None
-        assert self.PROVIDER is not None
-
-        ProviderResource.PROVIDER = self.PROVIDER
 
         # toscaparser.tosca_template:ToscaTemplate
         self.tosca_parser_template = tosca_parser_template
@@ -37,12 +33,12 @@ class ProviderToscaTemplate (object):
         # REFACTOR FACTS
         self.facts = ProviderNodeFilter.refactor_facts(facts)
 
-        import_definition_file = ImportsLoader([self.definition_file], None, self.ALL_TYPES,
+        import_definition_file = ImportsLoader([self.definition_file()], None, self.ALL_TYPES,
                                                self.tosca_topology_template.tpl)
         self.provider_defs = import_definition_file.get_custom_defs()
 
-        self.topology_template = translate_to_provider(self.PROVIDER, self.tosca_topology_template, self.facts,
-                                                       self.provider_defs)
+        self.topology_template = self.translate_to_provider()
+
         self.node_templates = self.topology_template.nodetemplates
 
         self.extended_facts = None
@@ -53,10 +49,10 @@ class ProviderToscaTemplate (object):
         ProviderNodeFilter.facts = self.extended_facts
         self.resolve_in_template_dependencies()
 
-        self.ansible_role = ''
-        self.ansible_role_ready = False
+        self.ansible_role = None
+        self.ansible_role_ready = None
         self.provider_nodes_by_priority = dict()
-        for i in range(0, ProviderResource.MAX_NUM_PRIORITIES):
+        for i in range(0, MAX_NUM_PRIORITIES):
             self.provider_nodes_by_priority[i] = []
 
         self.provider_nodes = self._provider_nodes()
@@ -70,55 +66,47 @@ class ProviderToscaTemplate (object):
         provider_nodes = list()
         for node in self.node_templates:
             (namespace, category, type_name) = tosca_type.parse(node.type)
-            if namespace != self.PROVIDER or category != 'nodes':
+            if namespace != self.provider() or category != 'nodes':
                 ExceptionCollector.appendException(Exception('Unexpected values'))
-            provider_node_class = self.get_node(type_name)
-            if provider_node_class:
-                instance = provider_node_class(node)  # Initialize ProviderResource instance
-                provider_nodes.append(instance)
-            else:
-                ExceptionCollector.appendException(UnsupportedNodeTypeError(node.type))
+            provider_node_instance = self.provider_resource_class(node)  # Initialize ProviderResource instance
+            provider_nodes.append(provider_node_instance)
         return provider_nodes
-
-    def get_node(self, type_name):
-        """
-        Find a class inherited from ProviderResource by name
-        :param type_name: class type object
-        :return:
-        """
-        return self.TYPE_NODES.get(type_name)
 
     def to_ansible_role_for_create(self):
         """
         Fulfill ansible_role with ansible_create functions from every node
         :return:
         """
+        self.ansible_role = ''
+        self.ansible_role_ready = False
         nodes_queue = self.sort_nodes_by_dependency()
         for node in nodes_queue:
-            self.ansible_role += node.to_ansible_task_for_create() + '\n'
+            self.ansible_role += node.get_ansible_task_for_create() + '\n'
         self.ansible_role += '\n'
         self.ansible_role_ready = True
         return self.ansible_role
 
     def _sort_nodes_by_priority(self):
         """
-        Every ProviderResource child class has PRIORITY which reflects in order of objects to create in ansible
-        :return: dictionary with keys = PRIORITY
+        Every ProviderResource child class has priority which reflects in order of objects to create in ansible
+        :return: dictionary with keys = priority
         """
         sorted_by_priority = dict()
-        for i in range(0, ProviderResource.MAX_NUM_PRIORITIES):
+        for i in range(0, MAX_NUM_PRIORITIES):
             sorted_by_priority[i] = []
         for node in self.provider_nodes:
-            sorted_by_priority[node.PRIORITY].append(node)
+            (_, _, type_name) = tosca_type.parse(node.type)
+            priority = node.node_priority_by_type(type_name)
+            sorted_by_priority[priority].append(node)
         return sorted_by_priority
 
     def sort_nodes_by_dependency(self):
         """
         TODO Use dependency requirement between nodes of the same type, check dependency of different types
-        :return: List of nodes sorted by PRIORITY
+        :return: List of nodes sorted by priority
         """
         nodes = []
-        for i in range(0, ProviderResource.MAX_NUM_PRIORITIES):
+        for i in range(0, MAX_NUM_PRIORITIES):
             nodes.extend(self.provider_nodes_by_priority[i])
         return nodes
 
@@ -128,14 +116,14 @@ class ProviderToscaTemplate (object):
         :return:
         """
         # NOTE: optimize this part in future, searching by param, tradeoff between cpu and ram ( N * O(k) vs N * O(1) )
-        new_facts_key_list = FACTS_BY_PROVIDER.get(self.PROVIDER).keys()
+        new_facts_key_list = FACTS_BY_PROVIDER.get(self.provider()).keys()
         new_facts = dict()
         for key in new_facts_key_list:
             new_facts[key] = []
 
         for node in self.node_templates:  # node is toscaparser.nodetemplate:NodeTemplate
             (_, _, type_name) = tosca_type.parse(node.type)
-            fact_name = FACT_NAME_BY_NODE_NAME.get(self.PROVIDER, {}).get(type_name.lower())
+            fact_name = FACT_NAME_BY_NODE_NAME.get(self.provider(), {}).get(type_name.lower())
             if fact_name:
                 new_facts[fact_name].append(node.entity_tpl.get('properties'))
         return new_facts
@@ -144,7 +132,7 @@ class ProviderToscaTemplate (object):
         if not self.extended_facts:
             self.extended_facts = self.facts
         for k, v in facts.items():
-            self.extended_facts[k] = self.extended_facts.get(k, []).extend(v)
+            self.extended_facts[k] = self.extended_facts.get(k, []) + v
 
     def resolve_in_template_dependencies(self):
         """
@@ -167,3 +155,39 @@ class ProviderToscaTemplate (object):
                         req[k] = dict(
                             node_filter=node_filter
                         )
+
+    def definition_file(self):
+        assert self.FILE_DEFINITION is not None
+        cur_dir = os.path.dirname(__file__)
+        par_dir = os.path.dirname(cur_dir)
+        file_name = os.path.join(par_dir, self.provider(), self.FILE_DEFINITION)
+
+        return file_name
+
+    def provider(self):
+        assert self.PROVIDER is not None
+        return self.PROVIDER
+
+    def provider_resource_class(self, node):
+        raise NotImplementedError()
+
+    def translate_functions(self):
+        raise NotImplementedError()
+
+    def translate_to_provider(self):
+        new_node_templates = translate_to_provider(self.translate_functions(),
+                                                   self.tosca_topology_template.nodetemplates, self.facts)
+
+        dict_tpl = copy.deepcopy(self.tosca_topology_template.tpl)
+        for k, v in new_node_templates.items():
+            dict_tpl['node_templates'][k] = v
+
+        rel_types = []
+        for k, v in self.provider_defs.items():
+            (_, element_type, _) = tosca_type.parse(k)
+            if element_type == 'relationship_types':
+                rel_types.append(v)
+        topology_tpl = TopologyTemplate(dict_tpl, self.provider_defs, rel_types)
+
+        return topology_tpl
+

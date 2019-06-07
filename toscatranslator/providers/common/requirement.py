@@ -1,6 +1,8 @@
 from toscatranslator.common.exception import FulfillRequirementError, UnavailableNodeFilterError
 from toscaparser.common.exception import ExceptionCollector
 
+from toscatranslator.providers.common.nodefilter import ProviderNodeFilter
+
 
 class ProviderRequirement (object):
 
@@ -8,11 +10,12 @@ class ProviderRequirement (object):
     ID_SUFFIX = '_id'
     DEFAULT_REQUIRED_PARAMS = ['name', 'id']
 
-    def __init__(self, name, key, data, node_filter_class=None):
+    def __init__(self, provider, name, key, data, node_filter_key=None):
+        self.provider = provider
         self.name = name
         self.key = key
         self.data = data
-        self.node_filter_class = node_filter_class
+        self.node_filter_key = node_filter_key
         self.value = None
 
         self.requires = self.DEFAULT_REQUIRED_PARAMS
@@ -45,8 +48,8 @@ class ProviderRequirement (object):
                 if self.value:
                     return
 
-        if self.node_filter_class and not self.value:
-            node_filter = self.node_filter_class(self.key)
+        if self.node_filter_key and not self.value:
+            node_filter = ProviderNodeFilter(self.provider, self.node_filter_key)
             self.value = node_filter.get_required_value(self.data, self.requires)
 
         if not self.value:
