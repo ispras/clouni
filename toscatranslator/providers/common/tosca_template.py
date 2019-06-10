@@ -44,7 +44,8 @@ class ProviderToscaTemplate (object):
 
         self.extended_facts = None
         not_refactored_extending_facts = self._extending_facts()
-        extending_facts = ProviderNodeFilter.refactor_facts(not_refactored_extending_facts, self.provider_defs)
+        extending_facts = ProviderNodeFilter.refactor_facts(not_refactored_extending_facts, self.provider(),
+                                                            self.provider_defs)
         self.extend_facts(extending_facts)  # fulfill self.extended_facts
 
         ProviderNodeFilter.facts = self.extended_facts

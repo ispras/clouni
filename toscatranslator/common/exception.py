@@ -45,3 +45,7 @@ class UnspecifiedFactsParserForProviderError(TOSCAException):
 class UnsupportedFactsFormat(TOSCAException):
     msg_fmt = _('Input error for parameter "facts": "dict" or "path" is required. If path is provided, '
                 'then path is incorrect.')
+
+
+class UnsupportedFilteringValues(TOSCAException):
+    msg_fmt = _('Unable to match objects of type %(what) with value of type %(target)')

@@ -1,12 +1,14 @@
 from toscatranslator.providers.combined.combined_facts import FACT_NAME_BY_NODE_NAME, REFACTORING_FACT_KEYS
 from toscatranslator.common import tosca_type
+from toscaparser.common.exception import ExceptionCollector, ValidationError
+from toscatranslator.common.exception import UnsupportedFilteringValues
 
 
 class ProviderNodeFilter(object):
-
     """
     facts attribute: Class has additional attribute filled in toscatranslator.providers.common.tosca_template
     """
+
     def __init__(self, provider, key):
         self.provider = provider
 
@@ -19,18 +21,56 @@ class ProviderNodeFilter(object):
         for facts_key in self.facts_keys:
             self.facts += self.all_facts.get(facts_key, [])
 
-        # TODO Make dictionary plain, deprecated after refactor
-        for i in range(0, len(self.facts)):
-            self.facts[i] = dict((str(k), str(v)) for k, v in self.facts[i].items())
-
     def filter_params(self, params):
-        matched_objs = self.facts
+        ExceptionCollector.start()
+        input_objs = self.facts
+        matched_objs = []
         for param, filter_value in params.items():
-            filter_str = str(filter_value)
-            matched_objs = (obj for obj in matched_objs if filter_str == obj.get(param))
+            for obj in input_objs:
+                matching_value = obj.get(param)
+                if matching_value is None:
+                    continue
+                elif isinstance(filter_value, list):
+                    matched_value = matching_value if isinstance(matching_value, list) else \
+                        matching_value.values() if isinstance(matching_value, dict) else None
+                    if matched_value is None:
+                        raise UnsupportedFilteringValues(
+                            what=filter_value,
+                            target=matching_value
+                        )
+                    matched_bool = True
+                    for v in filter_value:
+                        if not (v in matched_value):
+                            matched_bool = False
+                            break
+                    if matched_bool:
+                        matched_objs.append(obj)
+                elif isinstance(filter_value, dict):
+                    if not isinstance(matching_value, dict):
+                        raise UnsupportedFilteringValues(
+                            what=filter_value,
+                            target=matching_value
+                        )
+                    matched_bool = True
+                    for k, v in filter_value.items():
+                        if matching_value.get(k) != v:
+                            matched_bool = False
+                            break
+                    if matched_bool:
+                        matched_objs.append(obj)
+                else:
+                    matched_value = matching_value if isinstance(matching_value, list) else \
+                        matching_value.values() if isinstance(matching_value, dict) else [matching_value]
+                    if filter_value in matched_value:
+                        matched_objs.append(obj)
 
-        first_matched = next(iter(matched_objs), {})
-        return first_matched
+        ExceptionCollector.stop()
+        if ExceptionCollector.exceptionsCaught():
+            raise ValidationError(
+                message='Filtering facts to get value for node_filter failed'
+                    .join(ExceptionCollector.getExceptionsReport())
+            )
+        return matched_objs
 
     def filter_node(self, req_data):
         filter_params = req_data.get('properties', {})
@@ -45,7 +85,10 @@ class ProviderNodeFilter(object):
         :param required_params: parameters which are required to be returned
         :return: value of required parameter
         """
-        first_matched = self.filter_node(req_data)
+        matched_objs = self.filter_node(req_data)
+        if not matched_objs:
+            return None
+        first_matched = next(iter(matched_objs))
         for param in required_params:
             value = first_matched.get(param)
             if value:

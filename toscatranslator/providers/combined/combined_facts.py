@@ -103,7 +103,8 @@ refactoring_network_keys = dict(
 )
 refactoring_port_keys = dict(
     network=['network_id'],
-    vnic_type=['binding:vnic_type']
+    vnic_type=['binding:vnic_type'],
+    ip_address=['fixed_ips', 'ip_address']
 )
 refactoring_server_keys = dict(
     meta=['metadata'],
