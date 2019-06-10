@@ -1,4 +1,5 @@
-from toscatranslator.providers.combined.combined_facts import FACT_NAME_BY_NODE_NAME
+from toscatranslator.providers.combined.combined_facts import FACT_NAME_BY_NODE_NAME, REFACTORING_FACT_KEYS
+from toscatranslator.common import tosca_type
 
 
 class ProviderNodeFilter(object):
@@ -52,13 +53,65 @@ class ProviderNodeFilter(object):
         return None
 
     @staticmethod
-    def refactor_facts(facts):
+    def make_fact_value(fact_value, ref_keys, input_fact):
+        num_keys = len(ref_keys)
+        for i in range(num_keys):
+            k = ref_keys[i]
+            if fact_value is None:
+                fact_value = input_fact.get(k)
+            elif isinstance(fact_value, dict):
+                fact_value = fact_value if fact_value.get(k) is None else fact_value.get(k)
+            elif isinstance(fact_value, list):
+                fact_value = [ProviderNodeFilter.make_fact_value(value, ref_keys[i:], input_fact)
+                              for value in fact_value]
+            else:
+                return fact_value
+        return fact_value
+
+    @staticmethod
+    def refactor_facts(facts, provider, provider_defs):
         """
         Makes facts consistent with provider definition, facts only used for capabilities.properties and properties
+        :param provider:
+        :param provider_defs:
         :param facts: dictionary contains parameters from ansible facts
         :return: dictionary contains parameters as in provider definition
         """
-        return facts
+        refactored_facts = dict()
+        fact_name_by_node_name = FACT_NAME_BY_NODE_NAME.get(provider)  # NOTE: ensured is not None
+        for def_type, definition in provider_defs.items():  # is a dict, not list
+            (_, category, type_name) = tosca_type.parse(def_type)
+            if category != 'nodes':
+                continue
+            fact_name = fact_name_by_node_name.get(type_name.lower())  # NOTE: could be None
+            if fact_name is not None:
+                input_facts = facts.get(fact_name)
+                refactoring_keys = REFACTORING_FACT_KEYS.get(fact_name, {})
+                available_fact_keys = set()
+                properties = definition.get('properties', {})
+                available_fact_keys.update(properties.keys())
+                capabilities = definition.get('capabilities', {})
+                for cap_def in capabilities.values():
+                    cap_type = cap_def.get('type')
+                    if cap_type is not None:
+                        cap_type_def = provider_defs.get(cap_type, {})
+                        available_fact_keys.update(cap_type_def.get('properties', {}).keys())
+                requirements = definition.get('requirements', [])
+                available_fact_keys.update(next(iter(req.keys())) for req in requirements)
+
+                output_facts = []
+                for input_fact in input_facts:
+                    output_fact = {}
+                    for fact_key in available_fact_keys:
+                        fact_value = input_fact.get(fact_key)
+                        if fact_value is None:
+                            ref_keys = refactoring_keys.get(fact_key, [])
+                            fact_value = ProviderNodeFilter.make_fact_value(None, ref_keys, input_fact)
+                        if fact_value is not None:
+                            output_fact[fact_key] = fact_value
+                    output_facts.append(output_fact)
+                refactored_facts[fact_name] = output_facts
+        return refactored_facts
 
     def fact_name_by_node_name(self, node_name):
         return FACT_NAME_BY_NODE_NAME.get(self.provider).get(node_name)

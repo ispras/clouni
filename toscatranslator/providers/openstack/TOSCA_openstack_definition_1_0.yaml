@@ -127,6 +127,9 @@ node_types:
       container_format:
         type: string
         default: bare
+      created_at: # not used in create
+        type: scalar-unit.time
+        required: false
       disk_format:
         type: string
         required: false
@@ -135,9 +138,6 @@ node_types:
         required: false
       is_public:
         type: boolean
-        required: false
-      created_at: # not used in create
-        type: scalar-unit.time
         required: false
       min_disk:
         type: scalar-unit.size
@@ -248,9 +248,6 @@ node_types:
         entry_schema:
           type: string
         required: false
-      binding:vnic_type: # not used in create
-        type: string
-        required: false
       device_id: # no output after create
         type: string
         required: false
@@ -292,7 +289,7 @@ node_types:
       port_security_enabled:
         type: boolean
         required: false
-      vnic_type: # no in facts
+      vnic_type: # binding:vnic_type in facts
         type: string
         default: normal
     requirements:
@@ -395,14 +392,11 @@ node_types:
 
   openstack.nodes.Server: # os_server, os_server_facts
     derived_from: openstack.nodes.Root
-    properties:
+    attributes:
       auto_ip:
         type: boolean
         required: false
       boot_from_volume:
-        type: boolean
-        default: false
-      config_drive:
         type: boolean
         default: false
       floating_ip_pools:
@@ -413,7 +407,20 @@ node_types:
         entry_schema:
           type: string
         required: false
-      meta:
+      reuse_ips:
+        type: boolean
+        default: true
+    properties:
+      config_drive:
+        type: boolean
+        default: false
+      created_at: # not used in create
+        type: string
+        required: false
+      id:  # not used in create
+        type: string
+        required: false
+      meta: # metadata in facts
         type: list
         entry_schema:
           type: string
@@ -421,15 +428,15 @@ node_types:
       name:
         type: string
         required: true
-      reuse_ips:
-        type: boolean
-        default: true
-      schedular_hints:
+      scheduler_hints:
         type: map
         entry_schema:
           type: string
         required: false
-      userdata:
+      userdata: # user_data in facts
+        type: string
+        required: false
+      vm_state: # not used in create
         type: string
         required: false
     capabilities:
@@ -488,6 +495,36 @@ node_types:
 
   openstack.nodes.Subnet: # os_subnet, os_subnets_facts
     derived_from: openstack.nodes.Root
+    attributes:
+      extra_specs:
+        type: map
+        entry_schema:
+          type: string
+        default: {}
+      host_routes:
+        type: list
+        entry_schema:
+          type: string
+        required: false
+      ipv6_address_mode:
+        type: string
+        required: false
+        constraints:
+          - valid_values: [ dhcpv6-stateful, dhcpv6-stateless ]
+      ipv6_ra_mode:
+        type: string
+        required: false
+        constraints:
+          - valid_values: [ dhcpv6-stateful, dhcpv6-stateless, slaac ]
+      no_gateway_ip:
+        type: boolean
+        default: false
+      project:
+        type: string
+        required: false
+      use_default_subnetpool:
+        type: boolean
+        default: false
     properties:
       allocation_pool_end: # in facts allocation_pools
         type: string
@@ -506,18 +543,8 @@ node_types:
       enable_dhcp:
         type: boolean
         default: true
-      extra_specs: # no in facts
-        type: map
-        entry_schema:
-          type: string
-        default: {}
       gateway_ip:
         type: string
-        required: false
-      host_routes: # no in facts
-        type: list
-        entry_schema:
-          type: string
         required: false
       id: # not used in create
         type: string
@@ -525,28 +552,9 @@ node_types:
       ip_version:
         type: integer
         default: 4
-      ipv6_address_mode: # no in facts
-        type: string
-        required: false
-        constraints:
-          - valid_values: [ dhcpv6-stateful, dhcpv6-stateless ]
-      ipv6_ra_mode: # no in facts
-        type: string
-        required: false
-        constraints:
-          - valid_values: [ dhcpv6-stateful, dhcpv6-stateless, slaac ]
       name:
         type: string
         required: true
-      no_gateway_ip: # no in facts
-        type: boolean
-        default: false
-      project: # no in facts
-        type: string
-        required: false
-      use_default_subnetpool: # no in facts
-        type: boolean
-        default: false
     requirements:
       - network_name: # network_id in facts
           capability: openstack.capabilities.Container

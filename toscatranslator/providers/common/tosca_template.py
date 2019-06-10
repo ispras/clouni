@@ -30,12 +30,13 @@ class ProviderToscaTemplate (object):
         self.input_facts = facts
         self.extended_facts = None  # refactored and extended facts
         self.facts = None  # refactored input_facts
-        # REFACTOR FACTS
-        self.facts = ProviderNodeFilter.refactor_facts(facts)
 
         import_definition_file = ImportsLoader([self.definition_file()], None, self.ALL_TYPES,
                                                self.tosca_topology_template.tpl)
         self.provider_defs = import_definition_file.get_custom_defs()
+
+        # REFACTOR FACTS
+        self.facts = ProviderNodeFilter.refactor_facts(facts, self.provider(), self.provider_defs)
 
         self.topology_template = self.translate_to_provider()
 
@@ -43,7 +44,7 @@ class ProviderToscaTemplate (object):
 
         self.extended_facts = None
         not_refactored_extending_facts = self._extending_facts()
-        extending_facts = ProviderNodeFilter.refactor_facts(not_refactored_extending_facts)
+        extending_facts = ProviderNodeFilter.refactor_facts(not_refactored_extending_facts, self.provider_defs)
         self.extend_facts(extending_facts)  # fulfill self.extended_facts
 
         ProviderNodeFilter.facts = self.extended_facts
