@@ -1,5 +1,5 @@
 {
-  "tosca.nodes.compute.attributes.private_address": {
+  "tosca.nodes.Compute.attributes.private_address": {
     "namespace": "openstack.nodes.Port",
     "parameter": "properties.fixed_ips",
     "value": {
@@ -23,7 +23,7 @@
       "value": "%(self.value)s"
     }
   },
-  "tosca.nodes.compute.attributes.public_address": [
+  "tosca.nodes.Compute.attributes.public_address": [
     {
       "namespace": "openstack.nodes.FloatingIp",
       "parameter": "attributes.floating_ip_address",
@@ -51,11 +51,11 @@
       }
     }
   ],
-  "tosca.nodes.compute.attributes.networks.network_name": "openstack.nodes.Server.requirements.nics.node_filter.properties.name",
-  "tosca.nodes.compute.attributes.networks.network_id": "openstack.nodes.Server.requirements.nics.node_filter.properties.id",
-  "tosca.nodes.compute.attributes.ports.port_name": "openstack.nodes.Server.requirements.nics.node_filter.properties.name",
-  "tosca.nodes.compute.capabilities.host.num_cpus": "openstack.nodes.Server.requirements.flavor.node_filter.properties.vcpus",
-  "tosca.nodes.compute.capabilities.host.cpu_frequency": {
+  "tosca.nodes.Compute.attributes.networks.network_name": "openstack.nodes.Server.requirements.nics.node_filter.properties.name",
+  "tosca.nodes.Compute.attributes.networks.network_id": "openstack.nodes.Server.requirements.nics.node_filter.properties.id",
+  "tosca.nodes.Compute.attributes.ports.port_name": "openstack.nodes.Server.requirements.nics.node_filter.properties.name",
+  "tosca.nodes.Compute.capabilities.host.num_cpus": "openstack.nodes.Server.requirements.flavor.node_filter.properties.vcpus",
+  "tosca.nodes.Compute.capabilities.host.cpu_frequency": {
     "error": true,
     "reason": "Openstack doesn't support parameter %(self.parameter)s"
   },
@@ -68,8 +68,9 @@
       "funtion": "contains",
       "arguments": [
         "name",
-        "%(self),"
+        "%(self.value)"
       ]
     }
-  }
+  },
+  "tosca.nodes.Compute.": 
 }
