@@ -109,10 +109,9 @@ def get_structure_of_mapped_param(mapped_params, value):
                     temp[splitted[k]] = parameter_structure
                     parameter_structure = temp
 
-                structure = dict(
-                    type=node_type
-                )
-                structure[cur_section] = parameter_structure
+                structure = dict()
+                structure[node_type] = dict()
+                structure[node_type][cur_section] = parameter_structure
                 return structure
     return None
 
@@ -276,7 +275,7 @@ def translate_from_tosca(restructured_mapping, facts):
     :param facts: dict
     :return: entity_tpl as dict
     """
-    dict_tpl = {}
+    resulted_structure = {}
     for item in restructured_mapping:
         ExceptionCollector.start()
         mapped_param = restructure_value(
@@ -294,10 +293,21 @@ def translate_from_tosca(restructured_mapping, facts):
                     .join(ExceptionCollector.getExceptionsReport())
             )
         structure = get_structure_of_mapped_param(mapped_param, item['value'])
-        # TODO make 3 level update of dict
-        dict_tpl.update(structure)
 
-    return dict_tpl
+        # NOTE: 3 level update of dict
+        for node_type, tpl in structure.items():
+            temp_tpl = resulted_structure.get(node_type)
+            if not temp_tpl:
+                resulted_structure[node_type] = tpl
+            else:
+                for section, params in tpl.items():
+                    temp_params = temp_tpl.get(section)
+                    if not temp_params:
+                        resulted_structure[node_type][section] = temp_params
+                    else:
+                        resulted_structure[node_type][section].update(temp_params)
+
+    return resulted_structure
 
 
 def translate(tosca_elements_map_to_provider, node_templates, facts):
@@ -306,7 +316,13 @@ def translate(tosca_elements_map_to_provider, node_templates, facts):
         (namespace, _, _) = tosca_type.parse(node.type)
         if namespace == 'tosca':
             restructured_mapping = restructure_mapping(tosca_elements_map_to_provider, node)
-            temp_node_templates = translate_from_tosca(restructured_mapping, facts)
+            tpl_structure = translate_from_tosca(restructured_mapping, facts)
+            temp_node_templates = {}
+            for node_type, tpl in tpl_structure.items():
+                (_, _, type_name) = tosca_type.parse(node_type)
+                node_name = node.name + '_' + type_name.lower()
+                tpl['type'] = node_type
+                temp_node_templates[node_name] = tpl
         else:
             temp_node_templates = translate_from_provider(node)
 
