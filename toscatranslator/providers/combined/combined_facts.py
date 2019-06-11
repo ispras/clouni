@@ -120,7 +120,8 @@ refactoring_server_keys = dict(
 refactoring_subnet_keys = dict(
     allocation_pool_end=['allocation_pools', 'end'],
     allocation_pool_start=['allocation_pools', 'start'],
-    network_name=['network_id']
+    network_name=['network_id'],
+    network_id=['network_id']
 )
 
 REFACTORING_FACT_KEYS = dict(
