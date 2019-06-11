@@ -49,3 +49,15 @@ class UnsupportedFactsFormat(TOSCAException):
 
 class UnsupportedFilteringValues(TOSCAException):
     msg_fmt = _('Unable to match objects of type %(what) with value of type %(target)')
+
+
+class UnsupportedToscaParameterUsage(TOSCAException):
+    msg_fmt = _('Unable to use unsupported TOSCA parameter: %(what)s')
+
+
+class ToscaParametersMappingFailed(TOSCAException):
+    msg_fmt = _('Unable to parse the following parameter %(what)s')
+
+
+class UnsupportedMappingFunction(TOSCAException):
+    msg_fmt = _('Unsupported function "%(what)s", supported functions are %(supported)s')

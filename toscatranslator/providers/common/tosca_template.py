@@ -1,5 +1,6 @@
 import os
 import copy
+import json
 
 from toscaparser.common.exception import ExceptionCollector
 
@@ -19,6 +20,7 @@ from toscaparser.topology_template import TopologyTemplate
 class ProviderToscaTemplate (object):
     ALL_TYPES = ['imports', 'node_types', 'capability_types', 'relationship_types',
                  'data_types', 'interface_types', 'policy_types', 'group_types']
+    TOSCA_ELEMENTS_MAP_FILE = 'tosca_elements_map_to_provider.json'
 
     def __init__(self, tosca_parser_template, facts):
 
@@ -173,11 +175,16 @@ class ProviderToscaTemplate (object):
     def provider_resource_class(self, node):
         raise NotImplementedError()
 
-    def translate_functions(self):
-        raise NotImplementedError()
+    def tosca_elements_map_to_provider(self):
+        par_dir = os.path.dirname(os.path.dirname(__file__))
+        map_file = os.path.join(par_dir, self.provider(), self.TOSCA_ELEMENTS_MAP_FILE)
+        with open(map_file, 'r') as file_obj:
+            data = file_obj.read()
+            data_dict = json.loads(data)
+            return data_dict
 
     def translate_to_provider(self):
-        new_node_templates = translate_to_provider(self.translate_functions(),
+        new_node_templates = translate_to_provider(self.tosca_elements_map_to_provider(),
                                                    self.tosca_topology_template.nodetemplates, self.facts)
 
         dict_tpl = copy.deepcopy(self.tosca_topology_template.tpl)
