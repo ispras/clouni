@@ -9,53 +9,141 @@ topology_template:
       type: tosca.nodes.Compute
       attributes:
         meta: "cube_master=true"
-        private_address: 192.168.1.5
-        public_address: 10.100.114.14
+        private_address: 192.168.12.25
+        public_address: 10.100.115.15
         networks:
           some_net:
-            network_name: internal
-#          another_net:
-#            network_id: 12345a
-          one_more_net:
-            addresses: [192.168.1.5]
+            network_name: test-two-routers
+          the_same_net:
+            network_id: 395403d1-a90d-4cc4-8bf3-5d9adc91df27
+          one_more_way:
+            addresses: [192.168.12.25]
         ports: # find already existing by one of the parameters
-#          some_port:
-#            port_name: some_port
-#          another_port:
-#            port_id: another1port
-#          one_more_port:
-#            network_id: 1more2port
-#          second_more_port:
-#            mac_address: 00:00:00:00:00
-          port_by_address:
-            addresses: []
+          second_more_port:
+            mac_address: fa:16:3e:98:06:46
 
       capabilities:
         host:
           properties:
             num_cpus: 1
-            disk_size: 160 MiB
-            mem_size: 1741 MiB
+            #            disk_size: 160 MiB
+            mem_size: 1024 MiB
         endpoint:
           properties:
             protocol: tcp
-            port: 1
-            network_name: vpc-certain-ip
+            port: 1000
+            #            network_name: vpc-certain-ip
             initiator: target
           attributes:
             ip_address: 0.0.0.0
         os:
           properties:
-#            architecture: x86_64
+            architecture: x86_64
             type: ubuntu
-#            distribution: xenial
+            distribution: xenial
             version: 18.04
-        scalable: # Not described in TOSCA
-          properties:
-            min_instances: 1
-            max_instances: 1
-            default_instances: 1
 
-  outputs:
-    server_ip:
-      value: instance.private_ip_address
+    server_kube_slave_0:
+      type: tosca.nodes.Compute
+      attributes:
+        meta: "cube_master=false"
+        private_address: 192.168.12.26
+        public_address: 10.100.115.16
+        networks:
+          some_net:
+            network_name: test-two-routers
+          the_same_net:
+            network_id: 395403d1-a90d-4cc4-8bf3-5d9adc91df27
+          one_more_way:
+            addresses: [192.168.12.25]
+
+      capabilities:
+        host:
+          properties:
+            num_cpus: 1
+#            disk_size: 160 MiB
+            mem_size: 1024 MiB
+        endpoint:
+          properties:
+            protocol: tcp
+            port: 1000
+#            network_name: vpc-certain-ip
+            initiator: target
+          attributes:
+            ip_address: 0.0.0.0
+        os:
+          properties:
+            architecture: x86_64
+            type: ubuntu
+            distribution: xenial
+            version: 18.04
+
+    server_kube_slave_1:
+      type: tosca.nodes.Compute
+      attributes:
+        meta: "cube_master=false"
+        private_address: 192.168.12.27
+        public_address: 10.100.115.17
+        networks:
+          some_net:
+            network_name: test-two-routers
+          the_same_net:
+            network_id: 395403d1-a90d-4cc4-8bf3-5d9adc91df27
+          one_more_way:
+            addresses: [192.168.12.25]
+
+      capabilities:
+        host:
+          properties:
+            num_cpus: 1
+#            disk_size: 160 MiB
+            mem_size: 1024 MiB
+        endpoint:
+          properties:
+            protocol: tcp
+            port: 1000
+#            network_name: vpc-certain-ip
+            initiator: target
+          attributes:
+            ip_address: 0.0.0.0
+        os:
+          properties:
+            architecture: x86_64
+            type: ubuntu
+            distribution: xenial
+            version: 18.04
+
+    server_kube_slave_2:
+      type: tosca.nodes.Compute
+      attributes:
+        meta: "cube_master=false"
+        private_address: 192.168.12.28
+        public_address: 10.100.115.18
+        networks:
+          some_net:
+            network_name: test-two-routers
+          the_same_net:
+            network_id: 395403d1-a90d-4cc4-8bf3-5d9adc91df27
+          one_more_way:
+            addresses: [192.168.12.25]
+
+      capabilities:
+        host:
+          properties:
+            num_cpus: 1
+#            disk_size: 160 MiB
+            mem_size: 1024 MiB
+        endpoint:
+          properties:
+            protocol: tcp
+            port: 1000
+#            network_name: vpc-certain-ip
+            initiator: target
+          attributes:
+            ip_address: 0.0.0.0
+        os:
+          properties:
+            architecture: x86_64
+            type: ubuntu
+            distribution: xenial
+            version: 18.04
