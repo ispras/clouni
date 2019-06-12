@@ -1,164 +1,169 @@
 {
-  "tosca.nodes.Compute":
+  "tosca.nodes.Compute": [
     {
-    "attributes": {
-      "meta": "openstack.nodes.Server.properties.meta",
-      "private_address": {
-        "parameter": "openstack.nodes.Port.properties.fixed_ips",
-        "value": [
+      "parameter": "openstack.nodes.Server.properties.name",
+      "value": "%(name)s"
+    },
+    {
+      "attributes": {
+        "meta": "openstack.nodes.Server.properties.meta",
+        "private_address": {
+          "parameter": "openstack.nodes.Port.properties.fixed_ips",
+          "value": [
+              {
+              "parameter": {
+                "value": "name",
+                "condition": "equals",
+                "facts": "openstack_network_facts",
+                "arguments": [
+                  "id",
+                  {
+                    "value": "network_id",
+                    "condition": "ip_contains",
+                    "facts": "openstack_subnet_facts",
+                    "arguments":[
+                      "allocation_pool_start",
+                      "allocation_pool_end",
+                      "%(value)s"
+                    ]
+                  }
+                ]
+              },
+              "value": "%(value)s"
+            }
+          ]
+        },
+        "public_address": {
+          "parameter": "openstack.nodes.FloatingIp",
+          "value": [
+            "attributes.floating_ip_address",
             {
-            "parameter": {
-              "value": "name",
-              "condition": "equals",
-              "facts": "openstack_network_facts",
-              "arguments": [
-                "id",
+              "parameter": "requirements",
+              "value": [
                 {
-                  "value": "network_id",
-                  "condition": "ip_contains",
-                  "facts": "openstack_subnet_facts",
-                  "arguments":[
-                    "allocation_pool_start",
-                    "allocation_pool_end",
-                    "%(value)s"
-                  ]
+                  "parameter": "network.node_filter.properties.name",
+                  "value":
+                    {
+                    "value": "name",
+                    "facts": "openstack_network_facts",
+                    "condition": "equals",
+                    "arguments": [
+                      "id",
+                      {
+                        "value": "network_id",
+                        "condition": "ip_contains",
+                        "facts": "openstack_subnet_facts",
+                        "arguments": [
+                          "allocation_pool_start",
+                          "allocation_pool_end",
+                          "%(value)s"
+                        ]
+                      }
+                    ]
+                  }
+                },
+                {
+                  "parameter": "server",
+                  "value": "%(name)s_server"
                 }
               ]
-            },
-            "value": "%(value)s"
-          }
-        ]
-      },
-      "public_address": {
-        "parameter": "openstack.nodes.FloatingIp",
-        "value": [
-          "attributes.floating_ip_address",
-          {
-            "parameter": "requirements",
-            "value": [
-              {
-                "parameter": "network.node_filter.properties.name",
-                "value":
-                  {
-                  "value": "name",
-                  "facts": "openstack_network_facts",
-                  "condition": "equals",
-                  "arguments": [
-                    "id",
-                    {
-                      "value": "network_id",
-                      "condition": "ip_contains",
-                      "facts": "openstack_subnet_facts",
-                      "arguments": [
-                        "allocation_pool_start",
-                        "allocation_pool_end",
-                        "%(value)s"
-                      ]
-                    }
-                  ]
-                }
-              },
-              {
-                "parameter": "server",
-                "value": "%(name)s_server"
-              }
+            }
+          ]
+        },
+        "networks.*.network_name": "openstack.nodes.Server.requirements.nics.node_filter.properties.name",
+        "networks.*.network_id": "openstack.nodes.Server.requirements.nics.node_filter.properties.id",
+        "networks.*.addresses": {
+          "parameter": "openstack.nodes.Server.requirements.nics.node_filter.properties.id",
+          "value": {
+            "value": "network_id",
+            "facts": "openstack_subnet_facts",
+            "condition": "ip_contains",
+            "arguments": [
+              "allocation_pool_start",
+              "allocation_pool_end",
+              "%(value)s"
             ]
           }
-        ]
-      },
-      "networks.*.network_name": "openstack.nodes.Server.requirements.nics.node_filter.properties.name",
-      "networks.*.network_id": "openstack.nodes.Server.requirements.nics.node_filter.properties.id",
-      "networks.*.addresses": {
-        "parameter": "openstack.nodes.Server.requirements.nics.node_filter.properties.id",
-        "value": {
-          "value": "network_id",
-          "facts": "openstack_subnet_facts",
-          "condition": "ip_contains",
-          "arguments": [
-            "allocation_pool_start",
-            "allocation_pool_end",
-            "%(value)s"
-          ]
+        },
+        "ports.*.port_name": "openstack.nodes.Server.requirements.nics.node_filter.properties.name",
+        "ports.*.port_id": "openstack.nodes.Server.requirements.nics.node_filter.properties.id",
+        "ports.*.network_id": "openstack.nodes.Server.requirements.nics.node_filter.properties.id",
+        "ports.*.mac_address": "openstack.nodes.Server.requirements.nics.node_filter.properties.mac_address",
+        "ports.*.addresses": {
+          "parameter": "openstack.nodes.Server.requirements.nics.node_filter.properties.id",
+          "value": {
+            "value": "network_id",
+            "facts": "openstack_subnet_facts",
+            "condition": "ip_contains",
+            "arguments": [
+              "allocation_pool_start",
+              "allocation_pool_end",
+              "%(value)s"
+            ]
+          }
         }
       },
-      "ports.*.port_name": "openstack.nodes.Server.requirements.nics.node_filter.properties.name",
-      "ports.*.port_id": "openstack.nodes.Server.requirements.nics.node_filter.properties.id",
-      "ports.*.network_id": "openstack.nodes.Server.requirements.nics.node_filter.properties.id",
-      "ports.*.mac_address": "openstack.nodes.Server.requirements.nics.node_filter.properties.mac_address",
-      "ports.*.addresses": {
-        "parameter": "openstack.nodes.Server.requirements.nics.node_filter.properties.id",
-        "value": {
-          "value": "network_id",
-          "facts": "openstack_subnet_facts",
-          "condition": "ip_contains",
-          "arguments": [
-            "allocation_pool_start",
-            "allocation_pool_end",
-            "%(value)s"
-          ]
+      "capabilities": {
+        "host.properties.num_cpus": "openstack.nodes.Server.requirements.flavor.node_filter.properties.vcpus",
+        "host.properties.cpu_frequency": {
+          "error": true,
+          "reason": "Openstack doesn't support parameter %(parameter)s"
+        },
+        "host.properties.disk_size": "openstack.nodes.Server.requirements.flavor.node_filter.properties.disk",
+        "host.properties.mem_size": "openstack.nodes.Server.requirements.flavor.node_filter.properties.ram",
+        "endpoint.attributes.ip_address": [
+          "openstack.nodes.SecurityGroupRule.attributes.remote_ip_prefix",
+          {
+            "parameter": "openstack.nodes.SecurityGroup.attributes.name",
+            "value": "%(name)s_security_group"
+          }
+        ],
+        "endpoint.properties.protocol": "openstack.nodes.SecurityGroupRule.attributes.protocol",
+        "endpoint.properties.port": [
+          "openstack.nodes.SecurityGroupRule.attributes.port_range_min",
+          "openstack.nodes.SecurityGroupRule.attributes.port_range_max"
+        ],
+        "endpoint.properties.secure": {},
+        "endpoint.properties.url_path": {},
+        "endpoint.properties.port_name": {},
+        "endpoint.properties.network_name": {},
+        "endpoint.properties.initiator.target": {
+          "parameter": "openstack.nodes.SecurityGroupRule.attributes.direction",
+          "value": "ingress"
+        },
+        "endpoint.properties.initiator.source": {
+          "parameter": "openstack.nodes.SecurityGroupRule.attributes.direction",
+          "value": "egress"
+        },
+        "endpoint.properties.initiator.peer": {
+          "parameter": "openstack.nodes.SecurityGroupRule.attributes.direction",
+          "value": "peer"
+        },
+        "endpoint.properties.ports": {
+          "error": true,
+          "reason": "Not implemented yet"
+        },
+        "os.properties": {
+          "parameter": "openstack.nodes.Server.requirements.image.node_filter.properties.name",
+          "value": {
+            "value": "name",
+            "facts": "openstack_image_facts",
+            "condition": "contains",
+            "arguments": [
+              "name",
+              "%(value)s"
+            ]
+          }
+        },
+        "scalable": {
+          "error": true,
+          "reason": "Not described in TOSCA Profile YAML v1.0"
         }
+      },
+      "requirements.local_storage": {
+        "error": true,
+        "reason": "Bad description in TOSCA Profile YAML v1.0"
       }
-    },
-    "capabilities": {
-      "host.properties.num_cpus": "openstack.nodes.Server.requirements.flavor.node_filter.properties.vcpus",
-      "host.properties.cpu_frequency": {
-        "error": true,
-        "reason": "Openstack doesn't support parameter %(parameter)s"
-      },
-      "host.properties.disk_size": "openstack.nodes.Server.requirements.flavor.node_filter.properties.disk",
-      "host.properties.mem_size": "openstack.nodes.Server.requirements.flavor.node_filter.properties.ram",
-      "endpoint.attributes.ip_address": [
-        "openstack.nodes.SecurityGroupRule.attributes.remote_ip_prefix",
-        {
-          "parameter": "openstack.nodes.SecurityGroup",
-          "value": {}
-        }
-      ],
-      "endpoint.properties.protocol": "openstack.nodes.SecurityGroupRule.attributes.protocol",
-      "endpoint.properties.port": [
-        "openstack.nodes.SecurityGroupRule.attributes.port_range_min",
-        "openstack.nodes.SecurityGroupRule.attributes.port_range_max"
-      ],
-      "endpoint.properties.secure": {},
-      "endpoint.properties.url_path": {},
-      "endpoint.properties.port_name": {},
-      "endpoint.properties.network_name": {},
-      "endpoint.properties.initiator.target": {
-        "parameter": "openstack.nodes.SecurityGroupRule.attributes.direction",
-        "value": "ingress"
-      },
-      "endpoint.properties.initiator.source": {
-        "parameter": "openstack.nodes.SecurityGroupRule.attributes.direction",
-        "value": "egress"
-      },
-      "endpoint.properties.initiator.peer": {
-        "parameter": "openstack.nodes.SecurityGroupRule.attributes.direction",
-        "value": "peer"
-      },
-      "endpoint.properties.ports": {
-        "error": true,
-        "reason": "Not implemented yet"
-      },
-      "os.properties": {
-        "parameter": "openstack.nodes.Server.requirements.image.node_filter.properties.name",
-        "value": {
-          "value": "name",
-          "facts": "openstack_image_facts",
-          "funtion": "contains",
-          "arguments": [
-            "name",
-            "%(value)"
-          ]
-        }
-      },
-      "scalable": {
-        "error": true,
-        "reason": "Not described in TOSCA Profile YAML v1.0"
-      }
-    },
-    "requirements.local_storage": {
-      "error": true,
-      "reason": "Bad description in TOSCA Profile YAML v1.0"
     }
-  }
+  ]
 }
