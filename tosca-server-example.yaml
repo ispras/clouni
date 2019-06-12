@@ -76,7 +76,7 @@ topology_template:
             architecture: x86_64
             type: ubuntu
             distribution: xenial
-            version: 18.04
+            version: 16.04
 
     server_kube_slave_1:
       type: tosca.nodes.Compute
