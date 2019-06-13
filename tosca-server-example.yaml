@@ -26,13 +26,13 @@ topology_template:
         host:
           properties:
             num_cpus: 1
-            #            disk_size: 160 MiB
-            mem_size: 1024 MiB
+#            disk_size: 160 MiB
+#            mem_size: 1024 MiB
         endpoint:
           properties:
             protocol: tcp
             port: 1000
-            #            network_name: vpc-certain-ip
+#            network_name: vpc-certain-ip
             initiator: target
           attributes:
             ip_address: 0.0.0.0
@@ -41,7 +41,7 @@ topology_template:
             architecture: x86_64
             type: ubuntu
             distribution: xenial
-            version: 18.04
+            version: 16.04
 
     server_kube_slave_0:
       type: tosca.nodes.Compute
@@ -62,7 +62,7 @@ topology_template:
           properties:
             num_cpus: 1
 #            disk_size: 160 MiB
-            mem_size: 1024 MiB
+#            mem_size: 1024 MiB
         endpoint:
           properties:
             protocol: tcp
@@ -97,7 +97,7 @@ topology_template:
           properties:
             num_cpus: 1
 #            disk_size: 160 MiB
-            mem_size: 1024 MiB
+#            mem_size: 1024 MiB
         endpoint:
           properties:
             protocol: tcp
@@ -111,7 +111,7 @@ topology_template:
             architecture: x86_64
             type: ubuntu
             distribution: xenial
-            version: 18.04
+            version: 16.04
 
     server_kube_slave_2:
       type: tosca.nodes.Compute
@@ -132,7 +132,7 @@ topology_template:
           properties:
             num_cpus: 1
 #            disk_size: 160 MiB
-            mem_size: 1024 MiB
+#            mem_size: 1024 MiB
         endpoint:
           properties:
             protocol: tcp
@@ -146,4 +146,4 @@ topology_template:
             architecture: x86_64
             type: ubuntu
             distribution: xenial
-            version: 18.04
+            version: 16.04
