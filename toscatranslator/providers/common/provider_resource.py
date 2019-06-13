@@ -23,11 +23,11 @@ class ProviderResource(object):
         self.definitions_by_name = None
         self.requirement_definitions = None
         self.set_definitions_by_name(node_type)
-        self.attribute_keys = self.attribute_definitions_by_name().keys()
-        self.property_keys = self.property_definitions_by_name().keys()
-        self.requirement_keys = self.requirement_definitions_by_name().keys()
-        self.artifact_keys = self.artifact_definitions_by_name().keys()
-        self.capability_keys = self.capability_definitions_by_name().keys()
+        self.attribute_keys = list(self.attribute_definitions_by_name().keys())
+        self.property_keys = list(self.property_definitions_by_name().keys())
+        self.requirement_keys = list(self.requirement_definitions_by_name().keys())
+        self.artifact_keys = list(self.artifact_definitions_by_name().keys())
+        self.capability_keys = list(self.capability_definitions_by_name().keys())
 
         # NOTE: Get the parameters from template using provider definition
         self.ansible_args = dict()
@@ -38,7 +38,7 @@ class ProviderResource(object):
                 self.ansible_args[key] = value
 
         for key in self.attribute_keys:
-            value = node.get_property_value(key)
+            value = node.entity_tpl.get('attributes', {}).get(key)
             if value is not None:
                 self.ansible_args[key] = value
 
