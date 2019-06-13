@@ -38,6 +38,10 @@
             ]
           },
           {
+            "parameter": "openstack.nodes.Port.properties.name",
+            "value": "%(name)s_port_0"
+          },
+          {
             "parameter": "openstack.nodes.Server.requirements.nics",
             "value": "%(name)s_port"
           }
