@@ -1,3 +1,5 @@
+from toscatranslator.common import snake_case
+
 from toscatranslator.providers.common.provider_resource import ProviderResource
 from toscatranslator.providers.openstack.all_requirements import OpenstackRequirements
 
@@ -32,5 +34,5 @@ class OpenstackProviderResource(ProviderResource):
         return desc
 
     def ansible_module_by_type(self):
-        module_name = self.ANSIBLE_MODULE_PREFIX + self.type_name.lower()
+        module_name = self.ANSIBLE_MODULE_PREFIX + snake_case.convert(self.type_name)
         return module_name

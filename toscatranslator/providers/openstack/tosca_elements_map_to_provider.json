@@ -127,16 +127,16 @@
         "endpoint.attributes.ip_address": [
           "openstack.nodes.SecurityGroupRule.attributes.remote_ip_prefix",
           {
-            "parameter": "openstack.nodes.SecurityGroup.attributes.name",
-            "value": "%(name)s_securitygroup"
+            "parameter": "openstack.nodes.SecurityGroup.properties.name",
+            "value": "%(name)s_security_group"
           },
           {
             "parameter": "openstack.nodes.Server.requirements.security_groups",
-            "value": "%(name)s_securitygroup"
+            "value": "%(name)s_security_group"
           },
           {
             "parameter": "openstack.nodes.SecurityGroupRule.requirements.security_group",
-            "value": "%(name)s_securitygroup"
+            "value": "%(name)s_security_group"
           }
         ],
         "endpoint.properties.protocol": "openstack.nodes.SecurityGroupRule.attributes.protocol",

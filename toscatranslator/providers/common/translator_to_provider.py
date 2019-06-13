@@ -1,4 +1,5 @@
 from toscatranslator.common import tosca_type
+from toscatranslator.common import snake_case
 from toscaparser.common.exception import ExceptionCollector, ValidationError
 from toscatranslator.common.exception import UnsupportedToscaParameterUsage, ToscaParametersMappingFailed, \
     UnsupportedMappingFunction
@@ -406,7 +407,7 @@ def translate(tosca_elements_map_to_provider, node_templates, facts):
             temp_node_templates = {}
             for node_type, tpl in tpl_structure.items():
                 (_, _, type_name) = tosca_type.parse(node_type)
-                node_name = node.name + '_' + type_name.lower()
+                node_name = node.name + '_' + snake_case.convert(type_name)
                 tpl['type'] = node_type
                 temp_node_templates[node_name] = tpl
         else:

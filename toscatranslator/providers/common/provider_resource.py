@@ -61,9 +61,9 @@ class ProviderResource(object):
         self.requirements = provider_requirements.get_requirements(node)
         for key, req in self.requirements.items():
             if type(req) is list:
-                self.ansible_args[key] = list(v.to_ansible() for v in req)
+                self.ansible_args[key] = list(v.get_value() for v in req)
             else:
-                self.ansible_args[key] = req.to_ansible()
+                self.ansible_args[key] = req.get_value()
 
         self.ansible_task = None
         self.ansible_task_as_dict = None

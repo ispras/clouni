@@ -99,8 +99,7 @@ class ProviderToscaTemplate (object):
         for i in range(0, MAX_NUM_PRIORITIES):
             sorted_by_priority[i] = []
         for node in self.provider_nodes:
-            (_, _, type_name) = tosca_type.parse(node.type)
-            priority = node.node_priority_by_type(type_name)
+            priority = node.node_priority_by_type()
             sorted_by_priority[priority].append(node)
         return sorted_by_priority
 

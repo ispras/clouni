@@ -15,7 +15,7 @@ class ProviderNodeFilter(object):
         if isinstance(key, tuple):
             self.facts_keys = set(self.fact_name_by_node_name(k) for k in key)
         else:
-            self.facts_keys = set()
+            self.facts_keys = {self.fact_name_by_node_name(key)}
         self.all_facts = self.facts
         self.facts = []
         for facts_key in self.facts_keys:

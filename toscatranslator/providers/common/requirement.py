@@ -54,7 +54,7 @@ class ProviderRequirement (object):
 
         if not self.value:
             raise ExceptionCollector.appendException(FulfillRequirementError(
-                what=self.name
+                what=self.name + ' = ' + str(self.data)
             ))
 
     def get_value(self):
