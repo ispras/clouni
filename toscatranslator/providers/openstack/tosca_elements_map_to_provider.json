@@ -6,33 +6,42 @@
     },
     {
       "attributes": {
-        "meta": "openstack.nodes.Server.properties.meta",
-        "private_address": {
-          "parameter": "openstack.nodes.Port.properties.fixed_ips",
-          "value": [
-              {
-              "parameter": {
-                "value": "name",
-                "condition": "equals",
-                "facts": "openstack_network_facts",
-                "arguments": [
-                  "id",
-                  {
-                    "value": "network_id",
-                    "condition": "ip_contains",
-                    "facts": "openstack_subnet_facts",
-                    "arguments":[
-                      "allocation_pool_start",
-                      "allocation_pool_end",
-                      "%(value)s"
-                    ]
-                  }
-                ]
-              },
-              "value": "%(value)s"
-            }
-          ]
+        "meta": {
+          "parameter": "openstack.nodes.Server.properties.meta",
+          "value": ["%(value)s"]
         },
+        "private_address": [
+          {
+            "parameter": "openstack.nodes.Port.properties.fixed_ips",
+            "value": [
+                {
+                "parameter": {
+                  "value": "name",
+                  "condition": "equals",
+                  "facts": "openstack_network_facts",
+                  "arguments": [
+                    "id",
+                    {
+                      "value": "network_id",
+                      "condition": "ip_contains",
+                      "facts": "openstack_subnet_facts",
+                      "arguments":[
+                        "allocation_pool_start",
+                        "allocation_pool_end",
+                        "%(value)s"
+                      ]
+                    }
+                  ]
+                },
+                "value": "%(value)s"
+              }
+            ]
+          },
+          {
+            "parameter": "openstack.nodes.Server.requirements.nics",
+            "value": "%(name)s_port"
+          }
+        ],
         "public_address": {
           "parameter": "openstack.nodes.FloatingIp",
           "value": [
@@ -115,7 +124,15 @@
           "openstack.nodes.SecurityGroupRule.attributes.remote_ip_prefix",
           {
             "parameter": "openstack.nodes.SecurityGroup.attributes.name",
-            "value": "%(name)s_security_group"
+            "value": "%(name)s_securitygroup"
+          },
+          {
+            "parameter": "openstack.nodes.Server.requirements.security_groups",
+            "value": "%(name)s_securitygroup"
+          },
+          {
+            "parameter": "openstack.nodes.SecurityGroupRule.requirements.security_group",
+            "value": "%(name)s_securitygroup"
           }
         ],
         "endpoint.properties.protocol": "openstack.nodes.SecurityGroupRule.attributes.protocol",

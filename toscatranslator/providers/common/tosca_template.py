@@ -188,8 +188,7 @@ class ProviderToscaTemplate (object):
                                                    self.tosca_topology_template.nodetemplates, self.facts)
 
         dict_tpl = copy.deepcopy(self.tosca_topology_template.tpl)
-        for k, v in new_node_templates.items():
-            dict_tpl['node_templates'][k] = v
+        dict_tpl['node_templates'] = new_node_templates
 
         rel_types = []
         for k, v in self.provider_defs.items():

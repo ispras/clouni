@@ -18,14 +18,19 @@ SEPARATOR = '.'
 def contain_function(pool, argv):
     target = argv[1]
     if isinstance(target, dict):
-        target = target.values()
+        target = list(target.values())
     elif not isinstance(target, list):
         target = [target]
 
+    len_t = len(target)
+    for i in range(len_t):
+        target[i] = str(target[i]).lower()
+
     for obj in pool:
+        v = str(obj[argv[0]]).lower()
         matched = True
         for t in target:
-            if t not in obj[argv[0]]:
+            if t not in v:
                 matched = False
                 break
         if matched:
@@ -100,23 +105,34 @@ def translate_from_provider(node):
     return node_templates
 
 
-def get_structure_of_mapped_param(mapped_param, value, self):
+def get_structure_of_mapped_param(mapped_param, value, self=None, type_list_parameters=None):
+    if self is None:
+        self = value
+
+    if type_list_parameters is None:
+        type_list_parameters = []
 
     if isinstance(mapped_param, str):
         if isinstance(value, list):
             r = []
+            len_v = len(value)
+            if len_v == 1:
+                type_list_parameters.append(len(mapped_param.split(SEPARATOR)))
+                param = get_structure_of_mapped_param(mapped_param, value[0], self, type_list_parameters)
+                return param
+
             for v in value:
                 if isinstance(v, str):
-                    param = get_structure_of_mapped_param(SEPARATOR.join([mapped_param, v]), self, self)
+                    param = get_structure_of_mapped_param(SEPARATOR.join([mapped_param, v]), self, self, type_list_parameters)
                 else:
-                    param = get_structure_of_mapped_param(mapped_param, v, self)
+                    param = get_structure_of_mapped_param(mapped_param, v, self, type_list_parameters)
                 r += param
             return r
 
         elif isinstance(value, dict):
             r = []
             for k, v in value.items():
-                param = get_structure_of_mapped_param(SEPARATOR.join([mapped_param, k]), v, self)
+                param = get_structure_of_mapped_param(SEPARATOR.join([mapped_param, k]), v, self, type_list_parameters)
                 r += param
             return r
         else:
@@ -130,31 +146,39 @@ def get_structure_of_mapped_param(mapped_param, value, self):
                     node_type = SEPARATOR.join(splitted[:i])
                     cur_section = splitted[i]
                     parameter_structure = value
+                    if num in type_list_parameters:
+                        parameter_structure = [value]
                     for k in range(num - 1, i, -1):
                         temp = dict()
                         temp[splitted[k]] = parameter_structure
+                        if k in type_list_parameters:
+                            temp = [temp]
                         parameter_structure = temp
 
                     structure[node_type] = dict()
+                    if cur_section == 'requirements':
+                        parameter_structure = [parameter_structure]
                     structure[node_type][cur_section] = parameter_structure
                     return [structure]
 
-                # NOTE: Case when node has no parameters but needed
-                structure[mapped_param] = dict()
-                return [structure]
-
+            # NOTE: Case when node has no parameters but needed
+            ExceptionCollector.appendException(ToscaParametersMappingFailed(
+                what=mapped_param
+            ))
+            structure[mapped_param] = dict()
+            return [structure]
 
     if isinstance(mapped_param, list):
         r = []
         for p in mapped_param:
-            param = get_structure_of_mapped_param(p, value, self)
+            param = get_structure_of_mapped_param(p, value, self, type_list_parameters)
             r += param
         return r
 
     if isinstance(mapped_param, dict):
         r = []
         for k, v in mapped_param.items():
-            param = get_structure_of_mapped_param(k, v, self)
+            param = get_structure_of_mapped_param(k, v, self, type_list_parameters)
             r += param
         return r
 
@@ -211,11 +235,11 @@ def restructure_value(mapping_value, self, facts):
                 what=condition_name,
                 supported=function.supported()
             ))
-        result = function.execute(pool, arguments)
+        result = function.execute(pool, arguments) or {}
         r = result.get(value)
         if r is None:
             ExceptionCollector.appendException(ToscaParametersMappingFailed(
-                what=condition_name
+                what=(condition_name, arguments)
             ))
         return r
 
@@ -350,7 +374,7 @@ def translate_from_tosca(restructured_mapping, facts, tpl_name):
                 message='Translating to provider failed'
                     .join(ExceptionCollector.getExceptionsReport())
             )
-        structures = get_structure_of_mapped_param(mapped_param, item['value'], item['value'])
+        structures = get_structure_of_mapped_param(mapped_param, item['value'])
 
         # NOTE: 3 level update of dict
         for structure in structures:
@@ -362,9 +386,12 @@ def translate_from_tosca(restructured_mapping, facts, tpl_name):
                     for section, params in tpl.items():
                         temp_params = temp_tpl.get(section)
                         if not temp_params:
-                            resulted_structure[node_type][section] = temp_params
+                            resulted_structure[node_type][section] = params
                         else:
-                            resulted_structure[node_type][section].update(temp_params)
+                            if section == 'requirements':
+                                resulted_structure[node_type][section] += params
+                            else:
+                                resulted_structure[node_type][section].update(params)
 
     return resulted_structure
 
