@@ -29,10 +29,10 @@ FACTS_BY_PROVIDER = dict(
 ##########################################################################
 
 amazon_fact_name_by_node_name = dict(
-    elasticnetworkinterface='ec2_eni_facts',
+    elastic_network_interface='ec2_eni_facts',
     image='ec2_ami_facts',
-    virtualprivatecloud='ec2_vpc_facts',
-    virtualprivatecloudsubnet='ec2_subnet_facts'
+    virtual_private_cloud='ec2_vpc_facts',
+    virtual_private_cloud_subnet='ec2_subnet_facts'
 )
 
 openstack_fact_name_by_node_name = dict(

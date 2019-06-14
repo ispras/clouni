@@ -9,7 +9,7 @@ from toscatranslator.providers.common.translator_to_provider import translate as
 from toscatranslator.providers.common.nodefilter import ProviderNodeFilter
 from toscatranslator.providers.common.provider_resource import MAX_NUM_PRIORITIES
 
-from toscatranslator.common import tosca_type
+from toscatranslator.common import tosca_type, snake_case
 
 from toscatranslator.providers.combined.combined_facts import FACTS_BY_PROVIDER, FACT_NAME_BY_NODE_NAME
 from toscaparser.imports import ImportsLoader
@@ -126,7 +126,7 @@ class ProviderToscaTemplate (object):
 
         for node in self.node_templates:  # node is toscaparser.nodetemplate:NodeTemplate
             (_, _, type_name) = tosca_type.parse(node.type)
-            fact_name = FACT_NAME_BY_NODE_NAME.get(self.provider(), {}).get(type_name.lower())
+            fact_name = FACT_NAME_BY_NODE_NAME.get(self.provider(), {}).get(snake_case.convert(type_name))
             if fact_name:
                 new_facts[fact_name].append(node.entity_tpl.get('properties'))
         return new_facts
