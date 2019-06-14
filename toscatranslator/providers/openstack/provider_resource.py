@@ -26,9 +26,6 @@ class OpenstackProviderResource(ProviderResource):
 
     PROVIDER_REQUIREMENTS = OpenstackRequirements
 
-    def node_priority_by_type(self):
-        return self.NODE_PRIORITY_BY_TYPE.get(self.type_name)
-
     def ansible_description_by_type(self):
         desc = self.ANSIBLE_DESCRIPTION_PREFIX + self.type_name
         return desc

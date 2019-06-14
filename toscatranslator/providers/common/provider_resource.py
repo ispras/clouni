@@ -140,7 +140,8 @@ class ProviderResource(object):
         return self.ansible_task
 
     def node_priority_by_type(self):
-        raise NotImplementedError()
+        assert self.NODE_PRIORITY_BY_TYPE is not None
+        return self.NODE_PRIORITY_BY_TYPE.get(self.type_name)
 
     def ansible_description_by_type(self):
         raise NotImplementedError()
