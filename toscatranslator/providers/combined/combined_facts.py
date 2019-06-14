@@ -50,23 +50,6 @@ FACT_NAME_BY_NODE_NAME = dict(
 )
 
 ##########################################################################
-# PROVIDER_NODEFILTER_FACTS_BY_KEY
-##########################################################################
-
-openstack_facts_by_nodefilter_key = dict(
-    flavor='openstack_flavor_facts',
-    image='openstack_image_facts',
-    network='openstack_network_facts',
-    port='openstack_port_facts',
-    server='openstack_server_facts',
-    subnet='openstack_subnet_facts'
-)
-
-PROVIDER_NODEFILTER_FACTS_BY_KEY = dict(
-    openstack=openstack_facts_by_nodefilter_key
-)
-
-##########################################################################
 # FACTS REFACTORING
 ##########################################################################
 refactoring_ami_keys = dict(
