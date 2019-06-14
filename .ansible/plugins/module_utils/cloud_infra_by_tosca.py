@@ -26,38 +26,23 @@
 # LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE
 # USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
+#########################################################################################################
+#                                       IMPORTED PARAMETERS
+#########################################################################################################
+
+# TODO add arguments if new provider is being added
+
 from ansible.module_utils.openstack import openstack_full_argument_spec
 from ansible.module_utils.ec2 import ec2_argument_spec
-
-# TODO place to fulfil if new provider is added
-
-openstack_facts_module_params_map = dict(
-    openstack_flavor_facts='openstack_flavors',
-    openstack_image_facts='openstack_image',
-    openstack_network_facts='openstack_networks',
-    openstack_port_facts='openstack_ports',
-    openstack_server_facts='openstack_servers',
-    openstack_subnet_facts='openstack_subnets'
-)
-
-amazon_facts_module_params_map = dict(
-    ec2_instance_type_facts='amazon_instance_types'
-)
-
-# IMPORTED PARAMETERS
-
-
-FACTS_MODULE_PARAMS_MAP_BY_PROVIDER = dict(
-    amazon=amazon_facts_module_params_map,
-    openstack=openstack_facts_module_params_map
-)
 
 AUTH_PARAM_FUNCS_BY_PROVIDER = dict(
     amazon=ec2_argument_spec,
     openstack=openstack_full_argument_spec
 )
 
-# DO NOT TOUCH ZONE
+#########################################################################################################
+#                                       DO NOT TOUCH ZONE
+#########################################################################################################
 
 
 def get_auth_params_dict():
@@ -86,22 +71,25 @@ def combine_facts_from_ansible_params(provider, ansible_params):
     fact_keys = facts_by_provider.get(provider)
     if not fact_keys:
         return None
-    ansible_facts_key_map = FACTS_MODULE_PARAMS_MAP_BY_PROVIDER.get(provider, {})
-    ansible_facts = ansible_params['facts'] if ansible_params['facts'] else {}
 
     facts = dict()
     for fact_key, internal_keys in fact_keys.items():
-        key = next(iter(fact_key.split("_fact", 1))) + 's'
-        value = ansible_params[fact_key] if ansible_params[fact_key] else {}
+        value_from_params = ansible_params.get(fact_key) or {}
+        value_from_facts = ansible_params.get('facts') or {}
         for k in internal_keys:
-            if type(value) is dict:
-                value = value.get(k, {})
-        if type(value) is not list:
-            ansible_facts_key = ansible_facts_key_map.get(fact_key)
-            if ansible_facts_key:
-                value = ansible_facts.get(ansible_facts_key, {})
-        if type(value) is list:
-            facts[key] = value
+            if type(value_from_params) is dict:
+                temp_v = value_from_params.get(k, {})
+                if temp_v is not None:
+                    value_from_params = value_from_params
+            if type(value_from_facts) is dict:
+                temp_v = value_from_facts.get(k, {})
+                if temp_v is not None:
+                    value_from_facts = value_from_facts
+
+        if type(value_from_params) is list:
+            facts[fact_key] = value_from_params
+        else:
+            facts[fact_key] = []
 
     return facts
 
