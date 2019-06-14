@@ -55,10 +55,12 @@ class ProviderRequirements (object):
         return requirements
 
     def requirement_key_by_name(self, name):
-        raise NotImplementedError()
+        assert self.REQUIREMENT_KEY_BY_NAME is not None
+        return self.REQUIREMENT_KEY_BY_NAME.get(name)
 
     def nodefilter_key_by_key(self, key):
         raise NotImplementedError()
 
     def provider(self):
-        raise NotImplementedError()
+        assert self.PROVIDER is not None
+        return self.PROVIDER

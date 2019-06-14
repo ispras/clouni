@@ -20,11 +20,5 @@ class OpenstackRequirements (ProviderRequirements):
 
     PROVIDER = 'openstack'
 
-    def requirement_key_by_name(self, name):
-        return self.REQUIREMENT_KEY_BY_NAME.get(name)
-
     def nodefilter_key_by_key(self, key):
         return key
-
-    def provider(self):
-        return self.PROVIDER
