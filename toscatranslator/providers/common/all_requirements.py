@@ -59,7 +59,8 @@ class ProviderRequirements (object):
         return self.REQUIREMENT_KEY_BY_NAME.get(name)
 
     def nodefilter_key_by_key(self, key):
-        raise NotImplementedError()
+        assert self.NODEFILTER_KEY_BY_KEY is not None
+        return self.NODEFILTER_KEY_BY_KEY.get(key)
 
     def provider(self):
         assert self.PROVIDER is not None
