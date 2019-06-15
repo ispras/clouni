@@ -3,7 +3,7 @@ from toscatranslator.providers.common.all_requirements import ProviderRequiremen
 
 class OpenstackRequirements (ProviderRequirements):
 
-    REQUIREMENT_KEY_BY_NAME = dict(
+    NODE_NAME_BY_REQUIREMENT_NAME = dict(
         boot_volume='volume',
         flavor='flavor',
         image='image',
@@ -19,6 +19,3 @@ class OpenstackRequirements (ProviderRequirements):
     )
 
     PROVIDER = 'openstack'
-
-    def nodefilter_key_by_key(self, key):
-        return key

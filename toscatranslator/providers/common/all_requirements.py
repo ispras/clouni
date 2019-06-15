@@ -37,13 +37,12 @@ class ProviderRequirements (object):
         requirements = dict()
         for req in node.requirements:
             req_name = next(iter(req.keys()))
-            req_key = self.requirement_key_by_name(req_name)
+            req_key = self.node_name_by_requirement_name(req_name)
             if not req_key:
                 ExceptionCollector.appendException(UnsupportedRequirementError(
                     what=req_name
                 ))
-            node_filter_key = self.nodefilter_key_by_key(req_key)
-            requirement = ProviderRequirement(self.provider(), req_name, req_key, req[req_name], node_filter_key)
+            requirement = ProviderRequirement(self.provider(), req_name, req_key, req[req_name], req_key)
             if req_name in self.requirement_names_of_type_list:
                 if requirements.get(req_name) is not None:
                     requirements[req_name].append(requirement)
@@ -54,13 +53,9 @@ class ProviderRequirements (object):
                 requirements[req_name] = requirement
         return requirements
 
-    def requirement_key_by_name(self, name):
-        assert self.REQUIREMENT_KEY_BY_NAME is not None
-        return self.REQUIREMENT_KEY_BY_NAME.get(name)
-
-    def nodefilter_key_by_key(self, key):
-        assert self.NODEFILTER_KEY_BY_KEY is not None
-        return self.NODEFILTER_KEY_BY_KEY.get(key)
+    def node_name_by_requirement_name(self, name):
+        assert self.NODE_NAME_BY_REQUIREMENT_NAME is not None
+        return self.NODE_NAME_BY_REQUIREMENT_NAME.get(name)
 
     def provider(self):
         assert self.PROVIDER is not None
