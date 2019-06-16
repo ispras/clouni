@@ -73,6 +73,10 @@ def list_ec2_instance_types(module):
             v_low = v.lower()
             if v_low == 'unknown' or v_low == 'unavailable' or v_low == 'n/a':
                 t[k] = None
+
+    for t in instancetypes:
+        temp = ''.join(t['vcpus'].split('vCPU', 1))
+
     return instancetypes
 
 

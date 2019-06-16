@@ -16,6 +16,44 @@ data_types:
   amazon.datatypes.Root:
     derived_from: tosca.datatypes.Root
 
+  amazon.datatypes.ElasticNeworkInterface:
+    derived_from: amazon.datatypes.Root
+    properties:
+      assign_public_ip:
+        type: boolean
+        required: false
+      private_ip_address:
+        type: string
+        required: false
+      ipv6_addresses:
+        type: list
+        required: false
+        entry_schema:
+          type: string
+      source_dest_check:
+        type: boolean
+        required: false
+      description:
+        type: string
+        required: false
+      delete_on_termination:
+        type: boolean
+        required: false
+      device_index:
+        type: integer
+        required: false
+      groups:
+        type: list
+        required: false
+      private_ip_addresses:
+        type: list
+        required: false
+        entry_schema:
+          type: string
+      subnet_id:
+        type: string
+        required: false
+
   amazon.datatypes.Image:
     derived_from: amazon.datatypes.Root
     properties:
@@ -121,6 +159,11 @@ node_types:
       eni_id: # output after create is [interface, id], network_interface_id in facts
         type: string
         required: false
+      interfaces: # only used in requirements
+        type: list
+        required: false
+        entry_schema:
+          type: string
       mac_address: # not used when create
         type: string
         required: false
@@ -186,6 +229,9 @@ node_types:
     attributes:
       image: # parameters to override for image when create
         type: amazon.datatypes.Image
+        required: false
+      network:
+        type: amazon.datatypes.ElasticNeworkInterface
         required: false
       name:
         type: string

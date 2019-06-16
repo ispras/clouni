@@ -17,26 +17,36 @@ SEPARATOR = '.'
 
 
 def contain_function(pool, argv):
-    target = argv[1]
-    if isinstance(target, dict):
-        target = list(target.values())
-    elif not isinstance(target, list):
-        target = [target]
+    argv_0 = argv[0]
+    argv_1 = argv[1]
 
-    len_t = len(target)
+    if isinstance(argv_0, dict):
+        argv_0 = list(argv_0.values())
+    elif not isinstance(argv_0, list):
+        argv_0 = [argv_0]
+
+    if isinstance(argv_1, dict):
+        argv_1 = list(argv_1.values())
+    elif not isinstance(argv_1, list):
+        argv_1 = [argv_1]
+
+    len_t = len(argv_1)
     for i in range(len_t):
-        target[i] = str(target[i]).lower()
+        argv_1[i] = str(argv_1[i]).lower()
 
     for obj in pool:
-        v = str(obj[argv[0]]).lower()
+        v = ''
+        for i in argv_0:
+            v += str(obj[i]).lower()
         matched = True
-        for t in target:
+        for t in argv_1:
             if t not in v:
                 matched = False
                 break
         if matched:
             return obj
-    return None
+
+    return contain_function(pool, [argv_1, argv_0])
 
 
 def equal_function(pool, argv):
