@@ -1,7 +1,6 @@
 from toscatranslator.common import snake_case
 
 from toscatranslator.providers.common.provider_resource import ProviderResource
-from toscatranslator.providers.openstack.all_requirements import OpenstackRequirements
 
 
 class OpenstackProviderResource(ProviderResource):
@@ -24,7 +23,7 @@ class OpenstackProviderResource(ProviderResource):
     ANSIBLE_MODULE_PREFIX = 'os_'
     ANSIBLE_DESCRIPTION_PREFIX = 'Create '
 
-    PROVIDER_REQUIREMENTS = OpenstackRequirements
+    PROVIDER = 'openstack'
 
     def ansible_description_by_type(self):
         desc = self.ANSIBLE_DESCRIPTION_PREFIX + self.type_name

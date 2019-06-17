@@ -2,6 +2,8 @@ import yaml
 import copy
 from toscatranslator.common import tosca_type
 
+from toscatranslator.providers.common.all_requirements import ProviderRequirements
+
 MAX_NUM_PRIORITIES = 5
 
 
@@ -57,7 +59,7 @@ class ProviderResource(object):
             for key, value in node.artifacts:
                 self.ansible_args[key] = value
 
-        provider_requirements = self.all_provider_requirements()(self.requirement_definitions)
+        provider_requirements = ProviderRequirements(self.requirement_definitions, self.provider())
         self.requirements = provider_requirements.get_requirements(node)
         for key, req in self.requirements.items():
             if type(req) is list:
@@ -149,6 +151,6 @@ class ProviderResource(object):
     def ansible_module_by_type(self):
         raise NotImplementedError()
 
-    def all_provider_requirements(self):
-        assert self.PROVIDER_REQUIREMENTS is not None
-        return self.PROVIDER_REQUIREMENTS
+    def provider(self):
+        assert self.PROVIDER is not None
+        return self.PROVIDER

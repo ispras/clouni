@@ -129,6 +129,8 @@ class ProviderNodeFilter(object):
             fact_name = fact_name_by_node_name.get(type_name.lower())  # NOTE: could be None
             if fact_name is not None:
                 input_facts = facts.get(fact_name)
+                if input_facts is None:
+                    continue
                 refactoring_keys = REFACTORING_FACT_KEYS.get(fact_name, {})
                 available_fact_keys = set(refactoring_keys.keys())
                 properties = definition.get('properties', {})

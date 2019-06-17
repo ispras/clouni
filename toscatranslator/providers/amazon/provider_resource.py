@@ -1,7 +1,6 @@
 from toscatranslator.common import snake_case
 
 from toscatranslator.providers.common.provider_resource import ProviderResource
-from toscatranslator.providers.amazon.all_requirements import AmazonRequirements
 
 
 class AmazonProviderResource(ProviderResource):
@@ -15,8 +14,6 @@ class AmazonProviderResource(ProviderResource):
         VirtualPrivateCloudSubnet=1
     )
 
-    PROVIDER_REQUIREMENTS = AmazonRequirements
-
     ANSIBLE_DESCRIPTION_PREFIX = 'Create '
     ANSIBLE_MODULE_BY_TYPE = dict(
         ElasticIP='ec2_eip',
@@ -27,6 +24,8 @@ class AmazonProviderResource(ProviderResource):
         VirtualPrivateCloud='ec2_vpc_net',
         VirtualPrivateCloudSubnet='ec2_vpc_subnet'
     )
+
+    PROVIDER = 'amazon'
 
     def ansible_description_by_type(self):
         desc = self.ANSIBLE_DESCRIPTION_PREFIX + snake_case.convert(self.type_name)
