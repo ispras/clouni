@@ -75,7 +75,20 @@ def list_ec2_instance_types(module):
                 t[k] = None
 
     for t in instancetypes:
-        temp = ''.join(t['vcpus'].split('vCPU', 1))
+        temp = t['vcpus'].split('vCPU', 1)[0]
+        if not temp:
+            raise ValueError("vcpus unable to parse: " + str(t['vcpus']))
+        t['vcpus'] = int(temp)
+        temp = t['memory'].split('GiB', 1)[0]
+        if not temp:
+            raise ValueError("memory unable to parse: " + str(t['memory']))
+        t['memory'] = float(temp)
+        if t['storage'] != 'EBSonly':
+            temp = t['storage'].split('GiB', 1)[0]
+
+            if not temp:
+                raise ValueError("storage unable to parse: " + str(t['storage']))
+            t['storage'] = float(temp)
 
     return instancetypes
 
