@@ -16,7 +16,7 @@ SUPPORTED_MAPPING_VALUE_STRUCTURE = (('error', 'reason'),
 SEPARATOR = '.'
 
 
-def contain_function(pool, argv):
+def contain_function(pool, argv, first=True):
     argv_0 = argv[0]
     argv_1 = argv[1]
 
@@ -37,7 +37,7 @@ def contain_function(pool, argv):
     for obj in pool:
         v = ''
         for i in argv_0:
-            v += str(obj[i]).lower()
+            v += str(obj.get(i, '')).lower()
         matched = True
         for t in argv_1:
             if t not in v:
@@ -45,8 +45,12 @@ def contain_function(pool, argv):
                 break
         if matched:
             return obj
-
-    return contain_function(pool, [argv_1, argv_0])
+    if first:
+        return contain_function(pool, [argv_1, argv_0], False)
+    else:
+        ExceptionCollector.appendException(ToscaParametersMappingFailed(
+            what=argv
+        ))
 
 
 def equal_function(pool, argv):
@@ -204,7 +208,13 @@ def restructure_value(mapping_value, self, facts):
         for key in MAPPING_VALUE_KEYS:
             mapping_sub_value = mapping_value.get(key)
             if mapping_sub_value is not None:
-                flat_mapping_value[key] = restructure_value(mapping_sub_value, self, facts)
+                restructured_value = restructure_value(mapping_sub_value, self, facts)
+                if restructured_value is None:
+                    ExceptionCollector.appendException(ToscaParametersMappingFailed(
+                        what=mapping_value
+                    ))
+                    return
+                flat_mapping_value[key] = restructured_value
 
         # NOTE: the case when value has keys 'error' and 'reason'
         if flat_mapping_value.get('error', False):
@@ -216,11 +226,12 @@ def restructure_value(mapping_value, self, facts):
         parameter = flat_mapping_value.get('parameter')
         value = flat_mapping_value.get('value')
         if value is None:
-            ExceptionCollector.appendException(ToscaParametersMappingFailed(
-                what=parameter
-            ))
-            return
-
+            filled_value = dict()
+            for k, v in mapping_value.items():
+                filled_k = restructure_value(k, self, facts)
+                filled_v = restructure_value(v, self, facts)
+                filled_value[filled_k] = filled_v
+                return filled_value
         if parameter is not None:
             r = dict()
             r[parameter] = value
@@ -240,6 +251,7 @@ def restructure_value(mapping_value, self, facts):
             ExceptionCollector.appendException(ToscaParametersMappingFailed(
                 what=pool
             ))
+            return
         function = ConditionFunction(condition_name)
         if not function.valid():
             ExceptionCollector.appendException(UnsupportedMappingFunction(
@@ -382,7 +394,7 @@ def translate_from_tosca(restructured_mapping, facts, tpl_name):
         ExceptionCollector.stop()
         if ExceptionCollector.exceptionsCaught():
             raise ValidationError(
-                message='Translating to provider failed'
+                message='\nTranslating to provider failed: '
                     .join(ExceptionCollector.getExceptionsReport())
             )
         structures = get_structure_of_mapped_param(mapped_param, item['value'])
@@ -402,7 +414,11 @@ def translate_from_tosca(restructured_mapping, facts, tpl_name):
                             if section == 'requirements':
                                 resulted_structure[node_type][section] += params
                             else:
-                                resulted_structure[node_type][section].update(params)
+                                if isinstance(params, list):
+                                    for params_i in params:
+                                        resulted_structure[node_type][section].update(params_i)
+                                else:
+                                    resulted_structure[node_type][section].update(params)
 
     return resulted_structure
 
