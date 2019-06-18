@@ -2,13 +2,13 @@
   "tosca.nodes.Compute": [
     {
       "parameter": "openstack.nodes.Server.properties.name",
-      "value": "%(name)s"
+      "value": "{self[name]}"
     },
     {
       "attributes": {
         "meta": {
           "parameter": "openstack.nodes.Server.properties.meta",
-          "value": ["%(value)s"]
+          "value": ["{self[value]}"]
         },
         "private_address": [
           {
@@ -28,22 +28,22 @@
                       "arguments":[
                         "allocation_pool_start",
                         "allocation_pool_end",
-                        "%(value)s"
+                        "{self[value]}"
                       ]
                     }
                   ]
                 },
-                "value": "%(value)s"
+                "value": "{self[value]}"
               }
             ]
           },
           {
             "parameter": "openstack.nodes.Port.properties.name",
-            "value": "%(name)s_port_0"
+            "value": "{self[name]}_port_0"
           },
           {
             "parameter": "openstack.nodes.Server.requirements.nics",
-            "value": "%(name)s_port"
+            "value": "{self[name]}_port"
           }
         ],
         "public_address": {
@@ -69,7 +69,7 @@
                         "arguments": [
                           "allocation_pool_start",
                           "allocation_pool_end",
-                          "%(value)s"
+                          "{self[value]}"
                         ]
                       }
                     ]
@@ -77,7 +77,7 @@
                 },
                 {
                   "parameter": "server",
-                  "value": "%(name)s_server"
+                  "value": "{self[name]}_server"
                 }
               ]
             }
@@ -94,7 +94,7 @@
             "arguments": [
               "allocation_pool_start",
               "allocation_pool_end",
-              "%(value)s"
+              "{self[value]}"
             ]
           }
         },
@@ -111,7 +111,7 @@
             "arguments": [
               "allocation_pool_start",
               "allocation_pool_end",
-              "%(value)s"
+              "{self[value]}"
             ]
           }
         }
@@ -120,7 +120,7 @@
         "host.properties.num_cpus": "openstack.nodes.Server.requirements.flavor.node_filter.properties.vcpus",
         "host.properties.cpu_frequency": {
           "error": true,
-          "reason": "Openstack doesn't support parameter %(parameter)s"
+          "reason": "Openstack doesn't support parameter {self[parameter]}"
         },
         "host.properties.disk_size": "openstack.nodes.Server.requirements.flavor.node_filter.properties.disk",
         "host.properties.mem_size": "openstack.nodes.Server.requirements.flavor.node_filter.properties.ram",
@@ -128,15 +128,15 @@
           "openstack.nodes.SecurityGroupRule.attributes.remote_ip_prefix",
           {
             "parameter": "openstack.nodes.SecurityGroup.properties.name",
-            "value": "%(name)s_security_group"
+            "value": "{self[name]}_security_group"
           },
           {
             "parameter": "openstack.nodes.Server.requirements.security_groups",
-            "value": "%(name)s_security_group"
+            "value": "{self[name]}_security_group"
           },
           {
             "parameter": "openstack.nodes.SecurityGroupRule.requirements.security_group",
-            "value": "%(name)s_security_group"
+            "value": "{self[name]}_security_group"
           }
         ],
         "endpoint.properties.protocol": "openstack.nodes.SecurityGroupRule.attributes.protocol",
@@ -172,7 +172,7 @@
             "condition": "contains",
             "arguments": [
               "name",
-              "%(value)s"
+              "{self[value]}"
             ]
           }
         },

@@ -121,6 +121,8 @@ def translate_from_provider(node):
 
 
 def get_structure_of_mapped_param(mapped_param, value, self=None, type_list_parameters=None):
+    if mapped_param is None:
+        return []
     if self is None:
         self = value
 
@@ -202,13 +204,13 @@ def get_structure_of_mapped_param(mapped_param, value, self=None, type_list_para
     ))
 
 
-def restructure_value(mapping_value, self, facts):
+def restructure_value(mapping_value, self, facts, if_format_str=True):
     if isinstance(mapping_value, dict):
         flat_mapping_value = dict()
         for key in MAPPING_VALUE_KEYS:
             mapping_sub_value = mapping_value.get(key)
             if mapping_sub_value is not None:
-                restructured_value = restructure_value(mapping_sub_value, self, facts)
+                restructured_value = restructure_value(mapping_sub_value, self, facts, key != 'parameter')
                 if restructured_value is None:
                     ExceptionCollector.appendException(ToscaParametersMappingFailed(
                         what=mapping_value
@@ -219,7 +221,7 @@ def restructure_value(mapping_value, self, facts):
         # NOTE: the case when value has keys 'error' and 'reason'
         if flat_mapping_value.get('error', False):
             ExceptionCollector.appendException(UnsupportedToscaParameterUsage(
-                what=flat_mapping_value.get('reason') % self
+                what=flat_mapping_value.get('reason').format(self=self)
             ))
 
         # NOTE: the case when value has keys 'parameter' and 'value'
@@ -231,8 +233,18 @@ def restructure_value(mapping_value, self, facts):
                 filled_k = restructure_value(k, self, facts)
                 filled_v = restructure_value(v, self, facts)
                 filled_value[filled_k] = filled_v
-                return filled_value
+            return filled_value
         if parameter is not None:
+            if parameter[:6] == '{self[' and parameter.index('}') == len(parameter)-1:
+                params_parameter = parameter[6:-2].split('][')
+                iter_value = value
+                iter_num = len(params_parameter)
+                for i in range(iter_num-1, 0, -1):
+                    temp_param = dict()
+                    temp_param[params_parameter[i]] = iter_value
+                    iter_value = temp_param
+                self[params_parameter[0]] = deep_update_dict(self.get(params_parameter[0], {}), iter_value)
+                return
             r = dict()
             r[parameter] = value
             return r
@@ -270,11 +282,16 @@ def restructure_value(mapping_value, self, facts):
         return [restructure_value(v, self, facts) for v in mapping_value]
 
     if isinstance(mapping_value, str):
-        # TODO self type check if not str
-        for k, v in self.items():
-            if mapping_value == "%(" + k + ")s":
-                return v
-        mapping_value = mapping_value % self
+        if mapping_value[:6] == '{self[' and if_format_str:
+            if mapping_value.index('}') == len(mapping_value)-1:
+                mapping_value = mapping_value[6:-2]
+                params_map_val = mapping_value.split('][')
+                temp_val = self
+                for param in params_map_val:
+                    temp_val = temp_val.get(param, {})
+                return temp_val
+            else:
+                mapping_value = mapping_value.format(self=self)
 
     return mapping_value
 
@@ -359,6 +376,22 @@ def get_restructured_mapping_item(key_prefix, parameter, mapping_value, value):
                 r.append(item)
         return r
 
+    if isinstance(value, str):
+        r = []
+        arg_key_prefix = value if not key_prefix else SEPARATOR.join([key_prefix, value])
+        arg_map = mapping_value.get(arg_key_prefix)
+        if not arg_map:
+            arg_map = mapping_value
+        else:
+            arg_key_prefix = ''
+        arg_parameter = value if not parameter else SEPARATOR.join([parameter, value])
+        item = get_restructured_mapping_item(arg_key_prefix, arg_parameter, arg_map, True)
+        if isinstance(item, list):
+            r.extend(item)
+        elif item is not None:
+            r.append(item)
+        return r
+
     return None
 
 
@@ -372,23 +405,34 @@ def restructure_mapping(tosca_elements_map_to_provider, node):
     return get_restructured_mapping_item('', '', tosca_elements_map_to_provider, value={node.type: template})
 
 
+def deep_update_dict(source, overrides):
+    for k, v in overrides.items():
+        if isinstance(v, dict):
+            source[k] = deep_update_dict(source.get(k, {}), v)
+        else:
+            source[k] = v
+    return source
+
+
 def translate_from_tosca(restructured_mapping, facts, tpl_name):
     """
     Translator from TOSCA definitions in provider definitions using rules from element_map_to_provider
     :param restructured_mapping: list of dict(parameter, map, value)
     :param facts: dict
+    :param tpl_name: str
     :return: entity_tpl as dict
     """
     resulted_structure = {}
+    self = dict(
+        name=tpl_name
+    )
     for item in restructured_mapping:
         ExceptionCollector.start()
+        self['parameter'] = item['parameter']
+        self['value'] = item['value']
         mapped_param = restructure_value(
             mapping_value=item['map'],
-            self=dict(
-                parameter=item['parameter'],
-                value=item['value'],
-                name=tpl_name
-            ),
+            self=self,
             facts=facts
         )
         ExceptionCollector.stop()
@@ -416,9 +460,9 @@ def translate_from_tosca(restructured_mapping, facts, tpl_name):
                             else:
                                 if isinstance(params, list):
                                     for params_i in params:
-                                        resulted_structure[node_type][section].update(params_i)
+                                        resulted_structure[node_type][section] = deep_update_dict(temp_params, params_i)
                                 else:
-                                    resulted_structure[node_type][section].update(params)
+                                    resulted_structure[node_type][section] = deep_update_dict(temp_params, params)
 
     return resulted_structure
 

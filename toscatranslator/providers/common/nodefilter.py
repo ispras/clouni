@@ -19,7 +19,10 @@ class ProviderNodeFilter(object):
         self.all_facts = self.facts
         self.facts = []
         for facts_key in self.facts_keys:
-            self.facts += self.all_facts.get(facts_key, [])
+            if not isinstance(facts_key, list):
+                facts_key = [facts_key]
+            for fact_key in facts_key:
+                self.facts += self.all_facts.get(fact_key, [])
 
     def filter_params(self, params):
         ExceptionCollector.start()
@@ -128,8 +131,8 @@ class ProviderNodeFilter(object):
                 continue
             fact_names = fact_name_by_node_name.get(snake_case.convert(type_name))  # NOTE: could be None
             if fact_names is not None:
-                if not isinstance(fact_names, set):
-                    fact_names = {fact_names}
+                if not isinstance(fact_names, list):
+                    fact_names = [fact_names]
                 for fact_name in fact_names:
                     input_facts = facts.get(fact_name)
                     if input_facts is None:

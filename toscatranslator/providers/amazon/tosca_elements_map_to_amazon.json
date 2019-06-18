@@ -2,14 +2,14 @@
   "tosca.nodes.Compute": [
     {
       "parameter": "amazon.nodes.Instance.attributes.name",
-      "value": "%(name)s"
+      "value": "{self[name]}"
     },
     {
       "attributes": {
         "meta": {
           "parameter": "amazon.nodes.Instance.properties.tags",
           "value": {
-            "metadata": "%(value)s"
+            "metadata": "{self[value]}"
           }
         },
         "private_address":
@@ -17,17 +17,17 @@
           "parameter": "amazon.nodes.Instance.attributes",
           "value": [
             {
-              "parameter": "network.interface.properties.private_address",
+              "parameter": "network.interface.properties",
               "value": {
                 "assign_public_ip": true,
-                "private_ip_address": "%(value)s"
+                "private_ip_address": "{self[value]}"
               }
             }
           ]
         },
         "public_address": {
           "error": true,
-          "reason": "Unable to specify %(parameter)s in AWS"
+          "reason": "Unable to specify {self[parameter]} in AWS"
         }
       },
         "networks": {
@@ -46,44 +46,34 @@
             "facts": "ec2_instance_type_facts",
             "condition": "contains",
             "arguments": [
-              "%(value)s",
+              "{self[value]}",
               ["vcpus", "memory", "storage"]
             ]
           }
         },
         "endpoint.attributes.ip_address": [
-          "amazon.nodes.SecurityGroup.properties.rules.cidr_ip",
-          "amazon.nodes.SecurityGroup.properties.rules_egress.cidr_ip",
+          {
+            "parameter": "{self[buffer][security_group_rule][cidr_ip]}",
+            "value": "{self[value]}"
+          },
           {
             "parameter": "amazon.nodes.SecurityGroup.properties.name",
-            "value": "%(name)s_security_group"
+            "value": "{self[name]}_security_group"
           },
           {
-            "parameter": "amazon.nodes.Instance.requirements",
-            "value": [
-              {
-                "parameter": "security_groups",
-                "value": [
-                  "%(name)s_security_group"
-                ]
-              }
-            ]
+            "parameter": "amazon.nodes.Instance.requirements.security_groups",
+            "value": "{self[name]}_security_group"
           }
         ],
-        "endpoint.properties.protocol": [
-          "amazon.nodes.SecurityGroup.properties.rules.proto",
-          "amazon.nodes.SecurityGroup.properties.rules_egress.proto"
-        ],
-        "endpoint.properties.port": [
-          {
-            "parameter": "amazon.nodes.SecurityGroup.properties.rules.ports",
-            "value": ["%(value)s"]
-          },
-          {
-            "parameter": "amazon.nodes.SecurityGroup.properties.rules_egress.ports",
-            "value": ["%(value)s"]
-          }
-        ],
+        "endpoint.properties.protocol": {
+          "parameter": "{self[buffer][security_group_rule][proto]}",
+          "value": "{self[value]}"
+        },
+        "endpoint.properties.port":
+        {
+          "parameter": "{self[buffer][security_group_rule][ports]}",
+          "value": ["{self[value]}"]
+        },
         "endpoint.properties.secure": {
           "error": true,
           "reason": "Not supported in AWS"
@@ -101,34 +91,46 @@
           "condition": "equals"
         },
         "endpoint.properties.initiator.target": {
-          "parameter": "amazon.nodes.SecurityGroup.properties.rules_egress",
-          "value": ""
+          "parameter": "amazon.nodes.SecurityGroup.properties.rules",
+          "value": [
+            "{self[buffer][security_group_rule]}"
+          ]
         },
         "endpoint.properties.initiator.source": {
-          "parameter": "amazon.nodes.SecurityGroup.properties.rules",
-          "value": ""
+          "parameter": "amazon.nodes.SecurityGroup.properties.rules_egress",
+          "value": [
+            "{self[buffer][security_group_rule]}"
+          ]
         },
-        "endpoint.properties.initiator.peer": {},
+        "endpoint.properties.initiator.peer": [
+          {
+            "parameter": "amazon.nodes.SecurityGroup.properties.rules",
+            "value": [
+              "{self[buffer][security_group_rule]}"
+            ]
+          },
+          {
+            "parameter": "amazon.nodes.SecurityGroup.properties.rules_egress",
+            "value": [
+              "{self[buffer][security_group_rule]}"
+            ]
+          }
+        ],
         "endpoint.properties.ports": {
           "error": true,
           "reason": "Not implemented yet"
         },
         "os.properties": {
-          "parameter": "amazon.nodes.Instance.requirements",
-          "value": [
-            {
-              "parameter": "image_id",
-              "value": {
-                "value": "image_id",
-                "facts": "ec2_ami_facts",
-                "condition": "contains",
-                "arguments": [
-                  ["architecture", "name"],
-                  "%(value)s"
-                ]
-              }
-            }
-          ]
+          "parameter": "amazon.nodes.Instance.requirements.image_id.node_filter.properties.image_id",
+          "value": {
+            "value": "image_id",
+            "facts": "ec2_ami_facts",
+            "condition": "contains",
+            "arguments": [
+              ["architecture", "name"],
+              "{self[value]}"
+            ]
+          }
         },
         "scalable": {
           "error": true,

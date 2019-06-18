@@ -33,10 +33,10 @@ FACTS_BY_PROVIDER = dict(
 amazon_fact_name_by_node_name = dict(
     elastic_network_interface='ec2_eni_facts',
     image='ec2_ami_facts',
-    instance={'ec2_instance_facts', 'ec2_instance_type_facts'},
+    instance=['ec2_instance_facts', 'ec2_instance_type_facts'],
     virtual_private_cloud='ec2_vpc_facts',
     virtual_private_cloud_subnet='ec2_subnet_facts',
-    security_group='ec2_security_groups_facts'
+    security_group='ec2_security_group_facts'
 )
 
 openstack_fact_name_by_node_name = dict(
@@ -57,7 +57,7 @@ FACT_NAME_BY_NODE_NAME = dict(
 # FACTS REFACTORING
 ##########################################################################
 refactoring_ami_keys = dict(
-
+    id=['image_id']
 )
 
 refactoring_eni_keys = dict(

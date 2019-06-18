@@ -20,7 +20,8 @@ from toscaparser.topology_template import TopologyTemplate
 class ProviderToscaTemplate (object):
     ALL_TYPES = ['imports', 'node_types', 'capability_types', 'relationship_types',
                  'data_types', 'interface_types', 'policy_types', 'group_types']
-    TOSCA_ELEMENTS_MAP_FILE = 'tosca_elements_map_to_provider.json'
+    TOSCA_ELEMENTS_MAP_FILE = 'tosca_elements_map_to_%(provider)s.json'
+    FILE_DEFINITION = 'TOSCA_%(provider)s_definition_1_0.yaml'
 
     def __init__(self, tosca_parser_template, facts):
 
@@ -128,6 +129,8 @@ class ProviderToscaTemplate (object):
             (_, _, type_name) = tosca_type.parse(node.type)
             fact_name = FACT_NAME_BY_NODE_NAME.get(self.provider(), {}).get(snake_case.convert(type_name))
             if fact_name:
+                if isinstance(fact_name, list):
+                    fact_name = fact_name[0]
                 new_facts[fact_name].append(node.entity_tpl.get('properties'))
         return new_facts
 
@@ -160,10 +163,10 @@ class ProviderToscaTemplate (object):
                         )
 
     def definition_file(self):
-        assert self.FILE_DEFINITION is not None
+        file_definition = self.FILE_DEFINITION % {'provider': self.provider()}
         cur_dir = os.path.dirname(__file__)
         par_dir = os.path.dirname(cur_dir)
-        file_name = os.path.join(par_dir, self.provider(), self.FILE_DEFINITION)
+        file_name = os.path.join(par_dir, self.provider(), file_definition)
 
         return file_name
 
@@ -175,8 +178,9 @@ class ProviderToscaTemplate (object):
         raise NotImplementedError()
 
     def tosca_elements_map_to_provider(self):
+        tosca_elements_map_file = self.TOSCA_ELEMENTS_MAP_FILE % {'provider': self.provider()}
         par_dir = os.path.dirname(os.path.dirname(__file__))
-        map_file = os.path.join(par_dir, self.provider(), self.TOSCA_ELEMENTS_MAP_FILE)
+        map_file = os.path.join(par_dir, self.provider(), tosca_elements_map_file)
         with open(map_file, 'r') as file_obj:
             data = file_obj.read()
             data_dict = json.loads(data)
