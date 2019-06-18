@@ -1,0 +1,144 @@
+{
+  "tosca.nodes.Compute": [
+    {
+      "parameter": "amazon.nodes.Instance.attributes.name",
+      "value": "%(name)s"
+    },
+    {
+      "attributes": {
+        "meta": {
+          "parameter": "amazon.nodes.Instance.properties.tags",
+          "value": {
+            "metadata": "%(value)s"
+          }
+        },
+        "private_address":
+        {
+          "parameter": "amazon.nodes.Instance.attributes",
+          "value": [
+            {
+              "parameter": "network.interface.properties.private_address",
+              "value": {
+                "assign_public_ip": true,
+                "private_ip_address": "%(value)s"
+              }
+            }
+          ]
+        },
+        "public_address": {
+          "error": true,
+          "reason": "Unable to specify %(parameter)s in AWS"
+        }
+      },
+        "networks": {
+          "error": true,
+          "reason": "Not implemented yet"
+        },
+        "ports" :  {
+          "error": true,
+          "reason": "Not implemented yet"
+        },
+      "capabilities": {
+        "host.properties": {
+          "parameter": "amazon.nodes.Instance.properties.instance_type",
+          "value": {
+            "value": "apiname",
+            "facts": "ec2_instance_type_facts",
+            "condition": "contains",
+            "arguments": [
+              "%(value)s",
+              ["vcpus", "memory", "storage"]
+            ]
+          }
+        },
+        "endpoint.attributes.ip_address": [
+          "amazon.nodes.SecurityGroup.properties.rules.cidr_ip",
+          "amazon.nodes.SecurityGroup.properties.rules_egress.cidr_ip",
+          {
+            "parameter": "amazon.nodes.SecurityGroup.properties.name",
+            "value": "%(name)s_security_group"
+          },
+          {
+            "parameter": "amazon.nodes.Instance.requirements",
+            "value": [
+              {
+                "parameter": "security_groups",
+                "value": [
+                  "%(name)s_security_group"
+                ]
+              }
+            ]
+          }
+        ],
+        "endpoint.properties.protocol": [
+          "amazon.nodes.SecurityGroup.properties.rules.proto",
+          "amazon.nodes.SecurityGroup.properties.rules_egress.proto"
+        ],
+        "endpoint.properties.port": [
+          {
+            "parameter": "amazon.nodes.SecurityGroup.properties.rules.ports",
+            "value": ["%(value)s"]
+          },
+          {
+            "parameter": "amazon.nodes.SecurityGroup.properties.rules_egress.ports",
+            "value": ["%(value)s"]
+          }
+        ],
+        "endpoint.properties.secure": {
+          "error": true,
+          "reason": "Not supported in AWS"
+        },
+        "endpoint.properties.url_path": {
+          "error": true,
+          "reason": "Not supported in AWS"
+        },
+        "endpoint.properties.port_name": {
+          "error": true,
+          "reason": "Not supported in AWS"
+        },
+        "endpoint.properties.network_name": {
+          "facts": "ec2_vpc_",
+          "condition": "equals"
+        },
+        "endpoint.properties.initiator.target": {
+          "parameter": "amazon.nodes.SecurityGroup.properties.rules_egress",
+          "value": ""
+        },
+        "endpoint.properties.initiator.source": {
+          "parameter": "amazon.nodes.SecurityGroup.properties.rules",
+          "value": ""
+        },
+        "endpoint.properties.initiator.peer": {},
+        "endpoint.properties.ports": {
+          "error": true,
+          "reason": "Not implemented yet"
+        },
+        "os.properties": {
+          "parameter": "amazon.nodes.Instance.requirements",
+          "value": [
+            {
+              "parameter": "image_id",
+              "value": {
+                "value": "image_id",
+                "facts": "ec2_ami_facts",
+                "condition": "contains",
+                "arguments": [
+                  ["architecture", "name"],
+                  "%(value)s"
+                ]
+              }
+            }
+          ]
+        },
+        "scalable": {
+          "error": true,
+          "reason": "Not described in TOSCA Profile YAML v1.0"
+        }
+      },
+      "requirements.local_storage": {
+        "error": true,
+        "reason": "Bad description in TOSCA Profile YAML v1.0"
+      }
+    }
+  ]
+}
