@@ -5,8 +5,8 @@ from toscaparser.common.exception import ExceptionCollector
 from toscaparser.utils.yamlparser import simple_parse as yaml_parse
 from toscaparser.tosca_template import ToscaTemplate
 
-from toscatranslator.common.exception import UnknownProvider, UnsupportedFactsFormat, UnspecifiedParameter
-from toscatranslator.providers.combined.combine_templates import PROVIDER_TEMPLATES
+from toscatranslator.common.exception import UnsupportedFactsFormat, UnspecifiedParameter
+from toscatranslator.providers.common.tosca_template import ProviderToscaTemplate
 
 
 def translate(template_file, validate_only, provider, _facts, a_file=True):
@@ -37,10 +37,5 @@ def translate(template_file, validate_only, provider, _facts, a_file=True):
             what=('validate-only', 'provider')
         ))
 
-    tosca_template_class = PROVIDER_TEMPLATES.get(provider)
-    if not tosca_template_class:
-        ExceptionCollector.appendException(UnknownProvider(
-            what=provider
-        ))
-    tosca = tosca_template_class(tosca_parser_template_object, facts)
+    tosca = ProviderToscaTemplate(tosca_parser_template_object, facts, provider)
     return tosca.to_ansible_role_for_create()

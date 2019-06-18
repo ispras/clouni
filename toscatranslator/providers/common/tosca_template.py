@@ -16,6 +16,9 @@ from toscaparser.imports import ImportsLoader
 
 from toscaparser.topology_template import TopologyTemplate
 
+from toscatranslator.providers.combined.combine_provider_resources import PROVIDER_RESOURCES
+from toscatranslator.common.exception import UnknownProvider
+
 
 class ProviderToscaTemplate (object):
     ALL_TYPES = ['imports', 'node_types', 'capability_types', 'relationship_types',
@@ -23,8 +26,9 @@ class ProviderToscaTemplate (object):
     TOSCA_ELEMENTS_MAP_FILE = 'tosca_elements_map_to_%(provider)s.json'
     FILE_DEFINITION = 'TOSCA_%(provider)s_definition_1_0.yaml'
 
-    def __init__(self, tosca_parser_template, facts):
+    def __init__(self, tosca_parser_template, facts, provider):
 
+        self.provider = provider
         # toscaparser.tosca_template:ToscaTemplate
         self.tosca_parser_template = tosca_parser_template
         # toscaparser.topology_template:TopologyTemplate
@@ -39,7 +43,7 @@ class ProviderToscaTemplate (object):
         self.provider_defs = import_definition_file.get_custom_defs()
 
         # REFACTOR FACTS
-        self.facts = ProviderNodeFilter.refactor_facts(facts, self.provider(), self.provider_defs)
+        self.facts = ProviderNodeFilter.refactor_facts(facts, self.provider, self.provider_defs)
 
         self.topology_template = self.translate_to_provider()
 
@@ -47,7 +51,7 @@ class ProviderToscaTemplate (object):
 
         self.extended_facts = None
         not_refactored_extending_facts = self._extending_facts()
-        extending_facts = ProviderNodeFilter.refactor_facts(not_refactored_extending_facts, self.provider(),
+        extending_facts = ProviderNodeFilter.refactor_facts(not_refactored_extending_facts, self.provider,
                                                             self.provider_defs)
         self.extend_facts(extending_facts)  # fulfill self.extended_facts
 
@@ -71,9 +75,14 @@ class ProviderToscaTemplate (object):
         provider_nodes = list()
         for node in self.node_templates:
             (namespace, category, type_name) = tosca_type.parse(node.type)
-            if namespace != self.provider() or category != 'nodes':
+            if namespace != self.provider or category != 'nodes':
                 ExceptionCollector.appendException(Exception('Unexpected values'))
-            provider_node_instance = self.provider_resource_class(node)  # Initialize ProviderResource instance
+            provider_node_class = PROVIDER_RESOURCES.get(self.provider)
+            if not provider_node_class:
+                ExceptionCollector.appendException(UnknownProvider(
+                    what=self.provider
+                ))
+            provider_node_instance = provider_node_class(node)
             provider_nodes.append(provider_node_instance)
         return provider_nodes
 
@@ -120,14 +129,14 @@ class ProviderToscaTemplate (object):
         :return:
         """
         # NOTE: optimize this part in future, searching by param, tradeoff between cpu and ram ( N * O(k) vs N * O(1) )
-        new_facts_key_list = FACTS_BY_PROVIDER.get(self.provider()).keys()
+        new_facts_key_list = FACTS_BY_PROVIDER.get(self.provider).keys()
         new_facts = dict()
         for key in new_facts_key_list:
             new_facts[key] = []
 
         for node in self.node_templates:  # node is toscaparser.nodetemplate:NodeTemplate
             (_, _, type_name) = tosca_type.parse(node.type)
-            fact_name = FACT_NAME_BY_NODE_NAME.get(self.provider(), {}).get(snake_case.convert(type_name))
+            fact_name = FACT_NAME_BY_NODE_NAME.get(self.provider, {}).get(snake_case.convert(type_name))
             if fact_name:
                 if isinstance(fact_name, list):
                     fact_name = fact_name[0]
@@ -163,24 +172,17 @@ class ProviderToscaTemplate (object):
                         )
 
     def definition_file(self):
-        file_definition = self.FILE_DEFINITION % {'provider': self.provider()}
+        file_definition = self.FILE_DEFINITION % {'provider': self.provider}
         cur_dir = os.path.dirname(__file__)
         par_dir = os.path.dirname(cur_dir)
-        file_name = os.path.join(par_dir, self.provider(), file_definition)
+        file_name = os.path.join(par_dir, self.provider, file_definition)
 
         return file_name
 
-    def provider(self):
-        assert self.PROVIDER is not None
-        return self.PROVIDER
-
-    def provider_resource_class(self, node):
-        raise NotImplementedError()
-
     def tosca_elements_map_to_provider(self):
-        tosca_elements_map_file = self.TOSCA_ELEMENTS_MAP_FILE % {'provider': self.provider()}
+        tosca_elements_map_file = self.TOSCA_ELEMENTS_MAP_FILE % {'provider': self.provider}
         par_dir = os.path.dirname(os.path.dirname(__file__))
-        map_file = os.path.join(par_dir, self.provider(), tosca_elements_map_file)
+        map_file = os.path.join(par_dir, self.provider, tosca_elements_map_file)
         with open(map_file, 'r') as file_obj:
             data = file_obj.read()
             data_dict = json.loads(data)
