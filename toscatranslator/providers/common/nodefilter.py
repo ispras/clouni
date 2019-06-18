@@ -1,5 +1,5 @@
 from toscatranslator.providers.combined.combined_facts import FACT_NAME_BY_NODE_NAME, REFACTORING_FACT_KEYS
-from toscatranslator.common import tosca_type
+from toscatranslator.common import tosca_type, snake_case
 from toscaparser.common.exception import ExceptionCollector, ValidationError
 from toscatranslator.common.exception import UnsupportedFilteringValues
 
@@ -126,36 +126,39 @@ class ProviderNodeFilter(object):
             (_, category, type_name) = tosca_type.parse(def_type)
             if category != 'nodes':
                 continue
-            fact_name = fact_name_by_node_name.get(type_name.lower())  # NOTE: could be None
-            if fact_name is not None:
-                input_facts = facts.get(fact_name)
-                if input_facts is None:
-                    continue
-                refactoring_keys = REFACTORING_FACT_KEYS.get(fact_name, {})
-                available_fact_keys = set(refactoring_keys.keys())
-                properties = definition.get('properties', {})
-                available_fact_keys.update(properties.keys())
-                capabilities = definition.get('capabilities', {})
-                for cap_def in capabilities.values():
-                    cap_type = cap_def.get('type')
-                    if cap_type is not None:
-                        cap_type_def = provider_defs.get(cap_type, {})
-                        available_fact_keys.update(cap_type_def.get('properties', {}).keys())
-                requirements = definition.get('requirements', [])
-                available_fact_keys.update(next(iter(req.keys())) for req in requirements)
+            fact_names = fact_name_by_node_name.get(snake_case.convert(type_name))  # NOTE: could be None
+            if fact_names is not None:
+                if not isinstance(fact_names, set):
+                    fact_names = {fact_names}
+                for fact_name in fact_names:
+                    input_facts = facts.get(fact_name)
+                    if input_facts is None:
+                        continue
+                    refactoring_keys = REFACTORING_FACT_KEYS.get(fact_name, {})
+                    available_fact_keys = set(refactoring_keys.keys())
+                    properties = definition.get('properties', {})
+                    available_fact_keys.update(properties.keys())
+                    capabilities = definition.get('capabilities', {})
+                    for cap_def in capabilities.values():
+                        cap_type = cap_def.get('type')
+                        if cap_type is not None:
+                            cap_type_def = provider_defs.get(cap_type, {})
+                            available_fact_keys.update(cap_type_def.get('properties', {}).keys())
+                    requirements = definition.get('requirements', [])
+                    available_fact_keys.update(next(iter(req.keys())) for req in requirements)
 
-                output_facts = []
-                for input_fact in input_facts:
-                    output_fact = {}
-                    for fact_key in available_fact_keys:
-                        fact_value = input_fact.get(fact_key)
-                        if fact_value is None:
-                            ref_keys = refactoring_keys.get(fact_key, [])
-                            fact_value = ProviderNodeFilter.make_fact_value(None, ref_keys, input_fact)
-                        if fact_value is not None:
-                            output_fact[fact_key] = fact_value
-                    output_facts.append(output_fact)
-                refactored_facts[fact_name] = output_facts
+                    output_facts = []
+                    for input_fact in input_facts:
+                        output_fact = {}
+                        for fact_key in available_fact_keys:
+                            fact_value = input_fact.get(fact_key)
+                            if fact_value is None:
+                                ref_keys = refactoring_keys.get(fact_key, [])
+                                fact_value = ProviderNodeFilter.make_fact_value(None, ref_keys, input_fact)
+                            if fact_value is not None:
+                                output_fact[fact_key] = fact_value
+                        output_facts.append(output_fact)
+                    refactored_facts[fact_name] = output_facts
         return refactored_facts
 
     def fact_name_by_node_name(self, node_name):

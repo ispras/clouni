@@ -33,7 +33,7 @@ FACTS_BY_PROVIDER = dict(
 amazon_fact_name_by_node_name = dict(
     elastic_network_interface='ec2_eni_facts',
     image='ec2_ami_facts',
-    instance='ec2_instance_facts',
+    instance={'ec2_instance_facts', 'ec2_instance_type_facts'},
     virtual_private_cloud='ec2_vpc_facts',
     virtual_private_cloud_subnet='ec2_subnet_facts',
     security_group='ec2_security_groups_facts'
@@ -86,9 +86,10 @@ refactoring_ec2_instance_facts = dict(
 )
 
 refactoring_instance_type_keys = dict(
-    network=['network_interfaces'],
-    security_groups=['security_groups', 'id'],
-    vpc_subnet_id=['subnet_id']
+    apiname=['apiname'],
+    memory=['memory'],
+    vcpus=['vcpus'],
+    storage=['storage']
 )
 
 refactoring_flavor_keys = dict(
