@@ -1,6 +1,7 @@
 import os
 import copy
 import json
+import yaml
 
 from toscaparser.common.exception import ExceptionCollector
 
@@ -91,12 +92,18 @@ class ProviderToscaTemplate (object):
         Fulfill ansible_role with ansible_create functions from every node
         :return:
         """
-        self.ansible_role = ''
+        self.ansible_role = '---\n\n'
         self.ansible_role_ready = False
+        ansible_task_list = []
         nodes_queue = self.sort_nodes_by_dependency()
         for node in nodes_queue:
-            self.ansible_role += node.get_ansible_task_for_create() + '\n'
-        self.ansible_role += '\n'
+            ansible_task_list.append(node.get_ansible_task_for_create())
+        ansible_playbook = [dict(
+            name='Create ' + self.provider + ' cluster',
+            hosts='all',
+            tasks=ansible_task_list
+        )]
+        self.ansible_role += yaml.dump(ansible_playbook)
         self.ansible_role_ready = True
         return self.ansible_role
 

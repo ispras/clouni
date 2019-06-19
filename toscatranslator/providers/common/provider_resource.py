@@ -139,7 +139,7 @@ class ProviderResource(object):
         self.ansible_task_as_dict[self.ansible_module_by_type()] = self.ansible_args
         self.ansible_task = yaml.dump(self.ansible_task_as_dict)
 
-        return self.ansible_task
+        return self.ansible_task_as_dict
 
     def node_priority_by_type(self):
         assert self.NODE_PRIORITY_BY_TYPE is not None
