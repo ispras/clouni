@@ -1,0 +1,80 @@
+---
+# For authentication are used environment variables AWS_ACCESS_KEY, AWS_SECRET_KEY, EC2_URL, AWS_REGION, AWS_SECURITY_TOKEN
+
+- name: Create server Amazon
+  hosts: all
+  tasks:
+    - name: Create security_group
+      ec2_group:
+        name: server_kube_master_security_group
+        description: security group test create for instance kube master
+        rules:
+        - ports:
+          - 1000
+          cidr_ip: 0.0.0.0/0
+          proto: tcp
+
+    - name: Create VPC
+      ec2_vpc_net:
+        cidr_block: 192.168.12.0/22
+        name: server_kube_master_virtual_private_cloud
+      register: server_kube_master_virtual_private_cloud
+
+    - name: Create subnet
+      ec2_vpc_subnet:
+        vpc_id: "{{ server_kube_master_virtual_private_cloud.id }}"
+        cidr: 192.168.12.0/24
+      register: server_kube_master_subnet
+
+    - name: Create instance
+      ec2_instance:
+        image_id: ami-0653e888ec96eab9b
+        instance_type: t2.micro
+        name: server_kube_master
+        network:
+          assign_public_ip: true
+#          private_ip_address: 192.168.12.25
+          subnet_id: "{{ server_kube_master_subnet.id }}"
+        security_groups:
+        - server_kube_master_security_group
+        tags:
+          metadata: kube_master=true
+
+    - name: Create instance
+      ec2_instance:
+        image_id: ami-0653e888ec96eab9b
+        instance_type: t2.micro
+        name: server_kube_slave_0
+        network:
+          assign_public_ip: true
+          subnet_id: subnet-0777346a9cd4a25b7
+        security_groups:
+        - server_kube_master_security_group
+        tags:
+          metadata: kube_master=false
+
+    - name: Create instance
+      ec2_instance:
+        image_id: ami-0653e888ec96eab9b
+        instance_type: t2.micro
+        name: server_kube_slave_1
+        network:
+          assign_public_ip: true
+          subnet_id: subnet-0777346a9cd4a25b7
+        security_groups:
+        - server_kube_master_security_group
+        tags:
+          metadata: kube_master=false
+
+    - name: Create instance
+      ec2_instance:
+        image_id: ami-0653e888ec96eab9b
+        instance_type: t2.micro
+        name: server_kube_slave_2
+        network:
+          assign_public_ip: true
+          subnet_id: subnet-0777346a9cd4a25b7
+        security_groups:
+        - server_kube_master_security_group
+        tags:
+          metadata: kube_master=false
