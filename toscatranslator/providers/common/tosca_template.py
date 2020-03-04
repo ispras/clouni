@@ -2,6 +2,7 @@ import os
 import copy
 import json
 import yaml
+import fnmatch
 
 from toscaparser.common.exception import ExceptionCollector
 
@@ -24,7 +25,7 @@ from toscatranslator.common.exception import UnknownProvider
 class ProviderToscaTemplate (object):
     ALL_TYPES = ['imports', 'node_types', 'capability_types', 'relationship_types',
                  'data_types', 'interface_types', 'policy_types', 'group_types']
-    TOSCA_ELEMENTS_MAP_FILE = 'tosca_elements_map_to_%(provider)s.json'
+    TOSCA_ELEMENTS_MAP_FILE = 'tosca_elements_map_to_%(provider)s.*'
     FILE_DEFINITION = 'TOSCA_%(provider)s_definition_1_0.yaml'
 
     def __init__(self, tosca_parser_template, facts, provider):
@@ -189,11 +190,22 @@ class ProviderToscaTemplate (object):
     def tosca_elements_map_to_provider(self):
         tosca_elements_map_file = self.TOSCA_ELEMENTS_MAP_FILE % {'provider': self.provider}
         par_dir = os.path.dirname(os.path.dirname(__file__))
-        map_file = os.path.join(par_dir, self.provider, tosca_elements_map_file)
-        with open(map_file, 'r') as file_obj:
-            data = file_obj.read()
-            data_dict = json.loads(data)
-            return data_dict
+        data_dict = dict()
+        for filename in os.listdir(os.path.join(par_dir, self.provider)):
+            if fnmatch.fnmatch(filename, tosca_elements_map_file + '*'):
+                with open(os.path.join(par_dir, self.provider, filename), 'r') as file_obj:
+                    data = file_obj.read()
+                    try:
+                        if filename.lower().endswith(('.json')):
+                            data_dict = json.loads(data)
+                        else:
+                            data_dict = yaml.safe_load(data)
+                            break
+                    except:
+                        break
+        if 0 == len(data_dict):
+            raise FileNotFoundError('Can\'t find mapping file: '+tosca_elements_map_file)
+        return data_dict
 
     def translate_to_provider(self):
         new_node_templates = translate_to_provider(self.tosca_elements_map_to_provider(),
@@ -210,4 +222,3 @@ class ProviderToscaTemplate (object):
         topology_tpl = TopologyTemplate(dict_tpl, self.provider_defs, rel_types)
 
         return topology_tpl
-
