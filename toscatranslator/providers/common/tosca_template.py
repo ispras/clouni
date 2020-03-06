@@ -229,3 +229,4 @@ class ProviderToscaTemplate (object):
         topology_tpl = TopologyTemplate(dict_tpl, self.provider_defs, rel_types)
 
         return topology_tpl
+
