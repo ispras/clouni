@@ -15,7 +15,3 @@ build
 # Ansible credentials
 clouds.yaml
 ansible-hosts
-
-# Examples
-*example*.yaml
-*facts.json

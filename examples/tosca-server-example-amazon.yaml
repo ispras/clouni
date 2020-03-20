@@ -1,0 +1,61 @@
+tosca_definitions_version: tosca_simple_yaml_1_0
+
+imports:
+  - toscatranslator/providers/amazon/TOSCA_amazon_definition_1_0.yaml
+
+topology_template:
+  node_templates:
+    instance:
+      type: amazon.nodes.Instance
+      properties:
+        instance_type: t2.micro
+      requirements:
+        - image_id:
+            node_filter:
+              capabilities:
+                self:
+                  properties:
+                    architecture: x86_64
+        - network:
+            node_filter:
+              capabilities:
+                self:
+                  properties:
+                    private_ip_address: 172.31.41.191
+        - network:
+            node_filter:
+              capabilities:
+                self:
+                  properties:
+                    network_interface_id: eni-0b6db202849ec396d
+        - network:
+            node_filter:
+              capabilities:
+                self:
+                  properties:
+                    mac_address: 0a:56:15:5e:60:3e
+        - security_groups: instance_security_group
+        - vpc_subnet_id:
+            node_filter:
+              capabilities:
+                self:
+                  properties:
+                    cidr_block: 172.31.32.0/20
+
+
+# <create_security_group_id>: ec2_group
+    instance_security_group:
+      type: amazon.nodes.SecurityGroup
+      properties:
+        rules:
+          - proto: tcp
+            ports:
+              - 1
+            cidr_ip: 0.0.0.0
+      requirements:
+        - vpc_id:
+            node_filter:
+              capabilities:
+                self:
+                  properties:
+                    vpc_id: vpc-c3918cab
