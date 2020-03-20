@@ -2,6 +2,7 @@ import os
 import copy
 import json
 import yaml
+import fnmatch
 
 from toscaparser.common.exception import ExceptionCollector
 
@@ -18,13 +19,13 @@ from toscaparser.imports import ImportsLoader
 from toscaparser.topology_template import TopologyTemplate
 
 from toscatranslator.providers.combined.combine_provider_resources import PROVIDER_RESOURCES
-from toscatranslator.common.exception import UnknownProvider
+from toscatranslator.common.exception import UnknownProvider, ProviderMappingFileError
 
 
 class ProviderToscaTemplate (object):
     ALL_TYPES = ['imports', 'node_types', 'capability_types', 'relationship_types',
                  'data_types', 'interface_types', 'policy_types', 'group_types']
-    TOSCA_ELEMENTS_MAP_FILE = 'tosca_elements_map_to_%(provider)s.json'
+    TOSCA_ELEMENTS_MAP_FILE = 'tosca_elements_map_to_%(provider)s.*'
     FILE_DEFINITION = 'TOSCA_%(provider)s_definition_1_0.yaml'
 
     def __init__(self, tosca_parser_template, facts, provider):
@@ -189,11 +190,29 @@ class ProviderToscaTemplate (object):
     def tosca_elements_map_to_provider(self):
         tosca_elements_map_file = self.TOSCA_ELEMENTS_MAP_FILE % {'provider': self.provider}
         par_dir = os.path.dirname(os.path.dirname(__file__))
-        map_file = os.path.join(par_dir, self.provider, tosca_elements_map_file)
-        with open(map_file, 'r') as file_obj:
-            data = file_obj.read()
-            data_dict = json.loads(data)
-            return data_dict
+        data_dict = dict()
+        is_find = False
+        for file_name in os.listdir(os.path.join(par_dir, self.provider)):
+            if fnmatch.fnmatch(file_name, tosca_elements_map_file + '*'):
+                with open(os.path.join(par_dir, self.provider, file_name), 'r') as file_obj:
+                    data = file_obj.read()
+                    is_find = True
+                    try:
+                        if file_name.lower().endswith(('.json')):
+                            data_dict = json.loads(data)
+                            break
+                        else:
+                            data_dict = yaml.safe_load(data)
+                            break
+                    except:
+                        continue
+        if 0 == len(data_dict):
+            if is_find:
+                raise ProviderMappingFileError(what=file_name)
+            else:
+                raise FileNotFoundError(
+                    'Can\'t find mapping file: ' + tosca_elements_map_file + '\nPlease, check that extension is .yaml or .json')
+        return data_dict
 
     def translate_to_provider(self):
         new_node_templates = translate_to_provider(self.tosca_elements_map_to_provider(),

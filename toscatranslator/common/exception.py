@@ -61,3 +61,6 @@ class ToscaParametersMappingFailed(TOSCAException):
 
 class UnsupportedMappingFunction(TOSCAException):
     msg_fmt = _('Unsupported function "%(what)s", supported functions are %(supported)s')
+
+class ProviderMappingFileError(TOSCAException):
+    msg_fmt = _('Errors in mapping file "%(what)s')
