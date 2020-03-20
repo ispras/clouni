@@ -1,10 +1,12 @@
-# tosca-tool
-Cloud Application Management Tool by TOSCA
+# Clouni
+Cloud Unifier Tool for Service Orchestration
+
+Clouni is a cloud application management tool based on OASIS standard [TOSCA](http://docs.oasis-open.org/tosca/TOSCA-Simple-Profile-YAML/v1.0/TOSCA-Simple-Profile-YAML-v1.0.html)
 
 ## Installation
-`tosca-tool` requires Python 3.7 to be used.
+Clouni requires Python 3.7 to be used.
 
-To install `tosca-tool` is recommended to create virtual environment and install requirements in your environment. 
+To install Clouni is recommended to create virtual environment and install requirements in your environment. 
 
 Installation command
 ~~~shell
@@ -16,11 +18,11 @@ python setup.py install
 
 Execute
 ~~~shell 
-tosca-tool --help
+clouni --help
 ~~~
 Output
 ~~~
-usage: tosca-tool [-h] --template-file <filename> [--validate-only]
+usage: clouni [-h] --template-file <filename> [--validate-only]
                   [--provider PROVIDER] [--facts <filename>]
 
 optional arguments:
@@ -36,7 +38,7 @@ optional arguments:
 
 Example
 ~~~shell
-tosca-tool --template-file tosca-server-example.yaml
+clouni --template-file tosca-server-example.yaml
 ~~~
 
 ## Adding new provider 

@@ -23,7 +23,7 @@ class TranslatorShell(object):
         self.output_print(output)
 
     def get_parser(self):
-        parser = argparse.ArgumentParser(prog="tosca-tool")
+        parser = argparse.ArgumentParser(prog="clouni")
 
         parser.add_argument('--template-file',
                             metavar='<filename>',
