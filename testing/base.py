@@ -2,24 +2,28 @@ from toscatranslator.common.translator_to_ansible import translate as common_tra
 import os
 import yaml
 
+from toscatranslator.common.utils import deep_update_dict
+
+(ATTRIBUTES, PROPERTIES, CAPABILITIES, REQUIREMENTS, TYPE) = ('attributes', 'properties', 'capabilities', 'requirements', 'type')
+(TOPOLOGY_TEMPLATE, NODE_TEMPLATES) = ('topology_template', 'node_templates')
 
 class TestAnsibleProviderOutput ():
     TESTING_TEMPLATE_FILENAME = 'examples/testing-example.yaml'
+    NODE_NAME = 'server_master'
     DEFAULT_TEMPLATE = {
         "tosca_definitions_version": "tosca_simple_yaml_1_0",
         "imports": [
             "toscatranslator/common/TOSCA_definition_1_0.yaml"
         ],
-        "topology_template": {
-            "node_templates": {
-                "server_master": {
+        TOPOLOGY_TEMPLATE: {
+            NODE_TEMPLATES: {
+                NODE_NAME: {
                     "type": "tosca.nodes.Compute"
                 }
             }
         }
     }
     PROVIDERS = ['openstack', 'amazon']
-    NODE_NAME = 'server_master'
 
     def write_template(self, template, filename=None):
         if not filename:
@@ -45,9 +49,7 @@ class TestAnsibleProviderOutput ():
         assert self.PROVIDER is not None
         assert self.PROVIDER in self.PROVIDERS
 
-    def get_ansible_output(self, template = None, template_filename = None):
-        if not template:
-            template = self.DEFAULT_TEMPLATE
+    def get_ansible_output(self, template, template_filename = None):
         if not template_filename:
             template_filename = self.TESTING_TEMPLATE_FILENAME
         self.write_template(self.prepare_yaml(template))
@@ -56,4 +58,46 @@ class TestAnsibleProviderOutput ():
         self.delete_template(template_filename)
         playbook = self.parse_yaml(r)
         return playbook
+
+    def update_node_template(self, template, node_name, update_value, param_type):
+        # TODO deep update!!!!
+        update_value = {
+            TOPOLOGY_TEMPLATE: {
+                NODE_TEMPLATES: {
+                    node_name: {
+                        param_type: update_value
+                    }
+                }
+            }
+        }
+        return deep_update_dict(template, update_value)
+
+
+    def update_template_property(self, template, node_name, update_value):
+        return self.update_node_template(template, node_name, update_value, PROPERTIES)
+
+    def update_template_attribute(self, template, node_name, update_value):
+        return self.update_node_template(template, node_name, update_value, ATTRIBUTES)
+
+    def update_template_capability(self, template, node_name, update_value):
+        return self.update_node_template(template, node_name, update_value, CAPABILITIES)
+
+    def update_template_capability_properties(self, template, node_name, capability_name, update_value):
+        uupdate_value = {
+            capability_name: {
+                PROPERTIES: update_value
+            }
+        }
+        return self.update_template_capability(template, node_name, uupdate_value)
+
+    def update_template_capability_attributes(self, template, node_name, capability_name, update_value):
+        uupdate_value = {
+            capability_name: {
+                ATTRIBUTES: update_value
+            }
+        }
+        return self.update_node_template(template, node_name, uupdate_value, CAPABILITIES)
+
+    def update_template_requirement(self, template, node_name, update_value):
+        return self.update_node_template(template, node_name, update_value, REQUIREMENTS)
 
