@@ -7,6 +7,8 @@ from toscatranslator.common.exception import UnsupportedToscaParameterUsage, Tos
 import copy
 from netaddr import IPRange, IPAddress
 
+from toscatranslator.common.utils import deep_update_dict
+
 
 SECTIONS = ('attributes', 'properties', 'capabilities', 'requirements', 'artifacts')
 MAPPING_VALUE_KEYS = ('error', 'reason', 'parameter', 'value', 'condition', 'facts', 'arguments')
@@ -403,15 +405,6 @@ def restructure_mapping(tosca_elements_map_to_provider, node):
             template[section] = section_value
 
     return get_restructured_mapping_item('', '', tosca_elements_map_to_provider, value={node.type: template})
-
-
-def deep_update_dict(source, overrides):
-    for k, v in overrides.items():
-        if isinstance(v, dict):
-            source[k] = deep_update_dict(source.get(k, {}), v)
-        else:
-            source[k] = v
-    return source
 
 
 def translate_from_tosca(restructured_mapping, facts, tpl_name):
