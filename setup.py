@@ -1,8 +1,8 @@
 import setuptools
 
-try:
-    import multiprocessing  # noqa
-except ImportError:
-    pass
+# try:
+#     import multiprocessing  # noqa
+# except ImportError:
+#     pass
 
 setuptools.setup()
