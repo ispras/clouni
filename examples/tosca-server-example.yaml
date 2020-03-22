@@ -11,7 +11,7 @@ topology_template:
         meta: "cube_master=true"
         private_address: 192.168.12.25
         public_address: 10.100.115.15
-      networks:
+        networks:
         - name: test-two-routers
       capabilities:
         host:
