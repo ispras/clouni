@@ -9,14 +9,18 @@ from netaddr import IPRange, IPAddress
 
 from toscatranslator.common.utils import deep_update_dict
 
+(ATTRIBUTES, PROPERTIES, CAPABILITIES, REQUIREMENTS, ARTIFACTS) = \
+    ('attributes', 'properties', 'capabilities', 'requirements', 'artifacts')
 
-SECTIONS = ('attributes', 'properties', 'capabilities', 'requirements', 'artifacts')
-MAPPING_VALUE_KEYS = ('error', 'reason', 'parameter', 'value', 'condition', 'facts', 'arguments')
-SUPPORTED_MAPPING_VALUE_STRUCTURE = (('error', 'reason'),
-                                     ('parameter', 'value'),
-                                     ('value', 'condition', 'facts', 'arguments'))
+(ERROR, REASON, PARAMETER, VALUE, CONDITION, FACTS, ARGUMENTS) = \
+    ('error', 'reason', 'parameter', 'value', 'condition', 'facts', 'arguments')
+
+SECTIONS = (ATTRIBUTES, PROPERTIES, CAPABILITIES, REQUIREMENTS, ARTIFACTS)
+MAPPING_VALUE_KEYS = (ERROR, REASON, PARAMETER, VALUE, CONDITION, FACTS, ARGUMENTS)
+SUPPORTED_MAPPING_VALUE_STRUCTURE = ((ERROR, REASON),
+                                     (PARAMETER, VALUE),
+                                     (VALUE, CONDITION, FACTS, ARGUMENTS))
 SEPARATOR = '.'
-
 
 def contain_function(pool, argv, first=True):
     argv_0 = argv[0]
@@ -175,7 +179,7 @@ def get_structure_of_mapped_param(mapped_param, value, self=None, type_list_para
                         parameter_structure = temp
 
                     structure[node_type] = dict()
-                    if cur_section == 'requirements':
+                    if cur_section == REQUIREMENTS:
                         parameter_structure = [parameter_structure]
                     structure[node_type][cur_section] = parameter_structure
                     return [structure]
@@ -207,12 +211,20 @@ def get_structure_of_mapped_param(mapped_param, value, self=None, type_list_para
 
 
 def restructure_value(mapping_value, self, facts, if_format_str=True):
+    """
+    Recursive function which processes the mapping_value to become parameter:value format
+    :param mapping_value: the map of non normative parameter:value
+    :param self: the function used to store normative parameter, value and other values
+    :param facts: set of facts
+    :param if_format_str:
+    :return:
+    """
     if isinstance(mapping_value, dict):
         flat_mapping_value = dict()
         for key in MAPPING_VALUE_KEYS:
             mapping_sub_value = mapping_value.get(key)
             if mapping_sub_value is not None:
-                restructured_value = restructure_value(mapping_sub_value, self, facts, key != 'parameter')
+                restructured_value = restructure_value(mapping_sub_value, self, facts, key != PARAMETER)
                 if restructured_value is None:
                     ExceptionCollector.appendException(ToscaParametersMappingFailed(
                         what=mapping_value
@@ -220,15 +232,15 @@ def restructure_value(mapping_value, self, facts, if_format_str=True):
                     return
                 flat_mapping_value[key] = restructured_value
 
-        # NOTE: the case when value has keys 'error' and 'reason'
-        if flat_mapping_value.get('error', False):
+        # NOTE: the case when value has keys ERROR and REASON
+        if flat_mapping_value.get(ERROR, False):
             ExceptionCollector.appendException(UnsupportedToscaParameterUsage(
-                what=flat_mapping_value.get('reason').format(self=self)
+                what=flat_mapping_value.get(REASON).format(self=self)
             ))
 
-        # NOTE: the case when value has keys 'parameter' and 'value'
-        parameter = flat_mapping_value.get('parameter')
-        value = flat_mapping_value.get('value')
+        # NOTE: the case when value has keys PARAMETER and VALUE
+        parameter = flat_mapping_value.get(PARAMETER)
+        value = flat_mapping_value.get(VALUE)
         if value is None:
             filled_value = dict()
             for k, v in mapping_value.items():
@@ -251,39 +263,41 @@ def restructure_value(mapping_value, self, facts, if_format_str=True):
             r[parameter] = value
             return r
 
-        # NOTE: the case when value has keys 'value', 'condition', 'facts', 'arguments'
-        condition_name = flat_mapping_value.get('condition')
-        fact_name = flat_mapping_value.get('facts')
-        arguments = flat_mapping_value.get('arguments')
-        if condition_name is None or fact_name is None or arguments is None:
-            ExceptionCollector.appendException(ToscaParametersMappingFailed(
-                what=condition_name
-            ))
-            return
-        pool = facts.get(fact_name)
-        if pool is None:
-            ExceptionCollector.appendException(ToscaParametersMappingFailed(
-                what=pool
-            ))
-            return
-        function = ConditionFunction(condition_name)
-        if not function.valid():
-            ExceptionCollector.appendException(UnsupportedMappingFunction(
-                what=condition_name,
-                supported=function.supported()
-            ))
-        result = function.execute(pool, arguments) or {}
-        r = result.get(value)
-        if r is None:
-            ExceptionCollector.appendException(ToscaParametersMappingFailed(
-                what=(condition_name, arguments)
-            ))
-        return r
+        # NOTE: the case when value has keys VALUE, CONDITION, FACTS, ARGUMENTS
+        condition_name = flat_mapping_value.get(CONDITION)
+        fact_name = flat_mapping_value.get(FACTS)
+        arguments = flat_mapping_value.get(ARGUMENTS)
+        if condition_name is not None and fact_name is not None and arguments is not None:
+            pool = facts.get(fact_name)
+            if pool is None:
+                ExceptionCollector.appendException(ToscaParametersMappingFailed(
+                    what=pool
+                ))
+                return
+            function = ConditionFunction(condition_name)
+            if not function.valid():
+                ExceptionCollector.appendException(UnsupportedMappingFunction(
+                    what=condition_name,
+                    supported=function.supported()
+                ))
+            result = function.execute(pool, arguments) or {}
+            r = result.get(value)
+            if r is None:
+                ExceptionCollector.appendException(ToscaParametersMappingFailed(
+                    what=(condition_name, arguments)
+                ))
+            return r
+
+        ExceptionCollector.appendException(ToscaParametersMappingFailed(
+            what=condition_name
+        ))
+        return
 
     elif isinstance(mapping_value, list):
         return [restructure_value(v, self, facts) for v in mapping_value]
 
     if isinstance(mapping_value, str):
+        # TODO BUG
         if mapping_value[:6] == '{self[' and if_format_str:
             if mapping_value.index('}') == len(mapping_value)-1:
                 mapping_value = mapping_value[6:-2]
@@ -398,6 +412,15 @@ def get_restructured_mapping_item(key_prefix, parameter, mapping_value, value):
 
 
 def restructure_mapping(tosca_elements_map_to_provider, node):
+    """
+    Restructure the mapping elements to make the mapping uniform the only 1 version to be interpreted.
+    Only assigned with value parameters are mentioned
+    Restructured output is list of objects with keys: ('parameter', 'value', 'map'), parameter is a normative parameter,
+        value is a value of normative parameter, map is a resulting specialized parameter:value map
+    :param tosca_elements_map_to_provider: input mapping from file.yaml
+    :param node: input node to be mapped
+    :return: restructured_mapping: dict
+    """
     template = {}
     for section in SECTIONS:
         section_value = node.entity_tpl.get(section)
@@ -410,7 +433,7 @@ def restructure_mapping(tosca_elements_map_to_provider, node):
 def translate_from_tosca(restructured_mapping, facts, tpl_name):
     """
     Translator from TOSCA definitions in provider definitions using rules from element_map_to_provider
-    :param restructured_mapping: list of dict(parameter, map, value)
+    :param restructured_mapping: list of dicts(parameter, map, value)
     :param facts: dict
     :param tpl_name: str
     :return: entity_tpl as dict
@@ -448,7 +471,7 @@ def translate_from_tosca(restructured_mapping, facts, tpl_name):
                         if not temp_params:
                             resulted_structure[node_type][section] = params
                         else:
-                            if section == 'requirements':
+                            if section == REQUIREMENTS:
                                 resulted_structure[node_type][section] += params
                             else:
                                 if isinstance(params, list):
