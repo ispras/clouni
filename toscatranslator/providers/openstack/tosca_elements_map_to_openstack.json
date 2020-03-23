@@ -1,6 +1,18 @@
 {
   "tosca.nodes.Compute": [
     {
+      "parameter": "null",
+      "value": {
+        "source": "os_server_info",
+        "parameters": {
+          "all_projects": true
+        },
+        "extra": {
+          "register": "output"
+        }
+      }
+    },
+    {
       "parameter": "openstack.nodes.Server.properties.name",
       "value": "{self[name]}"
     },

@@ -12,15 +12,18 @@ from toscatranslator.common.utils import deep_update_dict
 (ATTRIBUTES, PROPERTIES, CAPABILITIES, REQUIREMENTS, ARTIFACTS) = \
     ('attributes', 'properties', 'capabilities', 'requirements', 'artifacts')
 
-(ERROR, REASON, PARAMETER, VALUE, CONDITION, FACTS, ARGUMENTS) = \
-    ('error', 'reason', 'parameter', 'value', 'condition', 'facts', 'arguments')
+(ERROR, REASON, PARAMETER, VALUE, CONDITION, FACTS, ARGUMENTS, SOURCE, PARAMETERS, EXTRA) = \
+    ('error', 'reason', 'parameter', 'value', 'condition', 'facts', 'arguments', 'source', 'parameters', 'extra')
 
 SECTIONS = (ATTRIBUTES, PROPERTIES, CAPABILITIES, REQUIREMENTS, ARTIFACTS)
-MAPPING_VALUE_KEYS = (ERROR, REASON, PARAMETER, VALUE, CONDITION, FACTS, ARGUMENTS)
+MAPPING_VALUE_KEYS = (ERROR, REASON, PARAMETER, VALUE, CONDITION, FACTS, ARGUMENTS, SOURCE, PARAMETERS, EXTRA)
 SUPPORTED_MAPPING_VALUE_STRUCTURE = ((ERROR, REASON),
                                      (PARAMETER, VALUE),
-                                     (VALUE, CONDITION, FACTS, ARGUMENTS))
+                                     (VALUE, CONDITION, FACTS, ARGUMENTS),
+                                     (SOURCE, PARAMETERS, EXTRA))
 SEPARATOR = '.'
+DEV_NULL = 'null'
+
 
 def contain_function(pool, argv, first=True):
     argv_0 = argv[0]
@@ -184,6 +187,11 @@ def get_structure_of_mapped_param(mapped_param, value, self=None, type_list_para
                     structure[node_type][cur_section] = parameter_structure
                     return [structure]
 
+                # if splitted[i] == DEV_NULL:
+                #     param = SEPARATOR.join(splitted[i+1:])
+                #     structure[param] = value
+                #     return [structure]
+
             # NOTE: Case when node has no parameters but needed
             ExceptionCollector.appendException(ToscaParametersMappingFailed(
                 what=mapped_param
@@ -287,6 +295,14 @@ def restructure_value(mapping_value, self, facts, if_format_str=True):
                     what=(condition_name, arguments)
                 ))
             return r
+
+        # NOTE: the case when value has keys SOURCE, PARAMETERS, EXTRA
+        source_name = flat_mapping_value.get(SOURCE)
+        parameters_dict = flat_mapping_value.get(PARAMETERS)
+        extra_parameters = flat_mapping_value.get(EXTRA)
+        if source_name is not None and parameters_dict is not None:
+            # TODO PROCESS THE CASE
+            pass
 
         ExceptionCollector.appendException(ToscaParametersMappingFailed(
             what=condition_name
