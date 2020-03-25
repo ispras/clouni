@@ -1,59 +1,98 @@
-node_templates:
-  server_kube_master_server:
-    type:  openstack.nodes.Server
-    properties:
-      name:  server_kube_master
-      meta:
-        - cube_master=true
-    requirements:
-      - nics:  server_kube_master_port
-      - nics:
-          node_filter:
-            properties:
-              name:  test-two-routers
-      - flavor:
-          node_filter:
-            properties:
-              vcpus:  1
-      - security_groups:  server_kube_master_securitygroup
-      - image:
-          node_filter:
-            properties:
-              name:  "Ubuntu  16.04  Xenial  Trusty  x86_64  cloud  image"
+tosca_definitions_version: tosca_simple_yaml_1_0
+
+imports:
+  - toscatranslator/providers/common/TOSCA_provider_definition_1_0.yaml
+  - toscatranslator/providers/openstack/TOSCA_openstack_definition_1_0.yaml
+
+topology_template:
+
+  node_templates:
+    server_kube_master_server:
+      type:  openstack.nodes.Server
+      properties:
+        name:  server_kube_master_0
+        meta:
+          - cube_master=true
+      requirements:
+        - nics:  server_kube_master_port
+        - nics:
+            node_filter:
+              properties:
+                name:  test-two-routers
+        - flavor:
+            node_filter:
+              properties:
+                vcpus:  1
+        - security_groups:  server_kube_master_securitygroup
+        - image:
+            node_filter:
+              properties:
+                name: { get_operation_output: [server_kube_master_server_image, Target, choose, name] }
+            relationship: server_kube_master_server_image
+
+    server_kube_master_port:
+      type:  openstack.nodes.Port
+      properties:
+        fixed_ips:
+          - { get_operation_output: [ SELF, Standard, configure, network_ip_struct ] }
+        name:  server_kube_master_port_0
 
 
-  server_kube_master_port:
-    type:  openstack.nodes.Port
-    properties:
-      fixed_ips:
-        - "test-two-routers":  192.168.12.25
-      name:  server_kube_master_port_0
+    server_kube_master_floatingip:
+      type:  openstack.nodes.FloatingIp
+      attributes:
+        floating_ip_address:  10.100.115.15
+      requirements:
+        - network:
+            node_filter:
+              properties:
+                name:  { get_operation_output: [server_kube_master_floatingip_network, Target, choose, network_name] }
+            relationship: server_kube_master_floatingip_network
+        - server:  server_kube_master_server
 
 
-  server_kube_master_floatingip:
-    type:  openstack.nodes.FloatingIp
-    attributes:
-      floating_ip_address:  10.100.115.15
-    requirements:
-      - network:
-          node_filter:
-            properties:
-              name:  ispras
-      - server:  server_kube_master_server
+    server_kube_master_securitygrouprule:
+      type:  openstack.nodes.SecurityGroupRule
+      attributes:
+        protocol:  tcp
+        port_range_min:  1000
+        port_range_max:  1000
+        remote_ip_prefix:  0.0.0.0
+      requirements:
+        - security_group:  server_kube_master_securitygroup
 
+    server_kube_master_securitygroup:
+      type:  openstack.nodes.SecurityGroup
+      properties:
+        name:  server_kube_master_securitygroup
 
-  server_kube_master_securitygrouprule:
-    type:  openstack.nodes.SecurityGroupRule
-    attributes:
-      protocol:  tcp
-      port_range_min:  1000
-      port_range_max:  1000
-      remote_ip_prefix:  0.0.0.0
-    requirements:
-      - security_group:  server_kube_master_securitygroup
+  relationship_templates:
 
+    server_kube_master_server_image:
+      type: openstack.relationships.DependsOn
+      interfaces:
+        Target:
+          total: images_info_task.yaml
+          choose:
+            implementation: contains.yaml
+            inputs:
+              facts: { get_operation_output: SELF, Target, total, openstack_images }
 
-  server_kube_master_securitygroup:
-    type:  openstack.nodes.SecurityGroup
-    properties:
-      name:  server_kube_master_securitygroup
+    server_kube_master_floatingip_network:
+      type: openstack.relationships.DependsOn
+      interfaces:
+        Target:
+          total: networks_info_task.yaml
+          choose:
+            implementation: equals.yaml
+            inputs:
+              facts: {get_operation_output: [SELF, Target, total, target_objects]}
+              network_name: {get_operation_output: [server_kube_master_floating_ip_subnet, Target, choose, name]}
+
+    server_kube_master_floating_ip_subnet:
+      type: openstack.relationships.DependsOn
+      interfaces:
+        Target:
+          total: subnets_info_task.yaml
+          choose:
+            implementation: ip_contains.yaml

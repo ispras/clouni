@@ -1,12 +1,17 @@
 import unittest
 from testing.base import TestAnsibleProviderOutput
 import copy
+from toscatranslator import shell
 
 SERVER_MODULE_NAME = 'os_server'
 
 
 class TestAnsibleOpenStackOutput (unittest.TestCase, TestAnsibleProviderOutput):
     PROVIDER = 'openstack'
+
+    def test_validation(self):
+        shell.main(['--template-file', 'examples/tosca-server-example-openstack.yaml', '--validate-only'])
+
 
     def test_server_name(self):
         template = copy.deepcopy(self.DEFAULT_TEMPLATE)
@@ -31,7 +36,7 @@ class TestAnsibleOpenStackOutput (unittest.TestCase, TestAnsibleProviderOutput):
     def test_private_address(self):
         template = copy.deepcopy(self.DEFAULT_TEMPLATE)
         template = self.update_template_attribute(template, self.NODE_NAME, {"private_address": "192.168.12.25"})
-        # playbook = self.get_ansible_output(template)
+        playbook = self.get_ansible_output(template)
 
         self.assertIsNotNone(True)
 
