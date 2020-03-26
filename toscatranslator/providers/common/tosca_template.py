@@ -18,6 +18,7 @@ from toscaparser.imports import ImportsLoader
 
 from toscaparser.topology_template import TopologyTemplate
 
+from toscatranslator.configuration_tools.combined.combine_configuration_tools import CONFIGURATION_TOOLS
 from toscatranslator.providers.combined.combine_provider_resources import PROVIDER_RESOURCES
 from toscatranslator.common.exception import UnknownProvider, ProviderMappingFileError
 
@@ -60,8 +61,8 @@ class ProviderToscaTemplate (object):
         ProviderNodeFilter.facts = self.extended_facts
         self.resolve_in_template_dependencies()
 
-        self.ansible_role = None
-        self.ansible_role_ready = None
+        self.configuration_content = None
+        self.configuration_ready = None
         self.provider_nodes_by_priority = dict()
         for i in range(0, MAX_NUM_PRIORITIES):
             self.provider_nodes_by_priority[i] = []
@@ -88,29 +89,24 @@ class ProviderToscaTemplate (object):
             provider_nodes.append(provider_node_instance)
         return provider_nodes
 
-    def to_ansible_role_for_create(self):
+    def to_configuration_dsl_for_create(self, configuration_tool):
         """
-        Fulfill ansible_role with ansible_create functions from every node
+        Fulfill configuration_content with functions based on configuration tool from every node
         :return:
         """
-        self.ansible_role = '---\n\n'
-        self.ansible_role_ready = False
-        ansible_task_list = []
+        self.configuration_content = ''
+        self.configuration_ready = False
         nodes_queue = self.sort_nodes_by_dependency()
-        for node in nodes_queue:
-            ansible_task_list.append(node.get_ansible_task_for_create())
-        ansible_playbook = [dict(
-            name='Create ' + self.provider + ' cluster',
-            hosts='all',
-            tasks=ansible_task_list
-        )]
-        self.ansible_role += yaml.dump(ansible_playbook)
-        self.ansible_role_ready = True
-        return self.ansible_role
+        tool = CONFIGURATION_TOOLS.get(configuration_tool)()
+        content = tool.to_dsl_for_create(self.provider, nodes_queue)
+
+        self.configuration_content = yaml.dump(content)
+        self.configuration_ready = True
+        return self.configuration_content
 
     def _sort_nodes_by_priority(self):
         """
-        Every ProviderResource child class has priority which reflects in order of objects to create in ansible
+        Every ProviderResource child class has priority which reflects in order of objects to create in configuration dsl
         :return: dictionary with keys = priority
         """
         sorted_by_priority = dict()

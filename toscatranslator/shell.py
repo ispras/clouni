@@ -2,7 +2,7 @@ import sys
 import argparse
 import os
 
-from toscatranslator.common.translator_to_ansible import translate
+from toscatranslator.common.translator_to_configuration_dsl import translate
 
 
 class TranslatorShell(object):
@@ -16,10 +16,11 @@ class TranslatorShell(object):
         self.provider = args.provider
         self.facts = args.facts
         self.output_file = args.output_file
+        self.configuration_tool = args.configuration_tool
 
         self.working_dir = os.getcwd()
 
-        output = translate(self.template_file, self.validate_only, self.provider, self.facts)
+        output = translate(self.template_file, self.validate_only, self.provider, self.facts, self.configuration_tool)
         self.output_print(output)
 
     def get_parser(self):
@@ -43,7 +44,11 @@ class TranslatorShell(object):
         parser.add_argument('--output-file',
                             metavar='<filename>',
                             required=False,
-                            help='')
+                            help='Output file')
+        parser.add_argument('--configuration-tool',
+                            default="ansible",
+                            help="Configuration tool which DSL the template would be translated to. "
+                                 "Default value = \"ansible\"")
 
         return parser
 
