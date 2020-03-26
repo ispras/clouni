@@ -4,9 +4,11 @@ import yaml
 
 
 class AnsibleConfigurationTool(ConfigurationTool):
+    """
+    Must be tested by TestAnsibleOpenstack.test_translating_to_ansible
+    """
+
     def to_dsl_for_create(self, provider, nodes_queue):
-
-
         ansible_task_list = []
         for node in nodes_queue:
             ansible_task_list.append(self.get_ansible_task_for_create(node))
@@ -24,6 +26,7 @@ class AnsibleConfigurationTool(ConfigurationTool):
         :param additional_args: dict of arguments to add
         :return: string of ansible task to place in playbook
         """
+        # TODO внутри node нет relationships! поэтому нужно их добавить
         if additional_args is None:
             additional_args = {}
         ansible_args = copy.copy(node.configuration_args)

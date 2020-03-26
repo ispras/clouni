@@ -12,6 +12,9 @@ class TestAnsibleOpenStackOutput (unittest.TestCase, TestAnsibleProviderOutput):
     def test_validation(self):
         shell.main(['--template-file', 'examples/tosca-server-example-openstack.yaml', '--validate-only'])
 
+    def test_translating_to_ansible(self):
+        shell.main(['--template-file', 'examples/tosca-server-example-openstack.yaml', '--provider', 'openstack',
+                    '--facts', 'examples/facts-openstack.json'])
 
     def test_server_name(self):
         template = copy.deepcopy(self.DEFAULT_TEMPLATE)

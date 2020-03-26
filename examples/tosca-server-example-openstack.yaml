@@ -14,7 +14,7 @@ topology_template:
         meta:
           - cube_master=true
       requirements:
-        - nics:  server_kube_master_port
+#        - nics:  server_kube_master_port
         - nics:
             node_filter:
               properties:
@@ -30,19 +30,22 @@ topology_template:
                 name: { get_operation_output: [server_kube_master_server_image, Target, choose, name] }
             relationship: server_kube_master_server_image
 
-    server_kube_master_port:
-      type:  openstack.nodes.Port
-      properties:
-        fixed_ips:
-          - { get_operation_output: [ SELF, Standard, confgure, network_ip_struct ] }
-        name:  server_kube_master_port_0
-      interfaces:
-        Standard:
-          configure:
-            implementation: server_kube_master_port_configure.yaml
-            inputs:
-              network_name: { get_operation_output: [ server_kube_master_port_network, Target, choose, name ] }
-              ip: 192.168.12.25
+#    server_kube_master_port:
+#      type:  openstack.nodes.Port
+#      properties:
+#        fixed_ips:
+#          - { get_operation_output: [ SELF, Standard, confgure, network_ip_struct ] }
+#        name:  server_kube_master_port_0
+#      interfaces:
+#        Standard:
+#          configure:
+#            implementation: server_kube_master_port_configure.yaml
+#            inputs:
+#              network_name: { get_operation_output: [ server_kube_master_port_network, Target, choose, name ] }
+#              ip: 192.168.12.25
+#      requirements:
+#        - dependencies:
+#            relationship: server_kube_master_port_network
 
 
     server_kube_master_floatingip:
