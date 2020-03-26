@@ -1,4 +1,4 @@
-from toscatranslator.common.translator_to_ansible import translate as common_translate
+from toscatranslator.common.translator_to_configuration_dsl import translate as common_translate
 import os
 import yaml
 
@@ -53,14 +53,13 @@ class TestAnsibleProviderOutput ():
         if not template_filename:
             template_filename = self.TESTING_TEMPLATE_FILENAME
         self.write_template(self.prepare_yaml(template))
-        r = common_translate(template_filename, False, self.PROVIDER, {})
+        r = common_translate(template_filename, False, self.PROVIDER, {}, "ansible")
         print(r)
         self.delete_template(template_filename)
         playbook = self.parse_yaml(r)
         return playbook
 
     def update_node_template(self, template, node_name, update_value, param_type):
-        # TODO deep update!!!!
         update_value = {
             TOPOLOGY_TEMPLATE: {
                 NODE_TEMPLATES: {

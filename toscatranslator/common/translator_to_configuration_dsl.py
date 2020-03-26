@@ -9,7 +9,7 @@ from toscatranslator.common.exception import UnsupportedFactsFormat, Unspecified
 from toscatranslator.providers.common.tosca_template import ProviderToscaTemplate
 
 
-def translate(template_file, validate_only, provider, _facts, a_file=True):
+def translate(template_file, validate_only, provider, _facts, configuration_tool, a_file=True):
     if a_file:
         tosca_parser_template_object = ToscaTemplate(path=template_file, a_file=a_file)
     else:
@@ -38,4 +38,4 @@ def translate(template_file, validate_only, provider, _facts, a_file=True):
         ))
 
     tosca = ProviderToscaTemplate(tosca_parser_template_object, facts, provider)
-    return tosca.to_ansible_role_for_create()
+    return tosca.to_configuration_dsl_for_create(configuration_tool)
