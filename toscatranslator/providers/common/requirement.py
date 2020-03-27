@@ -9,12 +9,14 @@ class ProviderRequirement (object):
     NAME_SUFFIX = '_name'
     ID_SUFFIX = '_id'
     DEFAULT_REQUIRED_PARAMS = ['name', 'id']
+    RELATIONSHIP = 'relationship'
 
     def __init__(self, provider, name, key, data, node_filter_key=None):
         self.provider = provider
         self.name = name
         self.key = key
         self.data = data
+        self.relationship = self.data.get(self.RELATIONSHIP)
         self.node_filter_key = node_filter_key
         self.value = None
 

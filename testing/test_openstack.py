@@ -3,6 +3,8 @@ from testing.base import TestAnsibleProviderOutput
 import copy
 from toscatranslator import shell
 
+from toscatranslator import shell
+
 SERVER_MODULE_NAME = 'os_server'
 
 

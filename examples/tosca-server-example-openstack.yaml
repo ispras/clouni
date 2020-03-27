@@ -5,7 +5,6 @@ imports:
   - toscatranslator/providers/openstack/TOSCA_openstack_definition_1_0.yaml
 
 topology_template:
-
   node_templates:
     server_kube_master_server:
       type:  openstack.nodes.Server
@@ -46,7 +45,6 @@ topology_template:
 #      requirements:
 #        - dependencies:
 #            relationship: server_kube_master_port_network
-
 
     server_kube_master_floatingip:
       type:  openstack.nodes.FloatingIp
