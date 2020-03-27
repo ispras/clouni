@@ -20,7 +20,9 @@ from toscaparser.topology_template import TopologyTemplate
 
 from toscatranslator.configuration_tools.combined.combine_configuration_tools import CONFIGURATION_TOOLS
 from toscatranslator.providers.combined.combine_provider_resources import PROVIDER_RESOURCES
-from toscatranslator.common.exception import UnknownProvider, ProviderMappingFileError
+from toscatranslator.common.exception import UnknownProvider, ProviderMappingFileError, TemplateDependencyError
+
+from toscatranslator.providers.common.tosca_reserved_keys import *
 
 
 class ProviderToscaTemplate (object):
@@ -28,6 +30,7 @@ class ProviderToscaTemplate (object):
                  'data_types', 'interface_types', 'policy_types', 'group_types']
     TOSCA_ELEMENTS_MAP_FILE = 'tosca_elements_map_to_%(provider)s.*'
     FILE_DEFINITION = 'TOSCA_%(provider)s_definition_1_0.yaml'
+    DEPENDENCY_FUNCTIONS = (GET_PROPERTY, GET_ATTRIBUTE, GET_OPERATION_OUTPUT)
 
     def __init__(self, tosca_parser_template, facts, provider):
 
@@ -51,6 +54,7 @@ class ProviderToscaTemplate (object):
         self.topology_template = self.translate_to_provider()
 
         self.node_templates = self.topology_template.nodetemplates
+        self.relationship_templates = self.topology_template.relationship_templates
 
         self.extended_facts = None
         not_refactored_extending_facts = self._extending_facts()
@@ -59,16 +63,23 @@ class ProviderToscaTemplate (object):
         self.extend_facts(extending_facts)  # fulfill self.extended_facts
 
         ProviderNodeFilter.facts = self.extended_facts
+        self.template_dependencies = dict()  # list of lists
+        # After this step self.node_templates has requirements with node_filter parameter
         self.resolve_in_template_dependencies()
+        self.resolve_in_template_get_functions()
 
         self.configuration_content = None
         self.configuration_ready = None
-        self.provider_nodes_by_priority = dict()
-        for i in range(0, MAX_NUM_PRIORITIES):
-            self.provider_nodes_by_priority[i] = []
 
         self.provider_nodes = self._provider_nodes()
-        self.provider_nodes_by_priority = self._sort_nodes_by_priority()
+        self.provider_nodes_by_name = self._provider_nodes_by_name()
+        self.relationship_templates_by_name = self._relationship_templates_by_name()
+
+        # self.provider_node_names_by_priority = dict()
+        # for i in range(0, MAX_NUM_PRIORITIES):
+        #     self.provider_node_names_by_priority[i] = []
+        self.provider_node_names_by_priority = self._sort_nodes_by_priority()
+        self.provider_nodes_queue = self.sort_nodes_by_dependency()
 
     def _provider_nodes(self):
         """
@@ -85,7 +96,7 @@ class ProviderToscaTemplate (object):
                 ExceptionCollector.appendException(UnknownProvider(
                     what=self.provider
                 ))
-            provider_node_instance = provider_node_class(node)
+            provider_node_instance = provider_node_class(node, self.relationship_templates)
             provider_nodes.append(provider_node_instance)
         return provider_nodes
 
@@ -96,9 +107,8 @@ class ProviderToscaTemplate (object):
         """
         self.configuration_content = ''
         self.configuration_ready = False
-        nodes_queue = self.sort_nodes_by_dependency()
         tool = CONFIGURATION_TOOLS.get(configuration_tool)()
-        content = tool.to_dsl_for_create(self.provider, nodes_queue)
+        content = tool.to_dsl_for_create(self.provider, self.provider_nodes_queue)
 
         self.configuration_content = yaml.dump(content)
         self.configuration_ready = True
@@ -114,18 +124,82 @@ class ProviderToscaTemplate (object):
             sorted_by_priority[i] = []
         for node in self.provider_nodes:
             priority = node.node_priority_by_type()
-            sorted_by_priority[priority].append(node)
+            sorted_by_priority[priority].append(node.nodetemplate.name)
         return sorted_by_priority
+
+    def _relationship_templates_by_name(self):
+        by_name = dict()
+        for rel in self.relationship_templates:
+            by_name[rel.name] = rel
+
+        return by_name
+
+    def _provider_nodes_by_name(self):
+        """
+        Get provider_nodes_by_name
+        :return: self.provider_nodes_by_name
+        """
+
+        provider_nodes_by_name = dict()
+        for node in self.provider_nodes:
+            provider_nodes_by_name[node.nodetemplate.name] = node
+
+        return provider_nodes_by_name
 
     def sort_nodes_by_dependency(self):
         """
         TODO Use dependency requirement between nodes of the same type, check dependency of different types
+        :param: self.template_dependencies
         :return: List of nodes sorted by priority
         """
-        nodes = []
-        for i in range(0, MAX_NUM_PRIORITIES):
-            nodes.extend(self.provider_nodes_by_priority[i])
-        return nodes
+        template_names = []
+        relation_names = list(self.relationship_templates_by_name.keys())
+
+        for priority in range(0, MAX_NUM_PRIORITIES):
+            nodes_in_priority = []
+            nodes_left_next = set(self.provider_node_names_by_priority[priority])
+            infinite_error = False
+            while len(nodes_left_next) or infinite_error > 0:
+                nodes_left = copy.copy(nodes_left_next)
+                infinite_error = True
+                for templ_name in nodes_left:
+                    set_intersection = nodes_left_next.intersection(self.template_dependencies.get(templ_name, set()))
+                    if len(set_intersection) == 0:
+                        infinite_error = False
+                        nodes_in_priority.append(templ_name)
+                        nodes_left_next.remove(templ_name)
+            if infinite_error:
+                ExceptionCollector.appendException(TemplateDependencyError(
+                    what="of priority " + str(priority)
+                ))
+            for templ_name in nodes_in_priority:
+                node_dependencies = self.template_dependencies.get(templ_name, set())
+
+                for dep_name in node_dependencies:
+                    # Two cases: it's already in a list
+                    #              it's a relationship
+                    #              it's in priority
+                    if dep_name in relation_names:
+                        template_names.append(dep_name)
+                    elif dep_name in template_names:
+                        pass
+                    else:
+                        ExceptionCollector.appendException(TemplateDependencyError(
+                            what=dep_name
+                        ))
+                template_names.append(templ_name)
+            # Here we added nodes of the same priority
+
+        templates = []
+        for templ_name in template_names:
+            templ = self.provider_nodes_by_name.get(templ_name, self.relationship_templates_by_name.get(templ_name))
+            if templ is None:
+                ExceptionCollector.appendException(TemplateDependencyError(
+                    what=templ_name
+                ))
+            templates.append(templ)
+
+        return templates
 
     def _extending_facts(self):
         """
@@ -153,6 +227,12 @@ class ProviderToscaTemplate (object):
         for k, v in facts.items():
             self.extended_facts[k] = self.extended_facts.get(k, []) + v
 
+    def add_template_dependency(self, node_name, dependency_name):
+        if self.template_dependencies.get(node_name) is None:
+            self.template_dependencies[node_name] = {dependency_name}
+        else:
+            self.template_dependencies[node_name].add(dependency_name)
+
     def resolve_in_template_dependencies(self):
         """
         TODO think through the logic to replace mentions by id
@@ -163,6 +243,11 @@ class ProviderToscaTemplate (object):
             for req in node.requirements:
                 for k, v in req.items():
                     if type(v) is str:
+                        # The case when the requirement is a name of node or relationship template
+
+                        # Store the dependencies of nodes
+                        self.add_template_dependency(node.name, v)
+
                         nodetemplate = node.templates.get(v)
                         node_filter = dict()
                         properties = nodetemplate.get('properties')
@@ -174,6 +259,62 @@ class ProviderToscaTemplate (object):
                         req[k] = dict(
                             node_filter=node_filter
                         )
+                    else:
+                        # The case when requirement has parameters.
+                        # Valid keys are ('node', 'node_filter', 'relationship', 'capability', 'occurrences')
+                        # Only node and relationship might be a template name or a type
+                        req_relationship = req[k].get('relationship')
+                        req_node = req[k].get('node')
+
+                        if req_relationship is not None:
+                            _, _, type_name = tosca_type.parse(req_relationship)
+                            if type_name is None:
+                                self.add_template_dependency(node.name, req_relationship)
+
+                        if req_node is not None:
+                            _, _, type_name = tosca_type.parse(req_node)
+                            if type_name is None:
+                                self.add_template_dependency(node.name, req_node)
+
+    def search_get_function(self, node_name, data):
+        """
+        Function for recursion search of object in data
+        Get functions are the keys of dictionary
+        :param node_name:
+        :param data:
+        :return:
+        """
+        if isinstance(data, dict):
+            for k, v in data.items():
+                if k not in self.DEPENDENCY_FUNCTIONS:
+                    self.search_get_function(node_name, v)
+                else:
+                    if isinstance(v, list):
+                        template_name = v[0]
+                    else:
+                        params = v.split(',')
+                        template_name = params[0]
+                    if not template_name in TEMPLATE_REFERENCES:
+                        self.add_template_dependency(node_name, template_name)
+        elif isinstance(data, list):
+            for i in data:
+                self.search_get_function(node_name, i)
+        elif isinstance(data, (str, int, float)):
+            return
+
+        return
+
+    def resolve_in_template_get_functions(self):
+        """
+        Search in all nodes for get function mentions and get its target name
+        :return: None
+        """
+
+        for node in self.node_templates:
+            self.search_get_function(node.name, node.entity_tpl)
+
+        for rel in self.relationship_templates:
+            self.search_get_function(rel.name, rel.entity_tpl)
 
     def definition_file(self):
         file_definition = self.FILE_DEFINITION % {'provider': self.provider}
@@ -204,10 +345,13 @@ class ProviderToscaTemplate (object):
                         continue
         if 0 == len(data_dict):
             if is_find:
-                raise ProviderMappingFileError(what=file_name)
+                ExceptionCollector.appendException(ProviderMappingFileError(
+                    what=tosca_elements_map_file
+                ))
             else:
-                raise FileNotFoundError(
+                ExceptionCollector.appendException(FileNotFoundError(
                     'Can\'t find mapping file: ' + tosca_elements_map_file + '\nPlease, check that extension is .yaml or .json')
+                )
         return data_dict
 
     def translate_to_provider(self):

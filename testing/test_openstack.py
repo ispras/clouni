@@ -2,11 +2,17 @@ import unittest
 from testing.base import TestAnsibleProviderOutput
 import copy
 
+from toscatranslator import shell
+
 SERVER_MODULE_NAME = 'os_server'
 
 
 class TestAnsibleOpenStackOutput (unittest.TestCase, TestAnsibleProviderOutput):
     PROVIDER = 'openstack'
+
+
+    def test_ansible_translate(self):
+        shell.main(['--template-file', 'examples/tosca-server-example-openstack.yaml', '--provider', 'openstack', '--facts', 'examples/facts-openstack.json'])
 
     def test_server_name(self):
         template = copy.deepcopy(self.DEFAULT_TEMPLATE)
