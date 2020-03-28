@@ -2,6 +2,7 @@ from toscatranslator.providers.combined.combined_facts import FACT_NAME_BY_NODE_
 from toscatranslator.common import tosca_type, snake_case
 from toscaparser.common.exception import ExceptionCollector, ValidationError
 from toscatranslator.common.exception import UnsupportedFilteringValues
+from toscatranslator.providers.common.tosca_reserved_keys import NODES, PROPERTIES, CAPABILITIES, TYPE, REQUIREMENTS
 
 
 class ProviderNodeFilter(object):
@@ -76,10 +77,10 @@ class ProviderNodeFilter(object):
         return matched_objs
 
     def filter_node(self, req_data):
-        filter_params = req_data.get('properties', {})
-        capabilities = req_data.get('capabilities', {})
+        filter_params = req_data.get(PROPERTIES, {})
+        capabilities = req_data.get(CAPABILITIES, {})
         for cap_val in capabilities.values():
-            filter_params.update(cap_val.get('properties', {}))
+            filter_params.update(cap_val.get(PROPERTIES, {}))
         return self.filter_params(filter_params)
 
     def get_required_value(self, req_data, required_params):
@@ -127,7 +128,7 @@ class ProviderNodeFilter(object):
         fact_name_by_node_name = FACT_NAME_BY_NODE_NAME.get(provider)  # NOTE: ensured is not None
         for def_type, definition in provider_defs.items():  # is a dict, not list
             (_, category, type_name) = tosca_type.parse(def_type)
-            if category != 'nodes':
+            if category != NODES:
                 continue
             fact_names = fact_name_by_node_name.get(snake_case.convert(type_name))  # NOTE: could be None
             if fact_names is not None:
@@ -139,15 +140,15 @@ class ProviderNodeFilter(object):
                         continue
                     refactoring_keys = REFACTORING_FACT_KEYS.get(fact_name, {})
                     available_fact_keys = set(refactoring_keys.keys())
-                    properties = definition.get('properties', {})
+                    properties = definition.get(PROPERTIES, {})
                     available_fact_keys.update(properties.keys())
-                    capabilities = definition.get('capabilities', {})
+                    capabilities = definition.get(CAPABILITIES, {})
                     for cap_def in capabilities.values():
-                        cap_type = cap_def.get('type')
+                        cap_type = cap_def.get(TYPE)
                         if cap_type is not None:
                             cap_type_def = provider_defs.get(cap_type, {})
-                            available_fact_keys.update(cap_type_def.get('properties', {}).keys())
-                    requirements = definition.get('requirements', [])
+                            available_fact_keys.update(cap_type_def.get(PROPERTIES, {}).keys())
+                    requirements = definition.get(REQUIREMENTS, [])
                     available_fact_keys.update(next(iter(req.keys())) for req in requirements)
 
                     output_facts = []
