@@ -3,7 +3,7 @@ from toscatranslator.common import snake_case
 from toscaparser.common.exception import ExceptionCollector, ValidationError
 from toscatranslator.common.exception import UnsupportedToscaParameterUsage, ToscaParametersMappingFailed, \
     UnsupportedMappingFunction
-from toscatranslator.providers.common.tosca_reserved_keys import NODE_KEYS, REQUIREMENTS, MAPPING_VALUE_KEYS, ERROR, \
+from toscatranslator.providers.common.tosca_reserved_keys import NODE_TEMPLATE_KEYS, REQUIREMENTS, MAPPING_VALUE_KEYS, ERROR, \
     REASON, PARAMETER, VALUE, CONDITION, FACTS, ARGUMENTS, SUPPORTED_MAPPING_VALUE_STRUCTURE, TYPE, TOSCA
 
 import copy
@@ -157,7 +157,7 @@ def get_structure_of_mapped_param(mapped_param, value, self=None, type_list_para
 
             structure = dict()
             for i in range(num):
-                if splitted[i] in NODE_KEYS:
+                if splitted[i] in NODE_TEMPLATE_KEYS:
                     node_type = SEPARATOR.join(splitted[:i])
                     cur_section = splitted[i]
                     parameter_structure = value
@@ -414,7 +414,7 @@ def restructure_mapping(tosca_elements_map_to_provider, node):
     :return: restructured_mapping: dict
     """
     template = {}
-    for section in NODE_KEYS:
+    for section in NODE_TEMPLATE_KEYS:
         section_value = node.entity_tpl.get(section)
         if section_value is not None:
             template[section] = section_value

@@ -22,7 +22,7 @@ from toscatranslator.configuration_tools.combined.combine_configuration_tools im
 from toscatranslator.providers.combined.combine_provider_resources import PROVIDER_RESOURCES
 from toscatranslator.common.exception import UnknownProvider, ProviderMappingFileError, TemplateDependencyError
 
-from toscatranslator.providers.common.tosca_reserved_keys import ALL_TYPES, PROPERTIES, CAPABILITIES, NODES, \
+from toscatranslator.providers.common.tosca_reserved_keys import SERVICE_TEMPLATE_KEYS, PROPERTIES, CAPABILITIES, NODES, \
     GET_PROPERTY, GET_ATTRIBUTE, GET_OPERATION_OUTPUT, RELATIONSHIP, NODE, TEMPLATE_REFERENCES, NODE_TEMPLATES, RELATIONSHIP_TYPES
 
 
@@ -44,7 +44,7 @@ class ProviderToscaTemplate (object):
         self.extended_facts = None  # refactored and extended facts
         self.facts = None  # refactored input_facts
 
-        import_definition_file = ImportsLoader([self.definition_file()], None, ALL_TYPES,
+        import_definition_file = ImportsLoader([self.definition_file()], None, list(SERVICE_TEMPLATE_KEYS),
                                                self.tosca_topology_template.tpl)
         self.provider_defs = import_definition_file.get_custom_defs()
 
