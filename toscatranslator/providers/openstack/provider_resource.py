@@ -1,15 +1,16 @@
 from toscatranslator.common import snake_case
 
 from toscatranslator.providers.common.provider_resource import ProviderResource
+from toscatranslator.providers.common.tosca_reserved_keys import ANSIBLE, OPENSTACK
 
 
 class OpenstackProviderResource(ProviderResource):
 
     SUPPORTED_CONFIGURATION_TOOLS = [
-        "ansible"
+        ANSIBLE
     ]
 
-    DEFAULT_CONFIGURATION_TOOL = "ansible"
+    DEFAULT_CONFIGURATION_TOOL = ANSIBLE
 
     NODE_PRIORITY_BY_TYPE = dict(
         Flavor=0,
@@ -29,7 +30,7 @@ class OpenstackProviderResource(ProviderResource):
     ANSIBLE_MODULE_PREFIX = 'os_'
     ANSIBLE_DESCRIPTION_PREFIX = 'Create '
 
-    PROVIDER = 'openstack'
+    PROVIDER = OPENSTACK
 
     def ansible_description_by_type(self):
         desc = self.ANSIBLE_DESCRIPTION_PREFIX + self.type_name

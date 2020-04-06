@@ -3,26 +3,17 @@ from toscatranslator.common import snake_case
 from toscaparser.common.exception import ExceptionCollector, ValidationError
 from toscatranslator.common.exception import UnsupportedToscaParameterUsage, ToscaParametersMappingFailed, \
     UnsupportedMappingFunction
+from toscatranslator.providers.common.tosca_reserved_keys import NODE_TEMPLATE_KEYS, REQUIREMENTS, MAPPING_VALUE_KEYS, ERROR, \
+    REASON, PARAMETER, VALUE, CONDITION, FACTS, ARGUMENTS, SUPPORTED_MAPPING_VALUE_STRUCTURE, TYPE, TOSCA, SOURCE, PARAMETERS, EXTRA
 
 import copy
 from netaddr import IPRange, IPAddress
 
 from toscatranslator.common.utils import deep_update_dict
 
-(ATTRIBUTES, PROPERTIES, CAPABILITIES, REQUIREMENTS, ARTIFACTS) = \
-    ('attributes', 'properties', 'capabilities', 'requirements', 'artifacts')
-
-(ERROR, REASON, PARAMETER, VALUE, CONDITION, FACTS, ARGUMENTS, SOURCE, PARAMETERS, EXTRA) = \
-    ('error', 'reason', 'parameter', 'value', 'condition', 'facts', 'arguments', 'source', 'parameters', 'extra')
-
-SECTIONS = (ATTRIBUTES, PROPERTIES, CAPABILITIES, REQUIREMENTS, ARTIFACTS)
-MAPPING_VALUE_KEYS = (ERROR, REASON, PARAMETER, VALUE, CONDITION, FACTS, ARGUMENTS, SOURCE, PARAMETERS, EXTRA)
-SUPPORTED_MAPPING_VALUE_STRUCTURE = ((ERROR, REASON),
-                                     (PARAMETER, VALUE),
-                                     (VALUE, CONDITION, FACTS, ARGUMENTS),
-                                     (SOURCE, PARAMETERS, EXTRA))
 SEPARATOR = '.'
 DEV_NULL = 'null'
+
 
 
 def contain_function(pool, argv, first=True):
@@ -168,7 +159,7 @@ def get_structure_of_mapped_param(mapped_param, value, self=None, type_list_para
 
             structure = dict()
             for i in range(num):
-                if splitted[i] in SECTIONS:
+                if splitted[i] in NODE_TEMPLATE_KEYS:
                     node_type = SEPARATOR.join(splitted[:i])
                     cur_section = splitted[i]
                     parameter_structure = value
@@ -438,7 +429,7 @@ def restructure_mapping(tosca_elements_map_to_provider, node):
     :return: restructured_mapping: dict
     """
     template = {}
-    for section in SECTIONS:
+    for section in NODE_TEMPLATE_KEYS:
         section_value = node.entity_tpl.get(section)
         if section_value is not None:
             template[section] = section_value
@@ -460,8 +451,8 @@ def translate_from_tosca(restructured_mapping, facts, tpl_name):
     )
     for item in restructured_mapping:
         ExceptionCollector.start()
-        self['parameter'] = item['parameter']
-        self['value'] = item['value']
+        self[PARAMETER] = item[PARAMETER]
+        self[VALUE] = item[VALUE]
         mapped_param = restructure_value(
             mapping_value=item['map'],
             self=self,
@@ -473,7 +464,7 @@ def translate_from_tosca(restructured_mapping, facts, tpl_name):
                 message='\nTranslating to provider failed: '
                     .join(ExceptionCollector.getExceptionsReport())
             )
-        structures = get_structure_of_mapped_param(mapped_param, item['value'])
+        structures = get_structure_of_mapped_param(mapped_param, item[VALUE])
 
         # NOTE: 3 level update of dict
         for structure in structures:
@@ -503,14 +494,14 @@ def translate(tosca_elements_map_to_provider, node_templates, facts):
     new_node_templates = {}
     for node in node_templates:
         (namespace, _, _) = tosca_type.parse(node.type)
-        if namespace == 'tosca':
+        if namespace == TOSCA:
             restructured_mapping = restructure_mapping(tosca_elements_map_to_provider, node)
             tpl_structure = translate_from_tosca(restructured_mapping, facts, node.name)
             temp_node_templates = {}
             for node_type, tpl in tpl_structure.items():
                 (_, _, type_name) = tosca_type.parse(node_type)
                 node_name = node.name + '_' + snake_case.convert(type_name)
-                tpl['type'] = node_type
+                tpl[TYPE] = node_type
                 temp_node_templates[node_name] = tpl
         else:
             temp_node_templates = translate_from_provider(node)

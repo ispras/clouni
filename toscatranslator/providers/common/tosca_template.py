@@ -22,12 +22,12 @@ from toscatranslator.configuration_tools.combined.combine_configuration_tools im
 from toscatranslator.providers.combined.combine_provider_resources import PROVIDER_RESOURCES
 from toscatranslator.common.exception import UnknownProvider, ProviderMappingFileError, TemplateDependencyError
 
-from toscatranslator.providers.common.tosca_reserved_keys import *
+from toscatranslator.providers.common.tosca_reserved_keys import SERVICE_TEMPLATE_KEYS, PROPERTIES, CAPABILITIES, NODES, \
+    GET_PROPERTY, GET_ATTRIBUTE, GET_OPERATION_OUTPUT, RELATIONSHIP, NODE, TEMPLATE_REFERENCES, NODE_TEMPLATES, RELATIONSHIP_TYPES
 
 
 class ProviderToscaTemplate (object):
-    ALL_TYPES = ['imports', 'node_types', 'capability_types', 'relationship_types',
-                 'data_types', 'interface_types', 'policy_types', 'group_types']
+
     TOSCA_ELEMENTS_MAP_FILE = 'tosca_elements_map_to_%(provider)s.*'
     FILE_DEFINITION = 'TOSCA_%(provider)s_definition_1_0.yaml'
     DEPENDENCY_FUNCTIONS = (GET_PROPERTY, GET_ATTRIBUTE, GET_OPERATION_OUTPUT)
@@ -44,7 +44,7 @@ class ProviderToscaTemplate (object):
         self.extended_facts = None  # refactored and extended facts
         self.facts = None  # refactored input_facts
 
-        import_definition_file = ImportsLoader([self.definition_file()], None, self.ALL_TYPES,
+        import_definition_file = ImportsLoader([self.definition_file()], None, list(SERVICE_TEMPLATE_KEYS),
                                                self.tosca_topology_template.tpl)
         self.provider_defs = import_definition_file.get_custom_defs()
 
@@ -89,7 +89,7 @@ class ProviderToscaTemplate (object):
         provider_nodes = list()
         for node in self.node_templates:
             (namespace, category, type_name) = tosca_type.parse(node.type)
-            if namespace != self.provider or category != 'nodes':
+            if namespace != self.provider or category != NODES:
                 ExceptionCollector.appendException(Exception('Unexpected values'))
             provider_node_class = PROVIDER_RESOURCES.get(self.provider)
             if not provider_node_class:
@@ -218,7 +218,7 @@ class ProviderToscaTemplate (object):
             if fact_name:
                 if isinstance(fact_name, list):
                     fact_name = fact_name[0]
-                new_facts[fact_name].append(node.entity_tpl.get('properties'))
+                new_facts[fact_name].append(node.entity_tpl.get(PROPERTIES))
         return new_facts
 
     def extend_facts(self, facts):
@@ -250,12 +250,12 @@ class ProviderToscaTemplate (object):
 
                         nodetemplate = node.templates.get(v)
                         node_filter = dict()
-                        properties = nodetemplate.get('properties')
-                        capabilities = nodetemplate.get('capabilities')
+                        properties = nodetemplate.get(PROPERTIES)
+                        capabilities = nodetemplate.get(CAPABILITIES)
                         if properties:
-                            node_filter['properties'] = properties
+                            node_filter[PROPERTIES] = properties
                         if capabilities:
-                            node_filter['capabilities'] = capabilities
+                            node_filter[CAPABILITIES] = capabilities
                         req[k] = dict(
                             node_filter=node_filter
                         )
@@ -263,8 +263,8 @@ class ProviderToscaTemplate (object):
                         # The case when requirement has parameters.
                         # Valid keys are ('node', 'node_filter', 'relationship', 'capability', 'occurrences')
                         # Only node and relationship might be a template name or a type
-                        req_relationship = req[k].get('relationship')
-                        req_node = req[k].get('node')
+                        req_relationship = req[k].get(RELATIONSHIP)
+                        req_node = req[k].get(NODE)
 
                         if req_relationship is not None:
                             _, _, type_name = tosca_type.parse(req_relationship)
@@ -359,12 +359,12 @@ class ProviderToscaTemplate (object):
                                                    self.tosca_topology_template.nodetemplates, self.facts)
 
         dict_tpl = copy.deepcopy(self.tosca_topology_template.tpl)
-        dict_tpl['node_templates'] = new_node_templates
+        dict_tpl[NODE_TEMPLATES] = new_node_templates
 
         rel_types = []
         for k, v in self.provider_defs.items():
             (_, element_type, _) = tosca_type.parse(k)
-            if element_type == 'relationship_types':
+            if element_type == RELATIONSHIP_TYPES:
                 rel_types.append(v)
         topology_tpl = TopologyTemplate(dict_tpl, self.provider_defs, rel_types)
 

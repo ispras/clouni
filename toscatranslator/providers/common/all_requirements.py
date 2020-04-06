@@ -4,12 +4,10 @@ from toscatranslator.common.exception import UnsupportedRequirementError
 from toscatranslator.providers.common.requirement import ProviderRequirement
 
 from toscatranslator.common import tosca_type, snake_case
+from toscatranslator.providers.common.tosca_reserved_keys import OCCURRENCES, NODE, NAME
 
 
 class ProviderRequirements (object):
-
-    SECTIONS = (OCCURRENCES) = \
-        'occurrences'
 
     def __init__(self, requirement_definitions, provider):
         """
@@ -21,8 +19,8 @@ class ProviderRequirements (object):
         self.requirement_names_of_type_list = set()
         self.node_name_by_requirement_name = dict()
         for req_def in self.requirement_definitions:
-            req_name = req_def['name']
-            req_node = req_def.get('node')
+            req_name = req_def[NAME]
+            req_node = req_def.get(NODE)
             if req_node:
                 (_, _, type_name) = tosca_type.parse(req_node)
                 node_name = snake_case.convert(type_name)
@@ -39,15 +37,15 @@ class ProviderRequirements (object):
 
         self.required_requirement_keys = set()
         for req_def in self.requirement_definitions:
-            occurrences = req_def.get(self.OCCURRENCES)  # list
+            occurrences = req_def.get(OCCURRENCES)  # list
             min_ocs = occurrences[0]
             max_ocs = occurrences[1]
             if int(min_ocs) > 0:
-                self.required_requirement_keys.add(req_def['name'])
+                self.required_requirement_keys.add(req_def[NAME])
             if str(max_ocs) == 'UNBOUNDED':
-                self.requirement_names_of_type_list.add(req_def['name'])
+                self.requirement_names_of_type_list.add(req_def[NAME])
             elif int(max_ocs) > 1:
-                self.requirement_names_of_type_list.add(req_def['name'])
+                self.requirement_names_of_type_list.add(req_def[NAME])
 
     def get_requirements(self, node):
         """

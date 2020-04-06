@@ -1,6 +1,7 @@
 from toscatranslator.common import snake_case
 
 from toscatranslator.providers.common.provider_resource import ProviderResource
+from toscatranslator.providers.common.tosca_reserved_keys import AMAZON
 
 
 class AmazonProviderResource(ProviderResource):
@@ -25,7 +26,7 @@ class AmazonProviderResource(ProviderResource):
         VirtualPrivateCloudSubnet='ec2_vpc_subnet'
     )
 
-    PROVIDER = 'amazon'
+    PROVIDER = AMAZON
 
     def ansible_description_by_type(self):
         desc = self.ANSIBLE_DESCRIPTION_PREFIX + snake_case.convert(self.type_name)

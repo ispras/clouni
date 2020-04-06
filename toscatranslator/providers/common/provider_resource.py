@@ -1,5 +1,7 @@
 import copy
 from toscatranslator.common import tosca_type
+from toscatranslator.providers.common.tosca_reserved_keys import ATTRIBUTES, PROPERTIES, ARTIFACTS, NAME, CAPABILITIES, \
+    REQUIREMENTS, INTERFACES
 
 from toscatranslator.providers.common.all_requirements import ProviderRequirements
 
@@ -41,21 +43,21 @@ class ProviderResource(object):
                 self.configuration_args[key] = value
 
         for key in self.attribute_keys:
-            value = node.entity_tpl.get('attributes', {}).get(key)
+            value = node.entity_tpl.get(ATTRIBUTES, {}).get(key)
             if value is not None:
                 self.configuration_args[key] = value
 
         capability_defs = self.capability_definitions_by_name()
         for cap_key, cap_def in capability_defs.items():
             properties = node.get_capabilities().get(cap_key)
-            definition_property_keys = cap_def.get('properties', {}).keys()
+            definition_property_keys = cap_def.get(PROPERTIES, {}).keys()
             if properties:
                 for def_prop_key in definition_property_keys:
                     value = properties.get_property_value(def_prop_key)
                     if value:
                         self.configuration_args[def_prop_key] = value
 
-        if hasattr(node, 'artifacts'):
+        if hasattr(node, ARTIFACTS):
             # TODO: oneliner
             for key, value in node.artifacts:
                 self.configuration_args[key] = value
@@ -102,17 +104,17 @@ class ProviderResource(object):
                 else:
                     requirement_defs_dict[req_name] = req_params
                 copy_req_def = copy.copy(req_params)
-                copy_req_def['name'] = req_name
+                copy_req_def[NAME] = req_name
                 requirement_defs_list_with_name_added.append(copy_req_def)
 
         # Fulfill the definitions
         self.definitions_by_name = dict(
-            attributes=node_type.get_value(node_type.ATTRIBUTES) or {},
-            properties=node_type.get_value(node_type.PROPERTIES) or {},
-            capabilities=node_type.get_value(node_type.CAPABILITIES, None, True) or {},
+            attributes=node_type.get_value(ATTRIBUTES) or {},
+            properties=node_type.get_value(PROPERTIES) or {},
+            capabilities=node_type.get_value(CAPABILITIES, None, True) or {},
             requirements=requirement_defs_dict,
-            interfaces=node_type.get_value(node_type.INTERFACES) or {},
-            artifacts=node_type.get_value(node_type.ARTIFACTS) or {}
+            interfaces=node_type.get_value(INTERFACES) or {},
+            artifacts=node_type.get_value(ARTIFACTS) or {}
         )
         self.requirement_definitions = requirement_defs_list_with_name_added
 
@@ -120,19 +122,19 @@ class ProviderResource(object):
         return self.definitions_by_name.get(name)
 
     def capability_definitions_by_name(self):
-        return self.get_definitions_by_name('capabilities')
+        return self.get_definitions_by_name(CAPABILITIES)
 
     def property_definitions_by_name(self):
-        return self.get_definitions_by_name('properties')
+        return self.get_definitions_by_name(PROPERTIES)
 
     def attribute_definitions_by_name(self):
-        return self.get_definitions_by_name('attributes')
+        return self.get_definitions_by_name(ATTRIBUTES)
 
     def requirement_definitions_by_name(self):
-        return self.get_definitions_by_name('requirements')
+        return self.get_definitions_by_name(REQUIREMENTS)
 
     def artifact_definitions_by_name(self):
-        return self.get_definitions_by_name('artifacts')
+        return self.get_definitions_by_name(ARTIFACTS)
 
     def node_priority_by_type(self):
         assert self.NODE_PRIORITY_BY_TYPE is not None
