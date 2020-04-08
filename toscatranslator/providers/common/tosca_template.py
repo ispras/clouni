@@ -23,7 +23,8 @@ from toscatranslator.providers.combined.combine_provider_resources import PROVID
 from toscatranslator.common.exception import UnknownProvider, ProviderMappingFileError, TemplateDependencyError
 
 from toscatranslator.providers.common.tosca_reserved_keys import SERVICE_TEMPLATE_KEYS, PROPERTIES, CAPABILITIES, NODES, \
-    GET_PROPERTY, GET_ATTRIBUTE, GET_OPERATION_OUTPUT, RELATIONSHIP, NODE, TEMPLATE_REFERENCES, NODE_TEMPLATES, RELATIONSHIP_TYPES
+    GET_PROPERTY, GET_ATTRIBUTE, GET_OPERATION_OUTPUT, RELATIONSHIP, NODE, TEMPLATE_REFERENCES, NODE_TEMPLATES, \
+    RELATIONSHIP_TYPES, NAME
 
 
 class ProviderToscaTemplate (object):
@@ -47,6 +48,8 @@ class ProviderToscaTemplate (object):
         import_definition_file = ImportsLoader([self.definition_file()], None, list(SERVICE_TEMPLATE_KEYS),
                                                self.tosca_topology_template.tpl)
         self.provider_defs = import_definition_file.get_custom_defs()
+
+        self.artifacts = [self.definition_file()]
 
         # REFACTOR FACTS
         self.facts = ProviderNodeFilter.refactor_facts(facts, self.provider, self.provider_defs)
@@ -354,8 +357,20 @@ class ProviderToscaTemplate (object):
                 )
         return data_dict
 
+    def generate_artifacts(self, new_artifacts):
+        """
+        From the info of new artifacts generate files which execute
+        :param new_artifacts: list of dicts containing (value, source, parameters, executor, name, configuration_tool)
+        :return: None
+        """
+        for art in new_artifacts:
+            # TODO make some actions
+            file_name = art[NAME]
+            self.artifacts.append(file_name)
+        return
+
     def translate_to_provider(self):
-        new_node_templates = translate_to_provider(self.tosca_elements_map_to_provider(),
+        new_node_templates, new_artifacts = translate_to_provider(self.tosca_elements_map_to_provider(),
                                                    self.tosca_topology_template.nodetemplates, self.facts)
 
         dict_tpl = copy.deepcopy(self.tosca_topology_template.tpl)
@@ -367,6 +382,7 @@ class ProviderToscaTemplate (object):
             if element_type == RELATIONSHIP_TYPES:
                 rel_types.append(v)
         topology_tpl = TopologyTemplate(dict_tpl, self.provider_defs, rel_types)
+        self.generate_artifacts(new_artifacts)
 
         return topology_tpl
 

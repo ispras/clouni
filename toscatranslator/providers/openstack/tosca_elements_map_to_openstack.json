@@ -1,16 +1,15 @@
 {
   "tosca.nodes.Compute": [
     {
-      "parameter": "null",
+      "parameter": "openstack.nodes.Server.artifacts.servers_list",
       "value": {
-        "source": "os_server_info",
-        "parameters": {
-          "all_projects": true
-        },
-        "extra": {
-          "register": "output"
+          "source": "os_server_info",
+          "parameters": {
+            "all_projects": true
+          },
+          "value": "openstack_servers_facts",
+          "executor": "ansible"
         }
-      }
     },
     {
       "parameter": "openstack.nodes.Server.properties.name",

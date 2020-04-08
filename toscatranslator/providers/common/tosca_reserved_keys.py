@@ -34,10 +34,10 @@ SERVICE_TEMPLATE_KEYS = (IMPORTS, NODE_TYPES, CAPABILITY_TYPES, RELATIONSHIP_TYP
 
 (NODE_TEMPLATES, TOPOLOGY_TEMPLATE) = ('node_templates', 'topology_template')
 
-MAPPING_VALUE_KEYS = (ERROR, REASON, PARAMETER, VALUE, CONDITION, FACTS, ARGUMENTS, SOURCE, PARAMETERS, EXTRA) = \
-    ('error', 'reason', 'parameter', 'value', 'condition', 'facts', 'arguments', 'source', 'parameters', 'extra')
+MAPPING_VALUE_KEYS = (ERROR, REASON, PARAMETER, VALUE, CONDITION, FACTS, ARGUMENTS, SOURCE, PARAMETERS, EXTRA, EXECUTOR) = \
+    ('error', 'reason', 'parameter', 'value', 'condition', 'facts', 'arguments', 'source', 'parameters', 'extra', 'executor')
 
 SUPPORTED_MAPPING_VALUE_STRUCTURE = ((ERROR, REASON),
                                      (PARAMETER, VALUE),
                                      (VALUE, CONDITION, FACTS, ARGUMENTS),
-                                     (SOURCE, PARAMETERS, EXTRA))
+                                     (SOURCE, PARAMETERS, EXTRA, VALUE, EXECUTOR))

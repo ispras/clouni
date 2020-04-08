@@ -3,8 +3,9 @@ from toscatranslator.common import snake_case
 from toscaparser.common.exception import ExceptionCollector, ValidationError
 from toscatranslator.common.exception import UnsupportedToscaParameterUsage, ToscaParametersMappingFailed, \
     UnsupportedMappingFunction
-from toscatranslator.providers.common.tosca_reserved_keys import NODE_TEMPLATE_KEYS, REQUIREMENTS, MAPPING_VALUE_KEYS, ERROR, \
-    REASON, PARAMETER, VALUE, CONDITION, FACTS, ARGUMENTS, SUPPORTED_MAPPING_VALUE_STRUCTURE, TYPE, TOSCA, SOURCE, PARAMETERS, EXTRA
+from toscatranslator.providers.common.tosca_reserved_keys import NODE_TEMPLATE_KEYS, REQUIREMENTS, MAPPING_VALUE_KEYS, \
+    ERROR, REASON, PARAMETER, VALUE, CONDITION, FACTS, ARGUMENTS, SUPPORTED_MAPPING_VALUE_STRUCTURE, TYPE, TOSCA, \
+    SOURCE, PARAMETERS, EXTRA, ARTIFACTS, NAME, CONFIGURATION_TOOLS, EXECUTOR
 
 import copy
 from netaddr import IPRange, IPAddress
@@ -12,7 +13,6 @@ from netaddr import IPRange, IPAddress
 from toscatranslator.common.utils import deep_update_dict
 
 SEPARATOR = '.'
-DEV_NULL = 'null'
 
 
 
@@ -178,10 +178,10 @@ def get_structure_of_mapped_param(mapped_param, value, self=None, type_list_para
                     structure[node_type][cur_section] = parameter_structure
                     return [structure]
 
-                # if splitted[i] == DEV_NULL:
-                #     param = SEPARATOR.join(splitted[i+1:])
-                #     structure[param] = value
-                #     return [structure]
+                if splitted[i].lower() in CONFIGURATION_TOOLS:
+                    param = SEPARATOR.join(splitted[i+1:])
+                    structure[param] = value
+                    return [structure]
 
             # NOTE: Case when node has no parameters but needed
             ExceptionCollector.appendException(ToscaParametersMappingFailed(
@@ -249,6 +249,7 @@ def restructure_value(mapping_value, self, facts, if_format_str=True):
             return filled_value
         if parameter is not None:
             if parameter[:6] == '{self[' and parameter.index('}') == len(parameter)-1:
+                #TODO CHECK THE CASE WHEN IT'S EXECUTED
                 params_parameter = parameter[6:-2].split('][')
                 iter_value = value
                 iter_num = len(params_parameter)
@@ -287,16 +288,28 @@ def restructure_value(mapping_value, self, facts, if_format_str=True):
                 ))
             return r
 
-        # NOTE: the case when value has keys SOURCE, PARAMETERS, EXTRA
+        # NOTE: the case when value has keys SOURCE, PARAMETERS, EXTRA, VALUE, EXECUTOR
         source_name = flat_mapping_value.get(SOURCE)
         parameters_dict = flat_mapping_value.get(PARAMETERS)
         extra_parameters = flat_mapping_value.get(EXTRA)
-        if source_name is not None and parameters_dict is not None:
-            # TODO PROCESS THE CASE
-            pass
+        executor_name = flat_mapping_value.get(EXECUTOR)
+        if source_name is not None and parameters_dict is not None and executor_name is not None:
+            # TODO WORKING AREA
+            if self.get(ARTIFACTS) is None:
+                self[ARTIFACTS] = []
+            # TODO add managing of file extensions depending on configuration tool
+            extension = '.yaml'
+            artifact_name = self[NAME] + '_' + executor_name + '_' + source_name + extension
+            flat_mapping_value.update(
+                name=artifact_name,
+                configuration_tool=executor_name
+            )
+            self[ARTIFACTS].append(flat_mapping_value)
+            # return the name of artifact
+            return artifact_name
 
         ExceptionCollector.appendException(ToscaParametersMappingFailed(
-            what=condition_name
+            what=mapping_value
         ))
         return
 
@@ -304,17 +317,21 @@ def restructure_value(mapping_value, self, facts, if_format_str=True):
         return [restructure_value(v, self, facts) for v in mapping_value]
 
     if isinstance(mapping_value, str):
-        # TODO BUG
-        if mapping_value[:6] == '{self[' and if_format_str:
-            if mapping_value.index('}') == len(mapping_value)-1:
-                mapping_value = mapping_value[6:-2]
-                params_map_val = mapping_value.split('][')
-                temp_val = self
-                for param in params_map_val:
-                    temp_val = temp_val.get(param, {})
-                return temp_val
-            else:
+        # TODO BUG CHECK
+        # if mapping_value [:6] == '{self[' and if_format_str:
+        #     if mapping_value.index('}') == len(mapping_value)-1:
+        #         mapping_value = mapping_value[6:-2]
+        #         params_map_val = mapping_value.split('][')
+        #         temp_val = self
+        #         for param in params_map_val:
+        #             temp_val = temp_val.get(param, {})
+        #         return temp_val
+        #     else:
+        if if_format_str:
+            try:
                 mapping_value = mapping_value.format(self=self)
+            except ValueError:
+                pass
 
     return mapping_value
 
@@ -487,16 +504,17 @@ def translate_from_tosca(restructured_mapping, facts, tpl_name):
                                 else:
                                     resulted_structure[node_type][section] = deep_update_dict(temp_params, params)
 
-    return resulted_structure
+    return resulted_structure, self[ARTIFACTS]
 
 
 def translate(tosca_elements_map_to_provider, node_templates, facts):
     new_node_templates = {}
     for node in node_templates:
         (namespace, _, _) = tosca_type.parse(node.type)
+        artifacts = []
         if namespace == TOSCA:
             restructured_mapping = restructure_mapping(tosca_elements_map_to_provider, node)
-            tpl_structure = translate_from_tosca(restructured_mapping, facts, node.name)
+            tpl_structure, artifacts = translate_from_tosca(restructured_mapping, facts, node.name)
             temp_node_templates = {}
             for node_type, tpl in tpl_structure.items():
                 (_, _, type_name) = tosca_type.parse(node_type)
@@ -509,4 +527,4 @@ def translate(tosca_elements_map_to_provider, node_templates, facts):
         for k, v in temp_node_templates.items():
             new_node_templates[k] = copy.deepcopy(v)
 
-    return new_node_templates
+    return new_node_templates, artifacts
