@@ -55,13 +55,16 @@ class TestAnsibleOpenStackOutput (unittest.TestCase, TestAnsibleProviderOutput):
     def test_network_name(self):
         template = copy.deepcopy(self.DEFAULT_TEMPLATE)
         testing_parameter = {
-            "networks": [
-                {
+            "networks": {
+                "default": {
                     "name": "test-two-routers"
                 }
-            ]
+            }
         }
         template = self.update_template_attribute(template, self.NODE_NAME, testing_parameter)
+        playbook = self.get_ansible_output(template)
+
+        self.assertIsNotNone(playbook)
 
     def test_host_capabilities(self):
         template = copy.deepcopy(self.DEFAULT_TEMPLATE)
@@ -95,3 +98,7 @@ class TestAnsibleOpenStackOutput (unittest.TestCase, TestAnsibleProviderOutput):
             "version": 16.04
         }
         template = self.update_template_capability_properties(template, self.NODE_NAME, "os", testing_parameter)
+        playbook = self.get_ansible_output(template)
+
+        self.assertIsNotNone(playbook)
+

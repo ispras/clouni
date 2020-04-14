@@ -24,7 +24,7 @@ from toscatranslator.common.exception import UnknownProvider, ProviderMappingFil
 
 from toscatranslator.providers.common.tosca_reserved_keys import SERVICE_TEMPLATE_KEYS, PROPERTIES, CAPABILITIES, NODES, \
     GET_PROPERTY, GET_ATTRIBUTE, GET_OPERATION_OUTPUT, RELATIONSHIP, NODE, TEMPLATE_REFERENCES, NODE_TEMPLATES, \
-    RELATIONSHIP_TYPES, NAME
+    RELATIONSHIP_TYPES, NAME, RELATIONSHIPS, RELATIONSHIP_TEMPLATES
 
 
 class ProviderToscaTemplate (object):
@@ -370,11 +370,16 @@ class ProviderToscaTemplate (object):
         return
 
     def translate_to_provider(self):
-        new_node_templates, new_artifacts = translate_to_provider(self.tosca_elements_map_to_provider(),
+        new_element_templates, new_artifacts = translate_to_provider(self.tosca_elements_map_to_provider(),
                                                    self.tosca_topology_template.nodetemplates, self.facts)
 
         dict_tpl = copy.deepcopy(self.tosca_topology_template.tpl)
-        dict_tpl[NODE_TEMPLATES] = new_node_templates
+        if new_element_templates.get(NODES):
+            dict_tpl[NODE_TEMPLATES] = new_element_templates[NODES]
+        if new_element_templates.get(RELATIONSHIPS):
+            dict_tpl[RELATIONSHIP_TEMPLATES] = new_element_templates[RELATIONSHIPS]
+
+        print(yaml.dump(dict_tpl))
 
         rel_types = []
         for k, v in self.provider_defs.items():

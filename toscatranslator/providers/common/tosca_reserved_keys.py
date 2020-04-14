@@ -26,13 +26,11 @@ NODE_TEMPLATE_KEYS = (TYPE, DESCRIPTION, METADATA, DIRECIVES, PROPERTIES, ATTRIB
 (NAME_SUFFIX, ID_SUFFIX) = ('_name', '_id')
 REQUIREMENT_DEFAULT_PARAMS = (NAME, ID)
 
-(NODES) = ('nodes')
-
 (TOSCA_DEFINITIONS_VERSION, IMPORTS, NODE_TYPES, CAPABILITY_TYPES, RELATIONSHIP_TYPES, DATA_TYPES, INTERFACE_TYPES, POLICY_TYPES, GROUP_TYPES) \
     = ('tosca_definitions_version', 'imports', 'node_types', 'capability_types', 'relationship_types', 'data_types', 'interface_types', 'policy_types', 'group_types')
 SERVICE_TEMPLATE_KEYS = (IMPORTS, NODE_TYPES, CAPABILITY_TYPES, RELATIONSHIP_TYPES, DATA_TYPES, INTERFACE_TYPES, POLICY_TYPES, GROUP_TYPES)
 
-(NODE_TEMPLATES, TOPOLOGY_TEMPLATE) = ('node_templates', 'topology_template')
+(NODE_TEMPLATES, TOPOLOGY_TEMPLATE, RELATIONSHIP_TEMPLATES) = ('node_templates', 'topology_template', 'relationship_templates')
 
 MAPPING_VALUE_KEYS = (ERROR, REASON, PARAMETER, VALUE, CONDITION, FACTS, ARGUMENTS, SOURCE, PARAMETERS, EXTRA, EXECUTOR) = \
     ('error', 'reason', 'parameter', 'value', 'condition', 'facts', 'arguments', 'source', 'parameters', 'extra', 'executor')
@@ -41,3 +39,6 @@ SUPPORTED_MAPPING_VALUE_STRUCTURE = ((ERROR, REASON),
                                      (PARAMETER, VALUE),
                                      (VALUE, CONDITION, FACTS, ARGUMENTS),
                                      (SOURCE, PARAMETERS, EXTRA, VALUE, EXECUTOR))
+
+(NODES, RELATIONSHIPS, DATATYPES, POLICIES, GROUPS) = ("nodes", "relationships", "datatypes", "policies", "groups")
+ELEMENT_TYPES = (NODES, CAPABILITIES, RELATIONSHIPS, DATATYPES, INTERFACES, ARTIFACTS, POLICIES, GROUPS)

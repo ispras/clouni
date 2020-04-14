@@ -5,7 +5,7 @@ from toscatranslator.common.exception import UnsupportedToscaParameterUsage, Tos
     UnsupportedMappingFunction
 from toscatranslator.providers.common.tosca_reserved_keys import NODE_TEMPLATE_KEYS, REQUIREMENTS, MAPPING_VALUE_KEYS, \
     ERROR, REASON, PARAMETER, VALUE, CONDITION, FACTS, ARGUMENTS, SUPPORTED_MAPPING_VALUE_STRUCTURE, TYPE, TOSCA, \
-    SOURCE, PARAMETERS, EXTRA, ARTIFACTS, NAME, CONFIGURATION_TOOLS, EXECUTOR
+    SOURCE, PARAMETERS, EXTRA, ARTIFACTS, NAME, CONFIGURATION_TOOLS, EXECUTOR, NODES, RELATIONSHIPS
 
 import copy
 from netaddr import IPRange, IPAddress
@@ -13,7 +13,6 @@ from netaddr import IPRange, IPAddress
 from toscatranslator.common.utils import deep_update_dict
 
 SEPARATOR = '.'
-
 
 
 def contain_function(pool, argv, first=True):
@@ -115,12 +114,15 @@ class ConditionFunction(object):
 
 
 def translate_from_provider(node):
-    node_templates = dict()
-    node_templates[node.name] = node.entity_tpl
+    node_templates = {
+        NODES: {
+            node.name: node.entity_tpl
+        }
+    }
     return node_templates
 
 
-def get_structure_of_mapped_param(mapped_param, value, self=None, type_list_parameters=None):
+def get_structure_of_mapped_param(mapped_param, value, self=None, type_list_parameters=None, indivisible=False):
     if mapped_param is None:
         return []
     if self is None:
@@ -130,65 +132,61 @@ def get_structure_of_mapped_param(mapped_param, value, self=None, type_list_para
         type_list_parameters = []
 
     if isinstance(mapped_param, str):
-        if isinstance(value, list):
-            r = []
-            len_v = len(value)
-            if len_v == 1:
-                type_list_parameters.append(len(mapped_param.split(SEPARATOR)))
-                param = get_structure_of_mapped_param(mapped_param, value[0], self, type_list_parameters)
-                return param
+        if not indivisible:
+            if isinstance(value, list):
+                r = []
+                len_v = len(value)
+                if len_v == 1:
+                    type_list_parameters.append(len(mapped_param.split(SEPARATOR)))
+                    param = get_structure_of_mapped_param(mapped_param, value[0], self, type_list_parameters)
+                    return param
 
-            for v in value:
-                if isinstance(v, str):
-                    param = get_structure_of_mapped_param(SEPARATOR.join([mapped_param, v]), self, self, type_list_parameters)
-                else:
-                    param = get_structure_of_mapped_param(mapped_param, v, self, type_list_parameters)
-                r += param
-            return r
+                for v in value:
+                    if isinstance(v, str):
+                        param = get_structure_of_mapped_param(SEPARATOR.join([mapped_param, v]), self, self, type_list_parameters)
+                    else:
+                        param = get_structure_of_mapped_param(mapped_param, v, self, type_list_parameters)
+                    r += param
+                return r
 
-        elif isinstance(value, dict):
-            r = []
-            for k, v in value.items():
-                param = get_structure_of_mapped_param(SEPARATOR.join([mapped_param, k]), v, self, type_list_parameters)
-                r += param
-            return r
-        else:
-            # NOTE: end of recursion
-            splitted = mapped_param.split(SEPARATOR)
-            num = len(splitted)
+            if isinstance(value, dict):
+                r = []
+                for k, v in value.items():
+                    param = get_structure_of_mapped_param(SEPARATOR.join([mapped_param, k]), v, self, type_list_parameters)
+                    r += param
+                return r
 
-            structure = dict()
-            for i in range(num):
-                if splitted[i] in NODE_TEMPLATE_KEYS:
-                    node_type = SEPARATOR.join(splitted[:i])
-                    cur_section = splitted[i]
-                    parameter_structure = value
-                    if num in type_list_parameters:
-                        parameter_structure = [value]
-                    for k in range(num - 1, i, -1):
-                        temp = dict()
-                        temp[splitted[k]] = parameter_structure
-                        if k in type_list_parameters:
-                            temp = [temp]
-                        parameter_structure = temp
+        # NOTE: end of recursion
+        splitted = mapped_param.split(SEPARATOR)
+        num = len(splitted)
 
-                    structure[node_type] = dict()
-                    if cur_section == REQUIREMENTS:
-                        parameter_structure = [parameter_structure]
-                    structure[node_type][cur_section] = parameter_structure
-                    return [structure]
+        structure = dict()
+        for i in range(num):
+            if splitted[i] in NODE_TEMPLATE_KEYS:
+                node_type = SEPARATOR.join(splitted[:i])
+                cur_section = splitted[i]
+                parameter_structure = value
+                if num in type_list_parameters:
+                    parameter_structure = [value]
+                for k in range(num - 1, i, -1):
+                    temp = dict()
+                    temp[splitted[k]] = parameter_structure
+                    if k in type_list_parameters:
+                        temp = [temp]
+                    parameter_structure = temp
 
-                if splitted[i].lower() in CONFIGURATION_TOOLS:
-                    param = SEPARATOR.join(splitted[i+1:])
-                    structure[param] = value
-                    return [structure]
+                structure[node_type] = dict()
+                if cur_section == REQUIREMENTS:
+                    parameter_structure = [parameter_structure]
+                structure[node_type][cur_section] = parameter_structure
+                return [structure]
 
             # NOTE: Case when node has no parameters but needed
-            ExceptionCollector.appendException(ToscaParametersMappingFailed(
-                what=mapped_param
-            ))
-            structure[mapped_param] = dict()
-            return [structure]
+        ExceptionCollector.appendException(ToscaParametersMappingFailed(
+            what=mapped_param
+        ))
+        structure[mapped_param] = dict()
+        return [structure]
 
     if isinstance(mapped_param, list):
         r = []
@@ -198,11 +196,19 @@ def get_structure_of_mapped_param(mapped_param, value, self=None, type_list_para
         return r
 
     if isinstance(mapped_param, dict):
-        r = []
-        for k, v in mapped_param.items():
-            param = get_structure_of_mapped_param(k, v, self, type_list_parameters)
-            r += param
-        return r
+        # Assert number of keys!
+        num_of_keys = len(mapped_param.keys())
+        if num_of_keys == 2 and mapped_param.get('parameter'):
+            for k, v in mapped_param.items():
+                if k != 'parameter':
+                    if k == mapped_param['parameter']:
+                        indivisible = True
+                    else:
+                        indivisible = False
+                    param = get_structure_of_mapped_param(k, v, self, type_list_parameters, indivisible)
+                    return param
+        else:
+            assert False
 
     ExceptionCollector.appendException(ToscaParametersMappingFailed(
         what=mapped_param
@@ -241,6 +247,7 @@ def restructure_value(mapping_value, self, facts, if_format_str=True):
         parameter = flat_mapping_value.get(PARAMETER)
         value = flat_mapping_value.get(VALUE)
         if value is None:
+            # The case when variable is indivisible
             filled_value = dict()
             for k, v in mapping_value.items():
                 filled_k = restructure_value(k, self, facts)
@@ -249,7 +256,7 @@ def restructure_value(mapping_value, self, facts, if_format_str=True):
             return filled_value
         if parameter is not None:
             if parameter[:6] == '{self[' and parameter.index('}') == len(parameter)-1:
-                #TODO CHECK THE CASE WHEN IT'S EXECUTED
+                # The case when variable is written to the parameter self!
                 params_parameter = parameter[6:-2].split('][')
                 iter_value = value
                 iter_num = len(params_parameter)
@@ -261,6 +268,7 @@ def restructure_value(mapping_value, self, facts, if_format_str=True):
                 return
             r = dict()
             r[parameter] = value
+            r['parameter'] = parameter
             return r
 
         # NOTE: the case when value has keys VALUE, CONDITION, FACTS, ARGUMENTS
@@ -292,9 +300,8 @@ def restructure_value(mapping_value, self, facts, if_format_str=True):
         source_name = flat_mapping_value.get(SOURCE)
         parameters_dict = flat_mapping_value.get(PARAMETERS)
         extra_parameters = flat_mapping_value.get(EXTRA)
-        executor_name = flat_mapping_value.get(EXECUTOR)
-        if source_name is not None and parameters_dict is not None and executor_name is not None:
-            # TODO WORKING AREA
+        executor_name = flat_mapping_value.get(EXECUTOR, 'ansible')
+        if source_name is not None:
             if self.get(ARTIFACTS) is None:
                 self[ARTIFACTS] = []
             # TODO add managing of file extensions depending on configuration tool
@@ -317,17 +324,16 @@ def restructure_value(mapping_value, self, facts, if_format_str=True):
         return [restructure_value(v, self, facts) for v in mapping_value]
 
     if isinstance(mapping_value, str):
-        # TODO BUG CHECK
-        # if mapping_value [:6] == '{self[' and if_format_str:
-        #     if mapping_value.index('}') == len(mapping_value)-1:
-        #         mapping_value = mapping_value[6:-2]
-        #         params_map_val = mapping_value.split('][')
-        #         temp_val = self
-        #         for param in params_map_val:
-        #             temp_val = temp_val.get(param, {})
-        #         return temp_val
-        #     else:
+        # NOTE: the process is needed because using only format function makes string from json
         if if_format_str:
+            if mapping_value[:6] == '{self[' and mapping_value.index('}') == len(mapping_value) - 1:
+                mapping_value = mapping_value[6:-2]
+                params_map_val = mapping_value.split('][')
+                temp_val = self
+                for param in params_map_val:
+                    temp_val = temp_val.get(param, {})
+                return temp_val
+
             try:
                 mapping_value = mapping_value.format(self=self)
             except ValueError:
@@ -463,9 +469,10 @@ def translate_from_tosca(restructured_mapping, facts, tpl_name):
     :return: entity_tpl as dict
     """
     resulted_structure = {}
-    self = dict(
-        name=tpl_name
-    )
+    self = dict()
+    self[NAME] = tpl_name
+    self[ARTIFACTS] = []
+
     for item in restructured_mapping:
         ExceptionCollector.start()
         self[PARAMETER] = item[PARAMETER]
@@ -508,23 +515,20 @@ def translate_from_tosca(restructured_mapping, facts, tpl_name):
 
 
 def translate(tosca_elements_map_to_provider, node_templates, facts):
-    new_node_templates = {}
+    new_element_templates = {}
+    artifacts = []
     for node in node_templates:
         (namespace, _, _) = tosca_type.parse(node.type)
-        artifacts = []
         if namespace == TOSCA:
             restructured_mapping = restructure_mapping(tosca_elements_map_to_provider, node)
             tpl_structure, artifacts = translate_from_tosca(restructured_mapping, facts, node.name)
-            temp_node_templates = {}
             for node_type, tpl in tpl_structure.items():
-                (_, _, type_name) = tosca_type.parse(node_type)
+                (_, element_type, type_name) = tosca_type.parse(node_type)
                 node_name = node.name + '_' + snake_case.convert(type_name)
                 tpl[TYPE] = node_type
-                temp_node_templates[node_name] = tpl
+                new_element_templates[element_type] = new_element_templates.get(element_type, {})
+                new_element_templates[element_type].update({node_name: copy.deepcopy(tpl)})
         else:
-            temp_node_templates = translate_from_provider(node)
+            new_element_templates = copy.deepcopy(translate_from_provider(node))
 
-        for k, v in temp_node_templates.items():
-            new_node_templates[k] = copy.deepcopy(v)
-
-    return new_node_templates, artifacts
+    return new_element_templates, artifacts

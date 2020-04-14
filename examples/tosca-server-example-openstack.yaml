@@ -29,22 +29,15 @@ topology_template:
                 name: { get_operation_output: [server_kube_master_server_image, Target, choose, name] }
             relationship: server_kube_master_server_image
 
-#    server_kube_master_port:
-#      type:  openstack.nodes.Port
-#      properties:
-#        fixed_ips:
-#          - { get_operation_output: [ SELF, Standard, confgure, network_ip_struct ] }
-#        name:  server_kube_master_port_0
-#      interfaces:
-#        Standard:
-#          configure:
-#            implementation: server_kube_master_port_configure.yaml
-#            inputs:
-#              network_name: { get_operation_output: [ server_kube_master_port_network, Target, choose, name ] }
-#              ip: 192.168.12.25
-#      requirements:
-#        - dependencies:
-#            relationship: server_kube_master_port_network
+    server_kube_master_port:
+      type:  openstack.nodes.Port
+      properties:
+        fixed_ips:
+          - { get_operation_output: [ server_kube_master_port_network, Target, modify_value, value ] }
+        name:  server_kube_master_port_0
+      requirements:
+        - dependencies:
+            relationship: server_kube_master_port_network
 
     server_kube_master_floatingip:
       type:  openstack.nodes.FloatingIp
@@ -56,8 +49,7 @@ topology_template:
               properties:
                 name:  { get_operation_output: [server_kube_master_floatingip_network, Target, choose, name] }
             relationship: server_kube_master_floatingip_network
-        - server:  server_kube_master_server
-
+        - server: server_kube_master_server
 
     server_kube_master_securitygrouprule:
       type:  openstack.nodes.SecurityGroupRule
@@ -96,17 +88,13 @@ topology_template:
             implementation: equals.yaml
             inputs:
               facts: {get_operation_output: [SELF, Target, total, target_objects]}
-              name: {get_operation_output: [server_kube_master_floating_ip_subnet, Target, choose, name]}
-
-    server_kube_master_floating_ip_subnet:
-      type: openstack.relationships.DependsOn
-      interfaces:
-        Target:
+              name: {get_operation_output: [SELF, Subnet, choose, name]}
+        Subnet:
           total: server_kube_master_floating_ip_subnet_total.yaml
           choose:
             implementation: ip_contains.yaml
             inputs:
-              facts: {get_operation_output: [SELF, Target, total, target_objects]}
+              facts: {get_operation_output: [SELF, Subnet, total, target_objects]}
               ip: 10.100.115.15
 
     server_kube_master_port_network:
@@ -118,16 +106,16 @@ topology_template:
             implementation: equals.yaml
             inputs:
               facts: {get_operation_output: [SELF, Target, total, target_objects]}
-              name: {get_operation_output: [server_kube_master_port_subnet, Target, choose, name]}
-
-
-    server_kube_master_port_subnet:
-      type: openstack.relationships.DependsOn
-      interfaces:
-        Target:
+              name: {get_operation_output: [SELF, Subnet, choose, name]}
+          modify_value:
+            implementation: server_kube_master_port_configure.yaml
+            inputs:
+              network_name: { get_operation_output: [ SELF, Target, choose, name ] }
+              ip: 192.168.12.25
+        Subnet:
           total: server_kube_master_port_subnet_total.yaml
           choose:
             implementation: ip_contains.yaml
             inputs:
-              facts: {get_operation_output: [SELF, Target, total, target_objects]}
+              facts: {get_operation_output: [SELF, Subnet, total, target_objects]}
               ip: 192.168.12.25
