@@ -1,7 +1,6 @@
 import unittest
 from testing.base import TestAnsibleProviderOutput
 import copy
-from toscatranslator import shell
 
 from toscatranslator import shell
 
@@ -51,6 +50,9 @@ class TestAnsibleOpenStackOutput (unittest.TestCase, TestAnsibleProviderOutput):
             "public_address": "10.100.115.15"
         }
         template = self.update_template_attribute(template, self.NODE_NAME, testing_parameter)
+        playbook = self.get_ansible_output(template)
+
+        self.assertIsNotNone(playbook)
 
     def test_network_name(self):
         template = copy.deepcopy(self.DEFAULT_TEMPLATE)

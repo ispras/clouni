@@ -35,11 +35,16 @@ SERVICE_TEMPLATE_KEYS = (IMPORTS, NODE_TYPES, CAPABILITY_TYPES, RELATIONSHIP_TYP
 MAPPING_VALUE_KEYS = (ERROR, REASON, PARAMETER, VALUE, CONDITION, FACTS, ARGUMENTS, SOURCE, PARAMETERS, EXTRA, EXECUTOR, KEYNAME) = \
     ('error', 'reason', 'parameter', 'value', 'condition', 'facts', 'arguments', 'source', 'parameters', 'extra', 'executor', 'keyname')
 
+FACTS_MAPPING_VALUE_STRUCTURE = (VALUE, CONDITION, FACTS, ARGUMENTS)
+
 SUPPORTED_MAPPING_VALUE_STRUCTURE = ((ERROR, REASON),
                                      (PARAMETER, VALUE),
                                      (PARAMETER, VALUE, KEYNAME),
-                                     (VALUE, CONDITION, FACTS, ARGUMENTS),
-                                     (SOURCE, PARAMETERS, EXTRA, VALUE, EXECUTOR))
+                                     FACTS_MAPPING_VALUE_STRUCTURE,
+                                     (SOURCE, PARAMETERS, EXTRA, VALUE, EXECUTOR),
+                                     (SOURCE, PARAMETERS, EXTRA, VALUE),
+                                     (SOURCE, PARAMETERS, VALUE, EXECUTOR),
+                                     (SOURCE, PARAMETERS, VALUE))
 
 (NODES, RELATIONSHIPS, DATATYPES, POLICIES, GROUPS) = ("nodes", "relationships", "datatypes", "policies", "groups")
 ELEMENT_TYPES = (NODES, CAPABILITIES, RELATIONSHIPS, DATATYPES, INTERFACES, ARTIFACTS, POLICIES, GROUPS)

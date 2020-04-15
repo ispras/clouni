@@ -141,7 +141,8 @@ def get_structure_of_mapped_param(mapped_param, value, self=None, type_list_para
 
                 for v in value:
                     if isinstance(v, str):
-                        param = get_structure_of_mapped_param(SEPARATOR.join([mapped_param, v]), self, self, type_list_parameters)
+                        param = get_structure_of_mapped_param(SEPARATOR.join([mapped_param, v]), self, self,
+                                                              type_list_parameters)
                     else:
                         param = get_structure_of_mapped_param(mapped_param, v, self, type_list_parameters)
                     r += param
@@ -150,7 +151,8 @@ def get_structure_of_mapped_param(mapped_param, value, self=None, type_list_para
             if isinstance(value, dict):
                 r = []
                 for k, v in value.items():
-                    param = get_structure_of_mapped_param(SEPARATOR.join([mapped_param, k]), v, self, type_list_parameters)
+                    param = get_structure_of_mapped_param(SEPARATOR.join([mapped_param, k]), v, self,
+                                                          type_list_parameters)
                     r += param
                 return r
 
@@ -384,6 +386,7 @@ def get_restructured_mapping_item(key_prefix, parameter, mapping_value, value):
     """
     if mapping_value is None:
         return None
+
     if isinstance(mapping_value, list):
         r = []
         for v in mapping_value:
@@ -446,7 +449,7 @@ def get_restructured_mapping_item(key_prefix, parameter, mapping_value, value):
             r.append(item)
         return r
 
-    return None
+    return None  # TODO ???
 
 
 def restructure_mapping(tosca_elements_map_to_provider, node):
@@ -528,20 +531,155 @@ def translate_from_tosca(restructured_mapping, facts, tpl_name):
                                 else:
                                     if isinstance(params, list):
                                         for params_i in params:
-                                            resulted_structure[keyname][node_type][section] = deep_update_dict(temp_params, params_i)
+                                            resulted_structure[keyname][node_type][section] = \
+                                                deep_update_dict(temp_params, params_i)
                                     else:
-                                        resulted_structure[keyname][node_type][section] = deep_update_dict(temp_params, params)
+                                        resulted_structure[keyname][node_type][section] = \
+                                            deep_update_dict(temp_params, params)
 
     return resulted_structure, self[ARTIFACTS]
+
+
+def get_source_structure_from_facts(condition, fact_name, value, arguments, target_parameter, source_parameter,
+                                    source_value):
+    target_parameter_splitted = target_parameter.split(SEPARATOR)
+    fact_name_splitted = fact_name.split(SEPARATOR)
+    source_name = fact_name_splitted[0]
+    relationship_name = "{self[name]}_server_" + snake_case.convert(target_parameter_splitted[-1])
+    facts_result = "facts_result"
+    if len(fact_name_splitted) > 1:
+        facts_result += "[\"" + "\"][\"".join(fact_name_splitted[1:]) + "\"]"
+    new_elements_map = {
+        "get_operation_output": [
+            relationship_name,
+            "Target",
+            "choose",
+            value
+        ]
+    }
+    new_global_elements_map_total = {
+        "parameter": "openstack.relationships.DependsOn.interfaces.Target.total",
+        "keyname": relationship_name,
+        "value": [
+            {
+                "source": source_name,
+                "value": "facts_result",
+                "executor": "ansible"
+            },
+            {
+                "source": "set_fact",
+                "parameters": {
+                  "target_objects": facts_result
+            },
+                "value": "tmp_value"
+            }
+        ]
+      }
+    new_global_elements_map_choose = {
+        "parameter": "openstack.relationships.DependsOn.interfaces.Target.choose",
+        "keyname": relationship_name,
+        "value": {
+            "implementation": condition + ".yaml",
+            "inputs": {
+                "facts": {
+                    "get_operation_output": [
+                        "SELF",
+                        "Target",
+                        "total",
+                        "target_objects"
+                    ]
+                },
+                "args": arguments
+            }
+        }
+    }
+    new_global_elements_map = [
+        {
+            "parameter": source_parameter,
+            "map": new_global_elements_map_choose,
+            "value": source_value
+        },
+        {
+            "parameter": source_parameter,
+            "map": new_global_elements_map_total,
+            "value": source_value
+        }
+    ]
+    return new_elements_map, new_global_elements_map
+
+
+def restructure_mapping_facts(elements_map, extra_elements_map=None, target_parameter=None, source_parameter=None,
+                              source_value=None):
+    elements_map = copy.deepcopy(elements_map)
+    if not extra_elements_map:
+        extra_elements_map = []
+
+    if isinstance(elements_map, dict):
+        cur_parameter = elements_map.get(PARAMETER)
+        if cur_parameter:
+            if isinstance(cur_parameter, str):
+                if elements_map.get('map'):
+                    source_parameter = cur_parameter
+                    source_value = elements_map.get('value')
+                elif target_parameter:
+                    target_parameter += SEPARATOR + cur_parameter
+                else:
+                    target_parameter = cur_parameter
+        new_elements_map = dict()
+        for k, v in elements_map.items():
+            cur_elements, extra_elements_map = restructure_mapping_facts(v, extra_elements_map, target_parameter,
+                                                                         source_parameter, source_value)
+            new_elements_map.update({k: cur_elements})
+
+        if_facts_structure = False
+        keys = new_elements_map.keys()
+        if len(keys) > 0:
+            if_facts_structure = True
+            for k in keys:
+                if k not in FACTS_MAPPING_VALUE_STRUCTURE:
+                    if_facts_structure = False
+        if if_facts_structure:
+            # NOTE: end of recursion
+            assert target_parameter
+
+            condition = new_elements_map[CONDITION]
+            fact_name = new_elements_map[FACTS]
+            value = new_elements_map[VALUE]
+            arguments = new_elements_map[ARGUMENTS]
+            new_elements_map, cur_extra_elements = get_source_structure_from_facts(condition, fact_name, value, arguments,
+                                                                                   target_parameter, source_parameter,
+                                                                                   source_value)
+            extra_elements_map.extend(cur_extra_elements)
+        return new_elements_map, extra_elements_map
+
+    if isinstance(elements_map, list):
+        new_elements_map = []
+        for k in elements_map:
+            cur_elements, extra_elements_map = restructure_mapping_facts(k, extra_elements_map, target_parameter,
+                                                                         source_parameter, source_value)
+            new_elements_map.append(cur_elements)
+        return new_elements_map, extra_elements_map
+
+    return elements_map, extra_elements_map
 
 
 def translate(tosca_elements_map_to_provider, node_templates, facts):
     new_element_templates = {}
     artifacts = []
+    # tosca_elements_map_to_provider = restructure_mapping_facts(tosca_elements_map_to_provider)
+
     for node in node_templates:
         (namespace, _, _) = tosca_type.parse(node.type)
         if namespace == TOSCA:
             restructured_mapping = restructure_mapping(tosca_elements_map_to_provider, node)
+
+            import yaml
+            print(yaml.dump(restructured_mapping))
+
+            restructured_mapping, extra_mappings = restructure_mapping_facts(restructured_mapping)
+            restructured_mapping.extend(extra_mappings)
+            print(yaml.dump(restructured_mapping))
+
             tpl_structure, artifacts = translate_from_tosca(restructured_mapping, facts, node.name)
             for tpl_name, temp_tpl in tpl_structure.items():
                 for node_type, tpl in temp_tpl.items():

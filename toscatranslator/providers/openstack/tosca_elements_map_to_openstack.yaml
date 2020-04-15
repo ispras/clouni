@@ -18,7 +18,7 @@ tosca.nodes.Compute:
                   - id
                   - value: network_id
                     condition: ip_contains
-                    facts: openstack_subnet_facts
+                    facts: os_subnet_facts.ansible_facts.openstack_subnets
                     arguments:
                       - allocation_pool_start
                       - allocation_pool_end
@@ -37,13 +37,13 @@ tosca.nodes.Compute:
               - parameter: network.node_filter.properties.name
                 value:
                   value: name
-                  facts: openstack_network_facts
+                  facts: os_network_facts.ansible_facts.openstack_networks
                   condition: equals
                   arguments:
                     - id
                     - value: network_id
                       condition: ip_contains
-                      facts: openstack_subnet_facts
+                      facts: os_subnet_facts.ansible_facts.openstack_subnets
                       arguments:
                         - allocation_pool_start
                         - allocation_pool_end
@@ -56,7 +56,7 @@ tosca.nodes.Compute:
         parameter: openstack.nodes.Server.requirements.nics.node_filter.properties.id
         value:
           value: network_id
-          facts: openstack_subnet_facts
+          facts: os_subnet_facts.ansible_facts.openstack_subnets
           condition: ip_contains
           arguments:
             - allocation_pool_start
@@ -70,7 +70,7 @@ tosca.nodes.Compute:
         parameter: openstack.nodes.Server.requirements.nics.node_filter.properties.id
         value:
           value: network_id
-          facts: openstack_subnet_facts
+          facts: os_subnet_facts.ansible_facts.openstack_subnets
           condition: ip_contains
           arguments:
             - allocation_pool_start
@@ -112,41 +112,14 @@ tosca.nodes.Compute:
         error: true
         reason: Not implemented yet
       os.properties:
-        - parameter: openstack.nodes.Server.requirements.image #  VARIABLE
-          value:
-            node_filter:
-              properties:
-                name:
-                  get_operation_output:
-                    - "{self[name]}_server_image"
-                    - Target
-                    - choose
-                    - name # VARIABLE
-            relationship: "{self[name]}_server_image"
-        - parameter: openstack.relationships.DependsOn.interfaces.Target.total
-          keyname: "{self[name]}_server_image"
-          value:
-            - source: os_server_facts # VARIABLE
-              value: facts_result
-              executor: ansible
-            - source: set_fact
-              parameters:
-                target_objects: facts_result["ansible_facts"]["openstack_servers"]
-              value: tmp_value # We don't need register here
-        - parameter: openstack.relationships.DependsOn.interfaces.Target.choose
-          keyname: "{self[name]}_server_image"
-          value:
-            implementation: contains.yaml # VARIABLE, ALREADY DEFINED
-            inputs:
-              facts:
-                get_operation_output:
-                  - SELF
-                  - Target
-                  - total
-                  - target_objects
-              args: # VARIABLE
-                - name
-                - "{self[value]}"
+        parameter: openstack.nodes.Server.requirements.image.node_filter.properties.name
+        value:
+          value: name
+          facts: os_server_facts.ansible_facts.openstack_servers
+          condition: contains
+          arguments:
+            - name
+            - "{self[value]}"
       scalable:
         error: true
         reason: Not described in TOSCA Profile YAML v1.0
