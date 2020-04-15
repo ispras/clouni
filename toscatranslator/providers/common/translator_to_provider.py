@@ -3,9 +3,7 @@ from toscatranslator.common import snake_case
 from toscaparser.common.exception import ExceptionCollector, ValidationError
 from toscatranslator.common.exception import UnsupportedToscaParameterUsage, ToscaParametersMappingFailed, \
     UnsupportedMappingFunction
-from toscatranslator.providers.common.tosca_reserved_keys import NODE_TEMPLATE_KEYS, REQUIREMENTS, MAPPING_VALUE_KEYS, \
-    ERROR, REASON, PARAMETER, VALUE, CONDITION, FACTS, ARGUMENTS, SUPPORTED_MAPPING_VALUE_STRUCTURE, TYPE, TOSCA, \
-    SOURCE, PARAMETERS, EXTRA, ARTIFACTS, NAME, CONFIGURATION_TOOLS, EXECUTOR, NODES, RELATIONSHIPS
+from toscatranslator.providers.common.tosca_reserved_keys import *
 
 import copy
 from netaddr import IPRange, IPAddress
@@ -196,18 +194,25 @@ def get_structure_of_mapped_param(mapped_param, value, self=None, type_list_para
         return r
 
     if isinstance(mapped_param, dict):
-        # Assert number of keys!
+        # NOTE: Assert number of keys! Always start of recursion?
+        # TODO add keyname
+        # TODO check with private address as it has multiple
         num_of_keys = len(mapped_param.keys())
-        if num_of_keys == 2 and mapped_param.get('parameter'):
+        if mapped_param.get(PARAMETER) and (num_of_keys == 2 or num_of_keys == 3 and KEYNAME in mapped_param.keys()):
             for k, v in mapped_param.items():
-                if k != 'parameter':
-                    if k == mapped_param['parameter']:
-                        indivisible = True
+                if k != PARAMETER and k != KEYNAME:
+                    if k == mapped_param[PARAMETER]:
+                        indivisible = True  # indicates when value is indivisible
                     else:
                         indivisible = False
                     param = get_structure_of_mapped_param(k, v, self, type_list_parameters, indivisible)
-                    return param
+                    if isinstance(param, tuple):
+                        (param, keyname) = param
+                        if mapped_param.get(KEYNAME):
+                            mapped_param[KEYNAME] = keyname
+                    return param, mapped_param.get(KEYNAME)
         else:
+            # TODO find the cases
             assert False
 
     ExceptionCollector.appendException(ToscaParametersMappingFailed(
@@ -222,7 +227,7 @@ def restructure_value(mapping_value, self, facts, if_format_str=True):
     :param self: the function used to store normative parameter, value and other values
     :param facts: set of facts
     :param if_format_str:
-    :return:
+    :return: dict in the end of recursion, because the first is always (parameter, value) keys
     """
     if isinstance(mapping_value, dict):
         flat_mapping_value = dict()
@@ -243,11 +248,13 @@ def restructure_value(mapping_value, self, facts, if_format_str=True):
                 what=flat_mapping_value.get(REASON).format(self=self)
             ))
 
-        # NOTE: the case when value has keys PARAMETER and VALUE
+        # NOTE: the case when value has keys PARAMETER, VALUE, KEYNAME
         parameter = flat_mapping_value.get(PARAMETER)
         value = flat_mapping_value.get(VALUE)
+        keyname = flat_mapping_value.get(KEYNAME)
         if value is None:
             # The case when variable is indivisible
+            # This case parameter and keyname are None too or they doesn't have sense
             filled_value = dict()
             for k, v in mapping_value.items():
                 filled_k = restructure_value(k, self, facts)
@@ -268,7 +275,8 @@ def restructure_value(mapping_value, self, facts, if_format_str=True):
                 return
             r = dict()
             r[parameter] = value
-            r['parameter'] = parameter
+            r[PARAMETER] = parameter
+            r[KEYNAME] = keyname
             return r
 
         # NOTE: the case when value has keys VALUE, CONDITION, FACTS, ARGUMENTS
@@ -387,7 +395,7 @@ def get_restructured_mapping_item(key_prefix, parameter, mapping_value, value):
         return r
 
     if is_matched_mapping_value(mapping_value):
-
+        # NOTE: end of recursion, when parameter is found
         return dict(
             parameter=parameter,
             map=mapping_value,
@@ -488,28 +496,41 @@ def translate_from_tosca(restructured_mapping, facts, tpl_name):
                 message='\nTranslating to provider failed: '
                     .join(ExceptionCollector.getExceptionsReport())
             )
-        structures = get_structure_of_mapped_param(mapped_param, item[VALUE])
+        structures, keyname = get_structure_of_mapped_param(mapped_param, item[VALUE])
 
-        # NOTE: 3 level update of dict
+        if len(structures) > 1:
+            # TODO find the cases
+            assert False
+
+        # NOTE: 4 level update of dict
         for structure in structures:
             for node_type, tpl in structure.items():
-                temp_tpl = resulted_structure.get(node_type)
-                if not temp_tpl:
-                    resulted_structure[node_type] = tpl
+                if not keyname:
+                    (_, _, type_name) = tosca_type.parse(node_type)
+                    keyname = self[NAME] + "_" + snake_case.convert(type_name)
+                tpl_by_name = resulted_structure.get(keyname)
+                if not tpl_by_name:
+                    resulted_structure[keyname] = {
+                        node_type: tpl
+                    }
                 else:
-                    for section, params in tpl.items():
-                        temp_params = temp_tpl.get(section)
-                        if not temp_params:
-                            resulted_structure[node_type][section] = params
-                        else:
-                            if section == REQUIREMENTS:
-                                resulted_structure[node_type][section] += params
+                    temp_tpl = tpl_by_name.get(node_type)
+                    if not temp_tpl:
+                        resulted_structure[keyname][node_type] = tpl
+                    else:
+                        for section, params in tpl.items():
+                            temp_params = temp_tpl.get(section)
+                            if not temp_params:
+                                resulted_structure[keyname][node_type][section] = params
                             else:
-                                if isinstance(params, list):
-                                    for params_i in params:
-                                        resulted_structure[node_type][section] = deep_update_dict(temp_params, params_i)
+                                if section == REQUIREMENTS:
+                                    resulted_structure[keyname][node_type][section] += params
                                 else:
-                                    resulted_structure[node_type][section] = deep_update_dict(temp_params, params)
+                                    if isinstance(params, list):
+                                        for params_i in params:
+                                            resulted_structure[keyname][node_type][section] = deep_update_dict(temp_params, params_i)
+                                    else:
+                                        resulted_structure[keyname][node_type][section] = deep_update_dict(temp_params, params)
 
     return resulted_structure, self[ARTIFACTS]
 
@@ -522,12 +543,12 @@ def translate(tosca_elements_map_to_provider, node_templates, facts):
         if namespace == TOSCA:
             restructured_mapping = restructure_mapping(tosca_elements_map_to_provider, node)
             tpl_structure, artifacts = translate_from_tosca(restructured_mapping, facts, node.name)
-            for node_type, tpl in tpl_structure.items():
-                (_, element_type, type_name) = tosca_type.parse(node_type)
-                node_name = node.name + '_' + snake_case.convert(type_name)
-                tpl[TYPE] = node_type
-                new_element_templates[element_type] = new_element_templates.get(element_type, {})
-                new_element_templates[element_type].update({node_name: copy.deepcopy(tpl)})
+            for tpl_name, temp_tpl in tpl_structure.items():
+                for node_type, tpl in temp_tpl.items():
+                    (_, element_type, _) = tosca_type.parse(node_type)
+                    tpl[TYPE] = node_type
+                    new_element_templates[element_type] = new_element_templates.get(element_type, {})
+                    new_element_templates[element_type].update({tpl_name: copy.deepcopy(tpl)})
         else:
             new_element_templates = copy.deepcopy(translate_from_provider(node))
 

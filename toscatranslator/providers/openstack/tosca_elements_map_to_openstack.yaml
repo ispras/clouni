@@ -13,7 +13,7 @@ tosca.nodes.Compute:
             - parameter:
                 value: name
                 condition: equals
-                facts: openstack_network_facts
+                facts: os_network_facts.ansible_facts.openstack_networks
                 arguments:
                   - id
                   - value: network_id
@@ -118,23 +118,23 @@ tosca.nodes.Compute:
               properties:
                 name:
                   get_operation_output:
-                    - "{self[name]}_depends_on"
+                    - "{self[name]}_server_image"
                     - Target
                     - choose
                     - name # VARIABLE
-            relationship: "{self[name]}_depends_on"
+            relationship: "{self[name]}_server_image"
         - parameter: openstack.relationships.DependsOn.interfaces.Target.total
+          keyname: "{self[name]}_server_image"
           value:
             - source: os_server_facts # VARIABLE
-              value: default_value?
+              value: facts_result
               executor: ansible
-              extra:
-                register: facts_result
             - source: set_fact
               parameters:
                 target_objects: facts_result["ansible_facts"]["openstack_servers"]
-              value: default_value?
+              value: tmp_value # We don't need register here
         - parameter: openstack.relationships.DependsOn.interfaces.Target.choose
+          keyname: "{self[name]}_server_image"
           value:
             implementation: contains.yaml # VARIABLE, ALREADY DEFINED
             inputs:
