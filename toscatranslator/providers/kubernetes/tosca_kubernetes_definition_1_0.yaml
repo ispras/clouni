@@ -1,0 +1,248 @@
+##########################################################################
+
+##########################################################################
+# The content of this file reflects TOSCA Simple Profile in YAML version
+# 1.0.0. It describes the definition for TOSCA types including Node Type
+##########################################################################
+tosca_definitions_version: tosca_simple_yaml_1_0
+
+#metadata:
+#  template_name: Kubernetes definition
+#  template_author: Borisova Alexandra
+#  template_version: v1
+#
+#description: Tosca definition for kubernetes
+
+
+##########################################################################
+# Node Type.
+# A Node Type is a reusable entity that defines the type of one or more
+# Node Templates.
+##########################################################################
+node_types:
+
+  kubernetes.nodes.Root:
+    derived_from: tosca.nodes.Root
+    properties:
+      apiVersion:
+        type: string
+        default: v1
+        constraints:
+          - valid_values: [v1, v1alpha1, v2alpha1, v1beta1, v1beta2, v2beta1, v2beta2]
+        required: true
+      apiGroup:
+        description: Along with the version is exposed in the "apiVersion" field as "GROUP/VERSION", e.g. "policy.k8s.io/v1".
+        type: string
+        default: core
+        required: true
+        constraints:
+          - valid_values: [core, apps, batch]
+
+
+  kubernetes.nodes.Deployment:
+    derived_from: kubernetes.nodes.Root
+    properties:
+      apiGroup:
+        type: string
+        default: apps
+        required: true
+      metadata:
+        description: Standard object's metadata.
+        type: kubernetes.datatypes.ObjectMeta
+        required: true
+      spec:
+        type: kubernetes.datatypes.DeploymentSpec
+        required: true
+
+  kubernetes.nodes.Service:
+    derived_from: kubernetes.nodes.Root
+    properties:
+      metadata:
+        description: Standard object's metadata.
+        type: kubernetes.datatypes.ObjectMeta
+        required: false
+      spec:
+        type: kubernetes.datatypes.ServiceSpec
+        required: true
+
+  ##########################################################################
+  # Data Type.
+  # A Datatype is a complex data type declaration which contains other
+  # complex or simple data types.
+##########################################################################
+data_types:
+
+  kubernetes.datatypes.Root:
+    derived_from: tosca.datatypes.Root
+
+  kubernetes.datatypes.ObjectMeta:
+    derived_from: kubernetes.datatypes.Root
+    properties:
+      lables:
+        type: map
+        enty_schema:
+          type: string
+          required: false
+      name:
+        type: string
+        required: false
+      namespace:
+        type: string
+        required: false
+
+  kubernetes.datatypes.LabelSelector:
+    derived_from: kubernetes.datatypes.Root
+    properties:
+      matchLabels:
+        description: matchLabels is a map of {key,value} pairs. A single {key,value} in the matchLabels map is equivalent to an element of matchExpressions, whose key field is "key", the operator is "In", and the values array contains only "value". The requirements are ANDed.
+        type: map
+        required: true
+
+  kubernetes.datatypes.Pod:
+    derived_from: kubernetes.datatypes.Root
+    properties:
+      metadata:
+        description: Standard object's metadata.
+        type: kubernetes.datatypes.ObjectMeta
+        required: true
+      spec:
+        description: Specification of the desired behavior of the pod.
+        type: kubernetes.datatypes.PodSpec
+        required: true
+
+  kubernetes.datatypes.Container:
+    derived_from:  kubernetes.datatypes.Root
+    properties:
+      name:
+        type: string
+        #required: true
+        required: false
+      image:
+        description: Docker image name. More info https://kubernetes.io/docs/concepts/containers/images This field is optional to allow higher level config management to default or override container images in workload controllers like Deployments and StatefulSets.
+        type: string
+#        constraints:
+#          - pattern: (.*)\/?(.*)\:(.*)
+        required: false
+        #required: true
+      ports:
+        type: list
+        enty_schema:
+          type: kubernetes.datatypes.ContainerPort
+        required: false
+      resources:
+        description: Compute Resources required by this container. Cannot be updated.
+        type: kubernetes.datatypes.ResourceRequirements
+        required: false
+      args:
+        description: Arguments to the entrypoint. The docker image's CMD is used if this is not provided. Variable references $(VAR_NAME) are expanded using the container's environment. If a variable cannot be resolved, the reference in the input string will be unchanged. The $(VAR_NAME) syntax can be escaped with a double $$, ie $$(VAR_NAME). Escaped references will never be expanded, regardless of whether the variable exists or not. Cannot be updated.
+        type: list
+        entry_schema:
+          type: string
+        required: false
+
+  kubernetes.datatypes.PodSpec:
+    derived_from: kubernetes.datatypes.Root
+    properties:
+      containers:
+        description: List of containers belonging to the pod. Containers cannot currently be added or removed. There must be at least one container in a Pod. Cannot be updated.
+        type: list
+        entry_schema:
+          type: kubernetes.datatypes.Container
+        required: true
+
+  kubernetes.datatypes.ContainerPort:
+    derived_from:  kubernetes.datatypes.Root
+    properties:
+      name:
+        description: If specified, this must be an IANA_SVC_NAME and unique within the pod. Each named port in a pod must have a unique name. Name for the port that can be referred to by services.
+        type: string
+        required: false
+      containerPort:
+        description: Number of port to expose on the pod's IP address. This must be a valid port number, 0 < x < 65536
+        type: integer
+        required: true
+
+  kubernetes.datatypes.ResourceRequirements:
+    derived_from:  kubernetes.datatypes.Root
+    properties:
+      limits:
+        description: Limits describes the maximum amount of compute resources allowed.
+        type: kubernetes.datatypes.Limits
+        required: false
+
+  kubernetes.datatypes.Limits:
+    derived_from:  kubernetes.datatypes.Root
+    properties:
+      cpu:
+        description: The CPU resource is measured in cpus.
+        type: float
+        required: false
+        constraints:
+          - in_range: [0,1]
+      memory:
+        description: The RAM resource is measured in bytes.
+        type:  scalar-unit.size
+        required: false
+        constraints:
+          - greater_or_equal: 1  MB
+
+  kubernetes.datatypes.DeploymentSpec:
+    derived_from: kubernetes.datatypes.Root
+    properties:
+      replicas:
+        description: Number of desired pods. This is a pointer to distinguish between explicit zero and not specified. Defaults to 1.
+        type: integer
+        required: false
+        default: 1
+        constraints:
+          - greater_or_equal: 0
+      selector:
+        description: Label selector for pods. Existing ReplicaSets whose pods are selected by this will be the ones affected by this deployment. It must match the pod template's labels.
+        type: kubernetes.datatypes.LabelSelector
+        required: true
+      template:
+        type: kubernetes.datatypes.Pod
+        required: false
+
+  kubernetes.datatypes.ServiceSpec:
+    derived_from: kubernetes.datatypes.Root
+    properties:
+      clusterIP:
+        description: clusterIP is the IP address of the service and is usually assigned randomly by the master. If an address is specified manually and is not in use by others, it will be allocated to the service; otherwise, creation of the service will fail. This field can not be changed through updates. Valid values are "None", empty string (""), or a valid IP address. "None" can be specified for headless services when proxying is not required.
+        type: string
+        required: false
+      externalIPs:
+        description: externalIPs is a list of IP addresses for which nodes in the cluster will also accept traffic for this service. These IPs are not managed by Kubernetes. The user is responsible for ensuring that traffic arrives at a node with this IP. A common example is external load-balancers that are not part of the Kubernetes system.
+        type: list
+        entry_schema:
+          type: string
+        required: false
+      ports:
+        description: The list of ports that are exposed by this service.
+        type: list
+        entry_schema:
+          type: kubernetes.datatypes.ServicePort
+        required: false
+      selector:
+        description: Route service traffic to pods with label keys and values matching this selector. If empty or not present, the service is assumed to have an external process managing its endpoints, which Kubernetes will not modify.
+        type: map
+        required: false
+
+  kubernetes.datatypes.ServicePort:
+    derived_from:  kubernetes.datatypes.Root
+    properties:
+      protocol:
+        description: The IP protocol for this port. Supports "TCP", "UDP", and "SCTP". Default is TCP.
+        type: string
+        default: TCP
+        constraints:
+          - valid_values: [TCP, UDP, SCTP]
+        required: false
+      targetPort:
+        description: Name of the port to access on the pods targeted by the service.Name must be an IANA_SVC_NAME. If this is a string, it will be looked up as a named port in the target Pod's container ports. If this is not specified, the value of the 'port' field is used (an identity map). This field is ignored for services with clusterIP=None, and should be omitted or set equal to the 'port' field.
+        type: string
+        required: false
+      nodePort:
+        description: he port on each node on which this service is exposed when type=NodePort or LoadBalancer.
+        type: integer
+        required: false
