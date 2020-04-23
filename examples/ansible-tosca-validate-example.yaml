@@ -1,0 +1,10 @@
+---
+
+- name: Create server Openstack
+  hosts: all
+  tasks:
+    # Gather info if your tosca template use
+    - name: Create infrastructure using TOSCA template
+      cloud_infra_by_tosca_create:
+        template_file: tosca-server-example.yaml
+        validate_only: true

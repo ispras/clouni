@@ -1,0 +1,51 @@
+---
+
+- name: Create server Openstack
+  hosts: all
+  tasks:
+    # Gather info if your tosca template uses node_filter attributes
+    - name: Gather flavor info
+      os_flavor_facts:
+        cloud: ispras
+#      register: flavors
+
+    - name: Gather image info
+      os_image_facts:
+        cloud: ispras
+      register: images
+
+    - name: Gather network info
+      os_networks_facts:
+        cloud: ispras
+      register: networks
+
+    - name: Gather port info
+      os_port_facts:
+        cloud: ispras
+      register: ports
+
+    - name: Gather server info
+      os_server_facts:
+        cloud: ispras
+      register: servers
+
+    - name: Gather subnets info
+      os_subnets_facts:
+        cloud: ispras
+      register: subnets
+
+    - name: Create infrastructure using TOSCA template
+      cloud_infra_create:
+        cloud: ispras
+        template: tosca-server-example.yaml
+        provider: openstack
+        # To pass info you can use either facts field
+        facts: "{{ ansible_facts }}"
+        # either pass facts separately, choosing which you need and which not
+        openstack_flavor_facts: "{{ ansible_facts.openstack_flavors }}"
+        openstack_image_facts: "{{ images }}"
+        openstack_network_facts: "{{ networks }}"
+        openstack_port_facts: "{{ ports }}"
+        openstack_server_facts: "{{ servers }}"
+        openstack_subnet_facts: "{{ subnets }}"
+      register: infra_result

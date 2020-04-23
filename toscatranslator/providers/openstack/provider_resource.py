@@ -5,6 +5,12 @@ from toscatranslator.providers.common.provider_resource import ProviderResource
 
 class OpenstackProviderResource(ProviderResource):
 
+    SUPPORTED_CONFIGURATION_TOOLS = [
+        "ansible"
+    ]
+
+    DEFAULT_CONFIGURATION_TOOL = "ansible"
+
     NODE_PRIORITY_BY_TYPE = dict(
         Flavor=0,
         FloatingIp=3,

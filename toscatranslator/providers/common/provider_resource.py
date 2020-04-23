@@ -1,4 +1,3 @@
-import yaml
 import copy
 from toscatranslator.common import tosca_type
 
@@ -9,10 +8,11 @@ MAX_NUM_PRIORITIES = 5
 
 class ProviderResource(object):
 
-    def __init__(self, node):
+    def __init__(self, node, relationship_templates):
         """
 
         :param node: class NodeTemplate from toscaparser
+        :param relationship_templates: RelationshipTemplate from toscaparser
         """
         # NOTE: added as a parameter in toscatranslator.providers.common.tosca_template:ProviderToscaTemplate
 
@@ -30,19 +30,20 @@ class ProviderResource(object):
         self.requirement_keys = list(self.requirement_definitions_by_name().keys())
         self.artifact_keys = list(self.artifact_definitions_by_name().keys())
         self.capability_keys = list(self.capability_definitions_by_name().keys())
+        self.relationship_templates = list()
 
         # NOTE: Get the parameters from template using provider definition
-        self.ansible_args = dict()
+        self.configuration_args = dict()
         # NOTE: node is NodeTemplate instance
         for key in self.property_keys:
             value = node.get_property_value(key)
             if value is not None:
-                self.ansible_args[key] = value
+                self.configuration_args[key] = value
 
         for key in self.attribute_keys:
             value = node.entity_tpl.get('attributes', {}).get(key)
             if value is not None:
-                self.ansible_args[key] = value
+                self.configuration_args[key] = value
 
         capability_defs = self.capability_definitions_by_name()
         for cap_key, cap_def in capability_defs.items():
@@ -52,23 +53,33 @@ class ProviderResource(object):
                 for def_prop_key in definition_property_keys:
                     value = properties.get_property_value(def_prop_key)
                     if value:
-                        self.ansible_args[def_prop_key] = value
+                        self.configuration_args[def_prop_key] = value
 
         if hasattr(node, 'artifacts'):
             # TODO: oneliner
             for key, value in node.artifacts:
-                self.ansible_args[key] = value
+                self.configuration_args[key] = value
 
+        relationship_template_names = set()
         provider_requirements = ProviderRequirements(self.requirement_definitions, self.provider())
         self.requirements = provider_requirements.get_requirements(node)
         for key, req in self.requirements.items():
             if type(req) is list:
-                self.ansible_args[key] = list(v.get_value() for v in req)
+                self.configuration_args[key] = list(v.get_value() for v in req)
+                temp_req = req
             else:
-                self.ansible_args[key] = req.get_value()
+                self.configuration_args[key] = req.get_value()
+                temp_req = [req]
+            for v in temp_req:
+                relation = v.relationship
+                if relation is not None:
+                    _, _, type_name = tosca_type.parse(relation)
+                    if type_name is None:
+                        relationship_template_names.add(relation)
 
-        self.ansible_task = None
-        self.ansible_task_as_dict = None
+        for relation in relationship_templates:
+            if relation.name in relationship_template_names:
+                self.relationship_templates.append(relation)
 
     def set_definitions_by_name(self, node_type):
         """
@@ -122,24 +133,6 @@ class ProviderResource(object):
 
     def artifact_definitions_by_name(self):
         return self.get_definitions_by_name('artifacts')
-
-    def get_ansible_task_for_create(self, additional_args=None):
-        """
-        Fulfill the dict with ansible task arguments to create infrastructure
-        :param additional_args: dict of arguments to add
-        :return: string of ansible task to place in playbook
-        """
-        if additional_args is None:
-            additional_args = {}
-        ansible_args = copy.copy(self.ansible_args)
-        ansible_args['state'] = 'present'
-        ansible_args.update(additional_args)
-        self.ansible_task_as_dict = dict()
-        self.ansible_task_as_dict['name'] = self.ansible_description_by_type()
-        self.ansible_task_as_dict[self.ansible_module_by_type()] = self.ansible_args
-        self.ansible_task = yaml.dump(self.ansible_task_as_dict)
-
-        return self.ansible_task_as_dict
 
     def node_priority_by_type(self):
         assert self.NODE_PRIORITY_BY_TYPE is not None
