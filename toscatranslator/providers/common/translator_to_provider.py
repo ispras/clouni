@@ -594,6 +594,17 @@ def translate_from_tosca(restructured_mapping, facts, tpl_name):
 
 def get_source_structure_from_facts(condition, fact_name, value, arguments, target_parameter, source_parameter,
                                     source_value):
+    """
+
+    :param condition:
+    :param fact_name:
+    :param value:
+    :param arguments:
+    :param target_parameter:
+    :param source_parameter:
+    :param source_value:
+    :return:
+    """
     target_parameter_splitted = target_parameter.split(SEPARATOR)
     fact_name_splitted = fact_name.split(SEPARATOR)
     source_name = fact_name_splitted[0]
@@ -686,6 +697,7 @@ def get_source_structure_from_facts(condition, fact_name, value, arguments, targ
             VALUE: source_value
         }
     ]
+
     return new_elements_map, new_global_elements_map
 
 
@@ -739,17 +751,23 @@ def restructure_mapping_facts(elements_map, extra_elements_map=None, target_para
             input_value = new_elements_map[VALUE]
             input_keyname = new_elements_map.get(KEYNAME)
 
+            provider = separated_target_parameter[0]
+            target_relationship_type = SEPARATOR.join([provider, RELATIONSHIPS, "DependsOn"])
+            relationship_name = "{self[name]}_server_" + snake_case.convert(separated_target_parameter[-1])
+
             operation_name = 'modify_' + target_short_parameter
             value_name = 'modified_' + target_short_parameter
             interface_name = 'Extra'
             new_elements_map = {
-                GET_OPERATION_OUTPUT: [SELF, interface_name, operation_name, value_name]
+                GET_OPERATION_OUTPUT: [relationship_name, interface_name, operation_name, value_name]
             }
-            cur_target_parameter = SEPARATOR.join([target_type, INTERFACES, interface_name, operation_name])
+
+            cur_target_parameter = SEPARATOR.join([target_relationship_type, INTERFACES, interface_name, operation_name])
             cur_extra_element = {
                 PARAMETER: source_parameter,
                 MAP_KEY: {
                     PARAMETER: cur_target_parameter,
+                    KEYNAME: relationship_name,
                     VALUE: {
                         IMPLEMENTATION: {
                             SOURCE: SET_FACT_SOURCE,
