@@ -66,5 +66,6 @@ class UnsupportedMappingFunction(TOSCAException):
 class ProviderMappingFileError(TOSCAException):
     msg_fmt = _('Errors in mapping file "%(what)s"')
 
+
 class TemplateDependencyError(TOSCAException):
     msg_fmt = _('Resolving dependencies in template failed on node "%(what)s"')

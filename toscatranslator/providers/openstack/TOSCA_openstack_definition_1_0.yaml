@@ -49,6 +49,9 @@ node_types:
           node: openstack.nodes.Root
           relationship: openstack.relationships.DependsOn
           occurrences: [ 0, UNBOUNDED ]
+    interfaces:
+      Standard:
+        type: tosca.interfaces.node.lifecycle.Standard
 
   openstack.nodes.Flavor: # os_nova_flavor, os_flavor_facts
     derived_from: openstack.nodes.Root
