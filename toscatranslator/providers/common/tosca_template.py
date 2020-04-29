@@ -8,23 +8,19 @@ from toscaparser.common.exception import ExceptionCollector
 
 from toscatranslator.providers.common.translator_to_provider import translate as translate_to_provider
 
-from toscatranslator.providers.common.nodefilter import ProviderNodeFilter
-from toscatranslator.providers.common.provider_resource import MAX_NUM_PRIORITIES
+from toscatranslator.common import tosca_type
 
-from toscatranslator.common import tosca_type, snake_case
-
-from toscatranslator.providers.combined.combined_facts import FACTS_BY_PROVIDER, FACT_NAME_BY_NODE_NAME
 from toscaparser.imports import ImportsLoader
 
 from toscaparser.topology_template import TopologyTemplate
 
 from toscatranslator.configuration_tools.combined.combine_configuration_tools import CONFIGURATION_TOOLS
-from toscatranslator.providers.combined.combine_provider_resources import PROVIDER_RESOURCES
-from toscatranslator.common.exception import UnknownProvider, ProviderMappingFileError, TemplateDependencyError
+from toscatranslator.common.exception import ProviderMappingFileError, TemplateDependencyError
 
 from toscatranslator.providers.common.tosca_reserved_keys import SERVICE_TEMPLATE_KEYS, PROPERTIES, CAPABILITIES, NODES, \
     GET_PROPERTY, GET_ATTRIBUTE, GET_OPERATION_OUTPUT, RELATIONSHIP, NODE, TEMPLATE_REFERENCES, NODE_TEMPLATES, \
     RELATIONSHIP_TYPES, NAME, RELATIONSHIPS, RELATIONSHIP_TEMPLATES
+from toscatranslator.providers.common.provider_resource import ProviderResource
 
 
 class ProviderToscaTemplate (object):
@@ -33,7 +29,7 @@ class ProviderToscaTemplate (object):
     FILE_DEFINITION = 'TOSCA_%(provider)s_definition_1_0.yaml'
     DEPENDENCY_FUNCTIONS = (GET_PROPERTY, GET_ATTRIBUTE, GET_OPERATION_OUTPUT)
 
-    def __init__(self, tosca_parser_template, facts, provider):
+    def __init__(self, tosca_parser_template, provider):
 
         self.provider = provider
         # toscaparser.tosca_template:ToscaTemplate
@@ -41,31 +37,17 @@ class ProviderToscaTemplate (object):
         # toscaparser.topology_template:TopologyTemplate
         self.tosca_topology_template = tosca_parser_template.topology_template
 
-        self.input_facts = facts
-        self.extended_facts = None  # refactored and extended facts
-        self.facts = None  # refactored input_facts
-
         import_definition_file = ImportsLoader([self.definition_file()], None, list(SERVICE_TEMPLATE_KEYS),
                                                self.tosca_topology_template.tpl)
         self.provider_defs = import_definition_file.get_custom_defs()
 
         self.artifacts = [self.definition_file()]
 
-        # REFACTOR FACTS
-        self.facts = ProviderNodeFilter.refactor_facts(facts, self.provider, self.provider_defs)
-
         self.topology_template = self.translate_to_provider()
 
         self.node_templates = self.topology_template.nodetemplates
         self.relationship_templates = self.topology_template.relationship_templates
 
-        self.extended_facts = None
-        not_refactored_extending_facts = self._extending_facts()
-        extending_facts = ProviderNodeFilter.refactor_facts(not_refactored_extending_facts, self.provider,
-                                                            self.provider_defs)
-        self.extend_facts(extending_facts)  # fulfill self.extended_facts
-
-        ProviderNodeFilter.facts = self.extended_facts
         self.template_dependencies = dict()  # list of lists
         # After this step self.node_templates has requirements with node_filter parameter
         self.resolve_in_template_dependencies()
@@ -74,32 +56,25 @@ class ProviderToscaTemplate (object):
         self.configuration_content = None
         self.configuration_ready = None
 
+        # Create the list of ProviderResource instances
         self.provider_nodes = self._provider_nodes()
         self.provider_nodes_by_name = self._provider_nodes_by_name()
         self.relationship_templates_by_name = self._relationship_templates_by_name()
 
-        # self.provider_node_names_by_priority = dict()
-        # for i in range(0, MAX_NUM_PRIORITIES):
-        #     self.provider_node_names_by_priority[i] = []
         self.provider_node_names_by_priority = self._sort_nodes_by_priority()
         self.provider_nodes_queue = self.sort_nodes_by_dependency()
 
     def _provider_nodes(self):
         """
         Create a list of ProviderResource classes to represent a node in TOSCA
-        :return: list of class objects inherited from ProbiderResource
+        :return: list of class objects inherited from ProviderResource
         """
         provider_nodes = list()
         for node in self.node_templates:
             (namespace, category, type_name) = tosca_type.parse(node.type)
             if namespace != self.provider or category != NODES:
                 ExceptionCollector.appendException(Exception('Unexpected values'))
-            provider_node_class = PROVIDER_RESOURCES.get(self.provider)
-            if not provider_node_class:
-                ExceptionCollector.appendException(UnknownProvider(
-                    what=self.provider
-                ))
-            provider_node_instance = provider_node_class(node, self.relationship_templates)
+            provider_node_instance = ProviderResource(self.provider, node, self.relationship_templates)
             provider_nodes.append(provider_node_instance)
         return provider_nodes
 
@@ -120,10 +95,11 @@ class ProviderToscaTemplate (object):
     def _sort_nodes_by_priority(self):
         """
         Every ProviderResource child class has priority which reflects in order of objects to create in configuration dsl
+
         :return: dictionary with keys = priority
         """
         sorted_by_priority = dict()
-        for i in range(0, MAX_NUM_PRIORITIES):
+        for i in range(0, ProviderResource.MAX_NUM_PRIORITIES):
             sorted_by_priority[i] = []
         for node in self.provider_nodes:
             priority = node.node_priority_by_type()
@@ -158,7 +134,7 @@ class ProviderToscaTemplate (object):
         template_names = []
         relation_names = list(self.relationship_templates_by_name.keys())
 
-        for priority in range(0, MAX_NUM_PRIORITIES):
+        for priority in range(0, len(self.provider_node_names_by_priority)):
             nodes_in_priority = []
             nodes_left_next = set(self.provider_node_names_by_priority[priority])
             infinite_error = False
@@ -203,32 +179,6 @@ class ProviderToscaTemplate (object):
             templates.append(templ)
 
         return templates
-
-    def _extending_facts(self):
-        """
-        Make facts if nodes are created during script
-        :return:
-        """
-        # NOTE: optimize this part in future, searching by param, tradeoff between cpu and ram ( N * O(k) vs N * O(1) )
-        new_facts_key_list = FACTS_BY_PROVIDER.get(self.provider).keys()
-        new_facts = dict()
-        for key in new_facts_key_list:
-            new_facts[key] = []
-
-        for node in self.node_templates:  # node is toscaparser.nodetemplate:NodeTemplate
-            (_, _, type_name) = tosca_type.parse(node.type)
-            fact_name = FACT_NAME_BY_NODE_NAME.get(self.provider, {}).get(snake_case.convert(type_name))
-            if fact_name:
-                if isinstance(fact_name, list):
-                    fact_name = fact_name[0]
-                new_facts[fact_name].append(node.entity_tpl.get(PROPERTIES))
-        return new_facts
-
-    def extend_facts(self, facts):
-        if not self.extended_facts:
-            self.extended_facts = self.facts
-        for k, v in facts.items():
-            self.extended_facts[k] = self.extended_facts.get(k, []) + v
 
     def add_template_dependency(self, node_name, dependency_name):
         if self.template_dependencies.get(node_name) is None:
@@ -371,7 +321,7 @@ class ProviderToscaTemplate (object):
 
     def translate_to_provider(self):
         new_element_templates, new_artifacts = translate_to_provider(self.tosca_elements_map_to_provider(),
-                                                   self.tosca_topology_template.nodetemplates, self.facts)
+                                                   self.tosca_topology_template.nodetemplates)
 
         dict_tpl = copy.deepcopy(self.tosca_topology_template.tpl)
         if new_element_templates.get(NODES):

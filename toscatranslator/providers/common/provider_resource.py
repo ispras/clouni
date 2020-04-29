@@ -1,23 +1,22 @@
 import copy
 from toscatranslator.common import tosca_type
 from toscatranslator.providers.common.tosca_reserved_keys import ATTRIBUTES, PROPERTIES, ARTIFACTS, NAME, CAPABILITIES, \
-    REQUIREMENTS, INTERFACES
+    REQUIREMENTS, INTERFACES, NODE, NODES, ROOT
 
 from toscatranslator.providers.common.all_requirements import ProviderRequirements
-
-MAX_NUM_PRIORITIES = 5
 
 
 class ProviderResource(object):
 
-    def __init__(self, node, relationship_templates):
+    def __init__(self, provider, node, relationship_templates):
         """
 
         :param node: class NodeTemplate from toscaparser
-        :param relationship_templates: RelationshipTemplate from toscaparser
+        :param relationship_templates: list of RelationshipTemplate from toscaparser
         """
         # NOTE: added as a parameter in toscatranslator.providers.common.tosca_template:ProviderToscaTemplate
 
+        self.provider = provider
         self.nodetemplate = node
         self.type = node.type
         (_, _, type_name) = tosca_type.parse(self.type)
@@ -63,7 +62,7 @@ class ProviderResource(object):
                 self.configuration_args[key] = value
 
         relationship_template_names = set()
-        provider_requirements = ProviderRequirements(self.requirement_definitions, self.provider())
+        provider_requirements = ProviderRequirements(self.requirement_definitions, self.provider)
         self.requirements = provider_requirements.get_requirements(node)
         for key, req in self.requirements.items():
             if type(req) is list:
@@ -82,6 +81,47 @@ class ProviderResource(object):
         for relation in relationship_templates:
             if relation.name in relationship_template_names:
                 self.relationship_templates.append(relation)
+
+        if not hasattr(self, 'NODE_PRIORITY_BY_TYPE'):
+            ProviderResource.NODE_PRIORITY_BY_TYPE = self.compute_node_priorities(node.custom_def)
+
+    def get_node_type_priority(self, node_type_definitions, node_type_name):
+        """
+
+        :param node_type_definitions:
+        :param node_type_name:
+        :return:
+        """
+        (_, _, type_short) = tosca_type.parse(node_type_name)
+        if type_short == ROOT:
+            return 0
+        requirement_definitions = node_type_definitions.get(node_type_name, {}).get(REQUIREMENTS, [])
+        max_dependency_priority = 0
+        for i in requirement_definitions:
+            for k, v in i.items():
+                req_node_type = v.get(NODE)
+                if not req_node_type == ROOT and not req_node_type == node_type_name:
+                    p = self.get_node_type_priority(node_type_definitions, req_node_type)
+                    if p > max_dependency_priority or max_dependency_priority == 0:
+                        max_dependency_priority = p + 1
+        if max_dependency_priority >= self.MAX_NUM_PRIORITIES:
+            ProviderResource.MAX_NUM_PRIORITIES = max_dependency_priority + 1
+        return max_dependency_priority
+
+    def compute_node_priorities(self, node_type_definitions):
+        """
+        Use node type definitions to count priority of the node_type
+        :param node_type_definitions: dict of node type definitions
+        :return:
+        """
+        ProviderResource.MAX_NUM_PRIORITIES = 1
+        node_priorities_by_type = {}
+        for node_type_name, node_type_def in node_type_definitions.items():
+            (_, element_type, type_short) = tosca_type.parse(node_type_name)
+            if type_short != ROOT and element_type == NODES:
+                node_priorities_by_type[node_type_name] = self.get_node_type_priority(node_type_definitions,
+                                                                                      node_type_name)
+        return node_priorities_by_type
 
     def set_definitions_by_name(self, node_type):
         """
@@ -137,15 +177,5 @@ class ProviderResource(object):
         return self.get_definitions_by_name(ARTIFACTS)
 
     def node_priority_by_type(self):
-        assert self.NODE_PRIORITY_BY_TYPE is not None
-        return self.NODE_PRIORITY_BY_TYPE.get(self.type_name)
+        return self.NODE_PRIORITY_BY_TYPE.get(self.type)
 
-    def ansible_description_by_type(self):
-        raise NotImplementedError()
-
-    def ansible_module_by_type(self):
-        raise NotImplementedError()
-
-    def provider(self):
-        assert self.PROVIDER is not None
-        return self.PROVIDER

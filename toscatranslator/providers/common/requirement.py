@@ -1,9 +1,10 @@
-from toscatranslator.common.exception import FulfillRequirementError, UnavailableNodeFilterError
+from toscatranslator.common.exception import UnavailableNodeFilterError
 from toscaparser.common.exception import ExceptionCollector
 
-from toscatranslator.providers.common.nodefilter import ProviderNodeFilter
 from toscatranslator.providers.common.tosca_reserved_keys import REQUIREMENT_DEFAULT_PARAMS, RELATIONSHIP, \
-    NAME_SUFFIX, ID_SUFFIX, NAME, ID, NODE_FILTER, CAPABILITIES, PROPERTIES
+    NAME_SUFFIX, ID_SUFFIX, NAME, ID, NODE_FILTER, CAPABILITIES, PROPERTIES, GET_FUNCTIONS
+
+import six
 
 
 class ProviderRequirement (object):
@@ -33,30 +34,42 @@ class ProviderRequirement (object):
         :return:
         """
         # NOTE: only node_filter supported
-        self.data = self.data.get(NODE_FILTER)
-        if self.data is None:
+        data = self.data.get(NODE_FILTER)
+        if data is None:
             ExceptionCollector.appendException(UnavailableNodeFilterError(
                 what=self.name
             ))
-        capabilities = self.data.get(CAPABILITIES, {})
+        capabilities = data.get(CAPABILITIES, {})
         for requires in self.requires:
-            self.value = self.data.get(PROPERTIES, {}).get(requires)
-            if self.value:
+            temp_value = data.get(PROPERTIES, {}).get(requires)
+            if not self.if_contain_get_function(temp_value):
+                self.value = temp_value
                 return
 
             for cap_name, cap_val in capabilities.items():
-                self.value = cap_val.get(PROPERTIES, {}).get(requires)
-                if self.value:
+                temp_value = cap_val.get(PROPERTIES, {}).get(requires)
+                if not self.if_contain_get_function(temp_value):
+                    self.value = temp_value
                     return
 
-        if self.node_filter_key and not self.value:
-            node_filter = ProviderNodeFilter(self.provider, self.node_filter_key)
-            self.value = node_filter.get_required_value(self.data, self.requires)
-
-        if not self.value:
-            raise ExceptionCollector.appendException(FulfillRequirementError(
-                what=self.name + ' = ' + str(self.data)
-            ))
-
     def get_value(self):
-        return self.value
+        if self.value:
+            return self.value
+        return self.data
+
+    def if_contain_get_function(self, value):
+        if isinstance(value, six.string_types):
+            return False
+        if isinstance(value, dict):
+            for k, v in value.items():
+                if k in GET_FUNCTIONS:
+                    return True
+                if self.if_contain_get_function(v):
+                    return True
+            return False
+        if isinstance(value, list):
+            for v in value:
+                if self.if_contain_get_function(v):
+                    return True
+            return False
+        return False

@@ -18,6 +18,9 @@ class ProviderRequirements (object):
         self.requirement_definitions = requirement_definitions
         self.requirement_names_of_type_list = set()
         self.node_name_by_requirement_name = dict()
+
+        # NOTE generate the dictionary, where the keys are the name of requirement and
+        # the values are the node_types of requirement
         for req_def in self.requirement_definitions:
             req_name = req_def[NAME]
             req_node = req_def.get(NODE)
@@ -35,6 +38,7 @@ class ProviderRequirements (object):
                     temp_req_val = temp_req_val + (node_name)
                 self.node_name_by_requirement_name[req_name] = temp_req_val
 
+        # NOTE set the list required requirements and the list of multiple requirements (of type list)
         self.required_requirement_keys = set()
         for req_def in self.requirement_definitions:
             occurrences = req_def.get(OCCURRENCES)  # list

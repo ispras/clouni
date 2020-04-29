@@ -46,7 +46,8 @@ class AnsibleConfigurationTool(ConfigurationTool):
             self.ansible_task_as_dict['name'] = node.ansible_description_by_type()
             self.ansible_task_as_dict[node.ansible_module_by_type()] = node.configuration_args
             self.ansible_task = yaml.dump(self.ansible_task_as_dict)
-        except AttributeError:
-            pass
 
-        return self.ansible_task_as_dict
+            return self.ansible_task_as_dict
+        except AttributeError:
+            return
+

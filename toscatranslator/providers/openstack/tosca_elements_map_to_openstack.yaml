@@ -14,11 +14,13 @@ tosca.nodes.Compute:
                 value: name
                 condition: equals
                 facts: os_network_facts.ansible_facts.openstack_networks
+                executor: ansible
                 arguments:
                   - id
                   - value: network_id
                     condition: ip_contains
                     facts: os_subnet_facts.ansible_facts.openstack_subnets
+                    executor: ansible
                     arguments:
                       - allocation_pool_start
                       - allocation_pool_end
@@ -39,11 +41,13 @@ tosca.nodes.Compute:
                   value: name
                   facts: os_network_facts.ansible_facts.openstack_networks
                   condition: equals
+                  executor: ansible
                   arguments:
                     - id
                     - value: network_id
                       condition: ip_contains
                       facts: os_subnet_facts.ansible_facts.openstack_subnets
+                      executor: ansible
                       arguments:
                         - allocation_pool_start
                         - allocation_pool_end
@@ -57,6 +61,7 @@ tosca.nodes.Compute:
         value:
           value: network_id
           facts: os_subnet_facts.ansible_facts.openstack_subnets
+          executor: ansible
           condition: ip_contains
           arguments:
             - allocation_pool_start
@@ -71,6 +76,7 @@ tosca.nodes.Compute:
         value:
           value: network_id
           facts: os_subnet_facts.ansible_facts.openstack_subnets
+          executor: ansible
           condition: ip_contains
           arguments:
             - allocation_pool_start
@@ -116,6 +122,7 @@ tosca.nodes.Compute:
         value:
           value: name
           facts: os_server_facts.ansible_facts.openstack_servers
+          executor: ansible
           condition: contains
           arguments:
             - name

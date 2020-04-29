@@ -1,119 +1,18 @@
 from toscatranslator.common import tosca_type
 from toscatranslator.common import snake_case
 from toscaparser.common.exception import ExceptionCollector, ValidationError
-from toscatranslator.common.exception import UnsupportedToscaParameterUsage, ToscaParametersMappingFailed, \
-    UnsupportedMappingFunction
+from toscatranslator.common.exception import UnsupportedToscaParameterUsage, ToscaParametersMappingFailed
 from toscatranslator.providers.common.tosca_reserved_keys import *
 
 import copy
-from netaddr import IPRange, IPAddress
 import six
 
 from toscatranslator.common.utils import deep_update_dict
 
 SEPARATOR = '.'
 MAP_KEY = "map"
-DEFAULT_EXECUTOR = "ansible"
 SET_FACT_SOURCE = "set_fact"
 INDIVISIBLE_KEYS = [GET_OPERATION_OUTPUT, INPUTS, IMPLEMENTATION]
-
-
-def contain_function(pool, argv, first=True):
-    argv_0 = argv[0]
-    argv_1 = argv[1]
-
-    if isinstance(argv_0, dict):
-        argv_0 = list(argv_0.values())
-    elif not isinstance(argv_0, list):
-        argv_0 = [argv_0]
-
-    if isinstance(argv_1, dict):
-        argv_1 = list(argv_1.values())
-    elif not isinstance(argv_1, list):
-        argv_1 = [argv_1]
-
-    len_t = len(argv_1)
-    for i in range(len_t):
-        argv_1[i] = str(argv_1[i]).lower()
-
-    for obj in pool:
-        v = ''
-        for i in argv_0:
-            v += str(obj.get(i, '')).lower()
-        matched = True
-        for t in argv_1:
-            if t not in v:
-                matched = False
-                break
-        if matched:
-            return obj
-    if first:
-        return contain_function(pool, [argv_1, argv_0], False)
-    else:
-        ExceptionCollector.appendException(ToscaParametersMappingFailed(
-            what=argv
-        ))
-
-
-def equal_function(pool, argv):
-    for obj in pool:
-        if obj[argv[0]] == argv[1]:
-            return obj
-    return None
-
-
-def ip_contain_function(pool, argv):
-    param_start = argv[0]
-    param_end = argv[1]
-    addresses = argv[2]
-    if not isinstance(addresses, list):
-        ip_addresses = [IPAddress(addresses)]
-    else:
-        ip_addresses = [IPAddress(addr) for addr in addresses]
-
-    for obj in pool:
-        ip_start = obj[param_start]
-        ip_end = obj[param_end]
-        if isinstance(ip_start, str):
-            ip_start = [ip_start]
-            ip_end = [ip_end]
-        num = min(len(ip_start), len(ip_end))
-        for i in range(num):
-            ip_range = IPRange(ip_start[i], ip_end[i])
-
-            matched = True
-            for ip_addr in ip_addresses:
-                if ip_addr not in ip_range:
-                    matched = False
-                    break
-            if matched:
-                return obj
-
-    return None
-
-
-class ConditionFunction(object):
-    GET_FUNCTION = dict(
-        contains=contain_function,
-        equals=equal_function,
-        ip_contains=ip_contain_function
-    )
-
-    def __init__(self, name):
-        self.name = name
-
-    def get_function(self):
-        return self.GET_FUNCTION.get(self.name)
-
-    def valid(self):
-        return self.get_function() is not None
-
-    def supported(self):
-        return self.GET_FUNCTION.keys()
-
-    def execute(self, pool, argv):
-        function_obj = self.get_function()
-        return function_obj(pool, argv)
 
 
 def translate_from_provider(node):
@@ -226,12 +125,11 @@ def get_structure_of_mapped_param(mapped_param, value, self=None, type_list_para
     ))
 
 
-def restructure_value(mapping_value, self, facts, if_format_str=True, if_upper=True):
+def restructure_value(mapping_value, self, if_format_str=True, if_upper=True):
     """
     Recursive function which processes the mapping_value to become parameter:value format
     :param mapping_value: the map of non normative parameter:value
     :param self: the function used to store normative parameter, value and other values
-    :param facts: set of facts
     :param if_format_str:
     :param if_upper: detects if the parameter value must be saved
     :return: dict in the end of recursion, because the first is always (parameter, value) keys
@@ -241,7 +139,7 @@ def restructure_value(mapping_value, self, facts, if_format_str=True, if_upper=T
         for key in MAPPING_VALUE_KEYS:
             mapping_sub_value = mapping_value.get(key)
             if mapping_sub_value is not None:
-                restructured_value = restructure_value(mapping_sub_value, self, facts, key != PARAMETER, False)
+                restructured_value = restructure_value(mapping_sub_value, self, key != PARAMETER, False)
                 if restructured_value is None:
                     ExceptionCollector.appendException(ToscaParametersMappingFailed(
                         what=mapping_value
@@ -264,8 +162,8 @@ def restructure_value(mapping_value, self, facts, if_format_str=True, if_upper=T
             # This case parameter and keyname are None too or they doesn't have sense
             filled_value = dict()
             for k, v in mapping_value.items():
-                filled_k = restructure_value(k, self, facts, if_upper=False)
-                filled_v = restructure_value(v, self, facts, if_upper=False)
+                filled_k = restructure_value(k, self, if_upper=False)
+                filled_v = restructure_value(v, self, if_upper=False)
                 filled_value[filled_k] = filled_v
             return filled_value
         if parameter is not None:
@@ -297,8 +195,8 @@ def restructure_value(mapping_value, self, facts, if_format_str=True, if_upper=T
         source_name = flat_mapping_value.get(SOURCE)
         parameters_dict = flat_mapping_value.get(PARAMETERS)
         extra_parameters = flat_mapping_value.get(EXTRA)
-        executor_name = flat_mapping_value.get(EXECUTOR, DEFAULT_EXECUTOR)
-        if source_name is not None:
+        executor_name = flat_mapping_value.get(EXECUTOR)
+        if source_name is not None and executor_name is not None:
             if self.get(ARTIFACTS) is None:
                 self[ARTIFACTS] = []
             # TODO add managing of file extensions depending on configuration tool
@@ -318,7 +216,7 @@ def restructure_value(mapping_value, self, facts, if_format_str=True, if_upper=T
         return
 
     elif isinstance(mapping_value, list):
-        return [restructure_value(v, self, facts, if_upper=False) for v in mapping_value]
+        return [restructure_value(v, self, if_upper=False) for v in mapping_value]
 
     if isinstance(mapping_value, str):
         # NOTE: the process is needed because using only format function makes string from json
@@ -527,11 +425,10 @@ def restructure_mapping(tosca_elements_map_to_provider, node):
     return get_restructured_mapping_item('', '', tosca_elements_map_to_provider, value={node.type: template})
 
 
-def translate_from_tosca(restructured_mapping, facts, tpl_name):
+def translate_from_tosca(restructured_mapping, tpl_name):
     """
     Translator from TOSCA definitions in provider definitions using rules from element_map_to_provider
     :param restructured_mapping: list of dicts(parameter, map, value)
-    :param facts: dict
     :param tpl_name: str
     :return: entity_tpl as dict
     """
@@ -546,8 +443,7 @@ def translate_from_tosca(restructured_mapping, facts, tpl_name):
         self[VALUE] = item[VALUE]
         mapped_param = restructure_value(
             mapping_value=item[MAP_KEY],
-            self=self,
-            facts=facts
+            self=self
         )
         ExceptionCollector.stop()
         if ExceptionCollector.exceptionsCaught():
@@ -592,7 +488,7 @@ def translate_from_tosca(restructured_mapping, facts, tpl_name):
     return resulted_structure, self[ARTIFACTS]
 
 
-def get_source_structure_from_facts(condition, fact_name, value, arguments, target_parameter, source_parameter,
+def get_source_structure_from_facts(condition, fact_name, value, arguments, executor, target_parameter, source_parameter,
                                     source_value):
     """
 
@@ -600,6 +496,7 @@ def get_source_structure_from_facts(condition, fact_name, value, arguments, targ
     :param fact_name:
     :param value:
     :param arguments:
+    :param executor
     :param target_parameter:
     :param source_parameter:
     :param source_value:
@@ -654,7 +551,7 @@ def get_source_structure_from_facts(condition, fact_name, value, arguments, targ
                 {
                     SOURCE: source_name,
                     VALUE: "facts_result",
-                    EXECUTOR: DEFAULT_EXECUTOR,
+                    EXECUTOR: executor,
                     PARAMETERS: {}
                 },
                 {
@@ -662,7 +559,8 @@ def get_source_structure_from_facts(condition, fact_name, value, arguments, targ
                     PARAMETERS: {
                       "target_objects": facts_result
                     },
-                    VALUE: "tmp_value"
+                    VALUE: "tmp_value",
+                    EXECUTOR: executor
                 }
             ]
         }
@@ -772,7 +670,7 @@ def restructure_mapping_facts(elements_map, extra_elements_map=None, target_para
                         IMPLEMENTATION: {
                             SOURCE: SET_FACT_SOURCE,
                             VALUE: "default_value",
-                            EXECUTOR: DEFAULT_EXECUTOR,
+                            EXECUTOR: ANSIBLE,
                             PARAMETERS: {
                                 value_name: "{{{{ {{ parameter: value }} }}}}" # so many braces because format
                                 # uses braces and replace '{{' with '{'
@@ -795,8 +693,8 @@ def restructure_mapping_facts(elements_map, extra_elements_map=None, target_para
         keys = new_elements_map.keys()
         if len(keys) > 0:
             if_facts_structure = True
-            for k in keys:
-                if k not in FACTS_MAPPING_VALUE_STRUCTURE:
+            for k in FACTS_MAPPING_VALUE_STRUCTURE:
+                if k not in keys:
                     if_facts_structure = False
         if if_facts_structure:
             # NOTE: end of recursion
@@ -806,7 +704,9 @@ def restructure_mapping_facts(elements_map, extra_elements_map=None, target_para
             fact_name = new_elements_map[FACTS]
             value = new_elements_map[VALUE]
             arguments = new_elements_map[ARGUMENTS]
+            executor = new_elements_map[EXECUTOR]
             new_elements_map, cur_extra_elements = get_source_structure_from_facts(condition, fact_name, value, arguments,
+                                                                                   executor,
                                                                                    target_parameter, source_parameter,
                                                                                    source_value)
             extra_elements_map.extend(cur_extra_elements)
@@ -823,13 +723,12 @@ def restructure_mapping_facts(elements_map, extra_elements_map=None, target_para
     return elements_map, extra_elements_map
 
 
-def translate(tosca_elements_map_to_provider, node_templates, facts):
+def translate(tosca_elements_map_to_provider, node_templates):
     """
     Main function of this file, the only which is used outside the file
     :param tosca_elements_map_to_provider: dict from provider specific file
     tosca_elements_map_to_<provider>.yaml
     :param node_templates: input node_templates
-    :param facts: dict of facts
     :return: list of new node templates and relationship templates and
     list of artifacts to be used for generating scripts
     """
@@ -841,15 +740,10 @@ def translate(tosca_elements_map_to_provider, node_templates, facts):
         if namespace == TOSCA:
             restructured_mapping = restructure_mapping(tosca_elements_map_to_provider, node)
 
-            import yaml
-            # print(yaml.dump(restructured_mapping))
-            # print("\n\n\n\n")
-
             restructured_mapping, extra_mappings = restructure_mapping_facts(restructured_mapping)
             restructured_mapping.extend(extra_mappings)
-            print(yaml.dump(restructured_mapping))
 
-            tpl_structure, artifacts = translate_from_tosca(restructured_mapping, facts, node.name)
+            tpl_structure, artifacts = translate_from_tosca(restructured_mapping, node.name)
             for tpl_name, temp_tpl in tpl_structure.items():
                 for node_type, tpl in temp_tpl.items():
                     (_, element_type, _) = tosca_type.parse(node_type)

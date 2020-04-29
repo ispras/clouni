@@ -52,7 +52,7 @@ class TestAnsibleProviderOutput ():
         if not template_filename:
             template_filename = self.TESTING_TEMPLATE_FILENAME
         self.write_template(self.prepare_yaml(template))
-        r = common_translate(template_filename, False, self.PROVIDER, {}, ANSIBLE)
+        r = common_translate(template_filename, False, self.PROVIDER, ANSIBLE)
         print(r)
         self.delete_template(template_filename)
         playbook = self.parse_yaml(r)
