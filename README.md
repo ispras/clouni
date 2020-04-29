@@ -218,3 +218,7 @@ template
 As a result, any updates of cloud API or new versions of TOSCA standard 
 causes only minor changes in the interpreter cloud definitions, which 
 simplifies the process of adding a new cloud provider support.
+
+**ATTENTION** You shouldn't use multiple type deriviation from each other 
+except default deriviation from Root. As it's unknown actions to resolve
+dependencies from parents. 
