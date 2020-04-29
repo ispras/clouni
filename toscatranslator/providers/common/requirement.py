@@ -1,7 +1,7 @@
 from toscatranslator.common.exception import UnavailableNodeFilterError
 from toscaparser.common.exception import ExceptionCollector
 
-from toscatranslator.providers.common.tosca_reserved_keys import REQUIREMENT_DEFAULT_PARAMS, RELATIONSHIP, \
+from toscatranslator.common.tosca_reserved_keys import REQUIREMENT_DEFAULT_PARAMS, RELATIONSHIP, \
     NAME_SUFFIX, ID_SUFFIX, NAME, ID, NODE_FILTER, CAPABILITIES, PROPERTIES, GET_FUNCTIONS
 
 import six

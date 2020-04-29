@@ -4,7 +4,7 @@ from toscatranslator.common.exception import UnsupportedRequirementError
 from toscatranslator.providers.common.requirement import ProviderRequirement
 
 from toscatranslator.common import tosca_type, snake_case
-from toscatranslator.providers.common.tosca_reserved_keys import OCCURRENCES, NODE, NAME
+from toscatranslator.common.tosca_reserved_keys import OCCURRENCES, NODE, NAME
 
 
 class ProviderRequirements (object):

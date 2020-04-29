@@ -15,11 +15,9 @@ from toscaparser.imports import ImportsLoader
 from toscaparser.topology_template import TopologyTemplate
 
 from toscatranslator.configuration_tools.combined.combine_configuration_tools import CONFIGURATION_TOOLS
-from toscatranslator.common.exception import ProviderMappingFileError, TemplateDependencyError
+from toscatranslator.common.exception import ProviderMappingFileError, TemplateDependencyError, UnsupportedExecutorType
 
-from toscatranslator.providers.common.tosca_reserved_keys import SERVICE_TEMPLATE_KEYS, PROPERTIES, CAPABILITIES, NODES, \
-    GET_PROPERTY, GET_ATTRIBUTE, GET_OPERATION_OUTPUT, RELATIONSHIP, NODE, TEMPLATE_REFERENCES, NODE_TEMPLATES, \
-    RELATIONSHIP_TYPES, NAME, RELATIONSHIPS, RELATIONSHIP_TEMPLATES
+from toscatranslator.common.tosca_reserved_keys import *
 from toscatranslator.providers.common.provider_resource import ProviderResource
 
 
@@ -28,6 +26,7 @@ class ProviderToscaTemplate (object):
     TOSCA_ELEMENTS_MAP_FILE = 'tosca_elements_map_to_%(provider)s.*'
     FILE_DEFINITION = 'TOSCA_%(provider)s_definition_1_0.yaml'
     DEPENDENCY_FUNCTIONS = (GET_PROPERTY, GET_ATTRIBUTE, GET_OPERATION_OUTPUT)
+    DEFAULT_ARTIFACTS_DIRECTOR = ARTIFACTS
 
     def __init__(self, tosca_parser_template, provider):
 
@@ -307,16 +306,24 @@ class ProviderToscaTemplate (object):
                 )
         return data_dict
 
-    def generate_artifacts(self, new_artifacts):
+    def generate_artifacts(self, new_artifacts, directory=None):
         """
         From the info of new artifacts generate files which execute
         :param new_artifacts: list of dicts containing (value, source, parameters, executor, name, configuration_tool)
         :return: None
         """
+        if not directory:
+            directory = self.DEFAULT_ARTIFACTS_DIRECTOR
+
         for art in new_artifacts:
-            # TODO make some actions
-            file_name = art[NAME]
-            self.artifacts.append(file_name)
+            filename = os.path.join(directory, art[NAME])
+            configuration_class = CONFIGURATION_TOOLS.get(art[EXECUTOR])()
+            if not configuration_class:
+                ExceptionCollector.appendException(UnsupportedExecutorType(
+                    what=art[EXECUTOR]
+                ))
+            configuration_class.create_artifact(filename, art)
+            self.artifacts.append(filename)
         return
 
     def translate_to_provider(self):

@@ -1,9 +1,13 @@
 from toscatranslator.configuration_tools.common.configuration_tool import ConfigurationTool
-import copy
-import yaml
+from toscatranslator.common.tosca_reserved_keys import PARAMETERS, VALUE, EXTRA, SOURCE
+
+import copy, yaml, os
 
 from random import randint,seed
 from time import time
+
+REGISTER = 'register'
+DEFAULT_HOST = 'localhost'
 
 
 class AnsibleConfigurationTool(ConfigurationTool):
@@ -15,9 +19,10 @@ class AnsibleConfigurationTool(ConfigurationTool):
         ansible_task_list = []
         for node in nodes_queue:
             ansible_task_list.append(self.get_ansible_task_for_create(node))
+
         ansible_playbook = [dict(
             name='Create ' + provider + ' cluster',
-            hosts='all',
+            hosts=DEFAULT_HOST,
             tasks=ansible_task_list
         )]
         return ansible_playbook
@@ -51,3 +56,24 @@ class AnsibleConfigurationTool(ConfigurationTool):
         except AttributeError:
             return
 
+    def create_artifact(self, filename, data):
+        os.makedirs(os.path.dirname(filename), exist_ok=True)
+        parameters = data[PARAMETERS]
+        source = data[SOURCE]
+        extra = data.get(EXTRA)
+        value = data[VALUE]
+        task_data = {
+            source: parameters,
+            REGISTER: value
+        }
+        tasks = [
+            task_data
+        ]
+        if extra:
+            task_data.update(extra)
+
+        with open(filename, "w") as f:
+            filedata = yaml.dump(tasks)
+            f.write(filedata)
+
+        return

@@ -3,7 +3,7 @@ import os
 import yaml
 
 from toscatranslator.common.utils import deep_update_dict
-from toscatranslator.providers.common.tosca_reserved_keys import PROVIDERS, CONFIGURATION_TOOLS, ANSIBLE, TYPE, \
+from toscatranslator.common.tosca_reserved_keys import PROVIDERS, ANSIBLE, TYPE, \
     IMPORTS, TOSCA_DEFINITIONS_VERSION, ATTRIBUTES, PROPERTIES, CAPABILITIES, REQUIREMENTS, TOPOLOGY_TEMPLATE, NODE_TEMPLATES
 
 

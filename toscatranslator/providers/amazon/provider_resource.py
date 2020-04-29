@@ -1,7 +1,7 @@
 from toscatranslator.common import snake_case
 
 from toscatranslator.providers.common.provider_resource import ProviderResource
-from toscatranslator.providers.common.tosca_reserved_keys import AMAZON
+from toscatranslator.common.tosca_reserved_keys import AMAZON
 
 
 class AmazonProviderResource(ProviderResource):

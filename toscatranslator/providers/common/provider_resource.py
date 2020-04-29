@@ -1,6 +1,6 @@
 import copy
 from toscatranslator.common import tosca_type
-from toscatranslator.providers.common.tosca_reserved_keys import ATTRIBUTES, PROPERTIES, ARTIFACTS, NAME, CAPABILITIES, \
+from toscatranslator.common.tosca_reserved_keys import ATTRIBUTES, PROPERTIES, ARTIFACTS, NAME, CAPABILITIES, \
     REQUIREMENTS, INTERFACES, NODE, NODES, ROOT
 
 from toscatranslator.providers.common.all_requirements import ProviderRequirements

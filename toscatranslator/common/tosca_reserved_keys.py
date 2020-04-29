@@ -4,7 +4,6 @@ TOSCA = 'tosca'
 PROVIDERS = (AMAZON, OPENSTACK)
 
 (ANSIBLE) = ('ansible')
-CONFIGURATION_TOOLS = (ANSIBLE)
 
 (GET_INPUT, GET_PROPERTY, GET_ATTRIBUTE, GET_OPERATION_OUTPUT, GET_NODES_OF_TYPE, GET_ARTIFACT) \
     = ('get_input', 'get_property', 'get_attribute', 'get_operation_output', 'get_nodes_of_type', 'get_artifact')

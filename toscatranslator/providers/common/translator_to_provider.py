@@ -1,8 +1,10 @@
 from toscatranslator.common import tosca_type
 from toscatranslator.common import snake_case
 from toscaparser.common.exception import ExceptionCollector, ValidationError
-from toscatranslator.common.exception import UnsupportedToscaParameterUsage, ToscaParametersMappingFailed
-from toscatranslator.providers.common.tosca_reserved_keys import *
+from toscatranslator.common.exception import UnsupportedToscaParameterUsage, ToscaParametersMappingFailed, \
+    UnsupportedExecutorType
+from toscatranslator.common.tosca_reserved_keys import *
+from toscatranslator.configuration_tools.combined.combine_configuration_tools import CONFIGURATION_TOOLS
 
 import copy
 import six
@@ -197,6 +199,10 @@ def restructure_value(mapping_value, self, if_format_str=True, if_upper=True):
         extra_parameters = flat_mapping_value.get(EXTRA)
         executor_name = flat_mapping_value.get(EXECUTOR)
         if source_name is not None and executor_name is not None:
+            if executor_name not in CONFIGURATION_TOOLS.keys():
+                ExceptionCollector.appendException(UnsupportedExecutorType(
+                    what=executor_name
+                ))
             if self.get(ARTIFACTS) is None:
                 self[ARTIFACTS] = []
             # TODO add managing of file extensions depending on configuration tool
@@ -705,6 +711,10 @@ def restructure_mapping_facts(elements_map, extra_elements_map=None, target_para
             value = new_elements_map[VALUE]
             arguments = new_elements_map[ARGUMENTS]
             executor = new_elements_map[EXECUTOR]
+            if executor not in CONFIGURATION_TOOLS.keys():
+                ExceptionCollector.appendException(UnsupportedExecutorType(
+                    what=executor
+                ))
             new_elements_map, cur_extra_elements = get_source_structure_from_facts(condition, fact_name, value, arguments,
                                                                                    executor,
                                                                                    target_parameter, source_parameter,
