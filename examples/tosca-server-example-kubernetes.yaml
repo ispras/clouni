@@ -1,0 +1,25 @@
+tosca_definitions_version: tosca_simple_yaml_1_0
+topology_template:
+  node_templates:
+    app:
+      type: tosca.nodes.Compute
+      attributes:
+        private_address: 10.233.0.2
+        public_address: 80.11.12.10
+      capabilities:
+        scalable:
+          properties:
+            min_instances: 3
+        host:
+          properties:
+            num_cpus: 2
+            mem_size: 250MB
+        os:
+          properties:
+            type: ubuntu
+            distribution: xenial
+        endpoint:
+          properties:
+            protocol: tcp
+            port: 888
+            port_name: test-ports

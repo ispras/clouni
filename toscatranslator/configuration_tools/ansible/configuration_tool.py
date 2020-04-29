@@ -18,7 +18,7 @@ class AnsibleConfigurationTool(ConfigurationTool):
             hosts='all',
             tasks=ansible_task_list
         )]
-        return ansible_playbook
+        return yaml.dump(ansible_playbook)
 
     def get_ansible_task_for_create(self, node, additional_args=None):
         """

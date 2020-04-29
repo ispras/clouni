@@ -108,9 +108,7 @@ class ProviderToscaTemplate (object):
         self.configuration_content = ''
         self.configuration_ready = False
         tool = CONFIGURATION_TOOLS.get(configuration_tool)()
-        content = tool.to_dsl_for_create(self.provider, self.provider_nodes_queue)
-
-        self.configuration_content = yaml.dump(content)
+        self.configuration_content = tool.to_dsl_for_create(self.provider, self.provider_nodes_queue)
         self.configuration_ready = True
         return self.configuration_content
 

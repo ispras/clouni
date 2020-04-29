@@ -23,7 +23,8 @@ openstack_facts = dict(
 
 FACTS_BY_PROVIDER = dict(
     amazon=amazon_facts,
-    openstack=openstack_facts
+    openstack=openstack_facts,
+    kubernetes=dict()
 )
 
 ##########################################################################
@@ -50,7 +51,8 @@ openstack_fact_name_by_node_name = dict(
 
 FACT_NAME_BY_NODE_NAME = dict(
     amazon=amazon_fact_name_by_node_name,
-    openstack=openstack_fact_name_by_node_name
+    openstack=openstack_fact_name_by_node_name,
+    kubernetes=dict()
 )
 
 ##########################################################################
