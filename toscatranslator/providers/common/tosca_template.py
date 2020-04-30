@@ -127,7 +127,10 @@ class ProviderToscaTemplate (object):
     def sort_nodes_by_dependency(self):
         """
         TODO Use dependency requirement between nodes of the same type, check dependency of different types
-        :param: self.template_dependencies
+        :param self.template_dependencies
+        :param self.relationship_templates_by_name
+        :param self.provider_node_names_by_priority
+        :param self.provider_nodes_by_name
         :return: List of nodes sorted by priority
         """
         template_names = []
@@ -157,7 +160,7 @@ class ProviderToscaTemplate (object):
                     # Two cases: it's already in a list
                     #              it's a relationship
                     #              it's in priority
-                    if dep_name in relation_names:
+                    if dep_name in relation_names and not dep_name in template_names:
                         template_names.append(dep_name)
                     elif dep_name in template_names:
                         pass
@@ -180,10 +183,11 @@ class ProviderToscaTemplate (object):
         return templates
 
     def add_template_dependency(self, node_name, dependency_name):
-        if self.template_dependencies.get(node_name) is None:
-            self.template_dependencies[node_name] = {dependency_name}
-        else:
-            self.template_dependencies[node_name].add(dependency_name)
+        if not dependency_name == SELF and not node_name == dependency_name:
+            if self.template_dependencies.get(node_name) is None:
+                self.template_dependencies[node_name] = {dependency_name}
+            else:
+                self.template_dependencies[node_name].add(dependency_name)
 
     def resolve_in_template_dependencies(self):
         """
@@ -335,8 +339,6 @@ class ProviderToscaTemplate (object):
             dict_tpl[NODE_TEMPLATES] = new_element_templates[NODES]
         if new_element_templates.get(RELATIONSHIPS):
             dict_tpl[RELATIONSHIP_TEMPLATES] = new_element_templates[RELATIONSHIPS]
-
-        print(yaml.dump(dict_tpl))
 
         rel_types = []
         for k, v in self.provider_defs.items():

@@ -18,6 +18,7 @@ class ProviderResource(object):
 
         self.provider = provider
         self.nodetemplate = node
+        self.name = node.name
         self.type = node.type
         (_, _, type_name) = tosca_type.parse(self.type)
         self.type_name = type_name

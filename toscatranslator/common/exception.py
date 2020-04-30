@@ -68,7 +68,7 @@ class ProviderMappingFileError(TOSCAException):
 
 
 class TemplateDependencyError(TOSCAException):
-    msg_fmt = _('Resolving dependencies in template failed on node "%(what)s"')
+    msg_fmt = _('Resolving dependencies in template failed on template "%(what)s"')
 
 
 class UnsupportedExecutorType(TOSCAException):

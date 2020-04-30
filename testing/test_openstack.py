@@ -39,7 +39,10 @@ class TestAnsibleOpenStackOutput (unittest.TestCase, TestAnsibleProviderOutput):
 
     def test_private_address(self):
         template = copy.deepcopy(self.DEFAULT_TEMPLATE)
-        template = self.update_template_attribute(template, self.NODE_NAME, {"private_address": "192.168.12.25"})
+        testing_parameter = {
+            "private_address": "192.168.12.25"
+        }
+        template = self.update_template_attribute(template, self.NODE_NAME, testing_parameter)
         playbook = self.get_ansible_output(template)
 
         self.assertIsNotNone(True)
@@ -103,4 +106,16 @@ class TestAnsibleOpenStackOutput (unittest.TestCase, TestAnsibleProviderOutput):
         playbook = self.get_ansible_output(template)
 
         self.assertIsNotNone(playbook)
+
+    def test_multiple_relationships(self):
+        template = copy.deepcopy(self.DEFAULT_TEMPLATE)
+        testing_parameter = {
+            "public_address": "10.100.115.15",
+            "private_address": "192.168.12.25"
+        }
+        template = self.update_template_attribute(template, self.NODE_NAME, testing_parameter)
+        playbook = self.get_ansible_output(template)
+
+        self.assertIsNotNone(playbook)
+
 
