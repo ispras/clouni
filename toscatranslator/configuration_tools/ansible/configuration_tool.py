@@ -22,7 +22,6 @@ class AnsibleConfigurationTool(ConfigurationTool):
         for op_name, op in self.global_operations_info.items():
             self.global_operations_info[op_name] = self.replace_all_get_functions(op)
 
-        # TODO manage NODEFILTER
         elements_queue = []
         for v in nodes_relationships_queue:
             (_, element_type, _) = tosca_type.parse(v.type)
@@ -131,7 +130,7 @@ class AnsibleConfigurationTool(ConfigurationTool):
         for k, v in op_info[OUTPUT_IDS].items():
             new_task = {
                 SET_FACT_MODULE: {
-                    k: self.rap_ansible_variable(v)
+                    v: self.rap_ansible_variable(k)
                 }
             }
             tasks.append(new_task)

@@ -42,20 +42,24 @@ class ProviderRequirement (object):
         capabilities = data.get(CAPABILITIES, {})
         for requires in self.requires:
             temp_value = data.get(PROPERTIES, {}).get(requires)
-            if not self.if_contain_get_function(temp_value):
+            if temp_value is not None:
                 self.value = temp_value
                 return
 
             for cap_name, cap_val in capabilities.items():
                 temp_value = cap_val.get(PROPERTIES, {}).get(requires)
-                if not self.if_contain_get_function(temp_value):
+                if temp_value is not None:
                     self.value = temp_value
                     return
 
+        if not self.value:
+            ExceptionCollector.appendException(UnavailableNodeFilterError(
+                what=self.name,
+                param=self.requires
+            ))
+
     def get_value(self):
-        if self.value:
-            return self.value
-        return self.data
+        return self.value
 
     def if_contain_get_function(self, value):
         if isinstance(value, six.string_types):
