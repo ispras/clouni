@@ -22,4 +22,4 @@ topology_template:
           properties:
             protocol: tcp
             port: 888
-            port_name: test-ports
+            port_name: 80

@@ -33,10 +33,10 @@ node_types:
       apiGroup:
         description: Along with the version is exposed in the "apiVersion" field as "GROUP/VERSION", e.g. "policy.k8s.io/v1".
         type: string
-        default: core
+        default: ''
         required: true
         constraints:
-          - valid_values: [core, apps, batch]
+          - valid_values: ['', core, apps, batch]
 
 
   kubernetes.nodes.Deployment:
@@ -60,7 +60,7 @@ node_types:
       metadata:
         description: Standard object's metadata.
         type: kubernetes.datatypes.ObjectMeta
-        required: false
+        required: true
       spec:
         type: kubernetes.datatypes.ServiceSpec
         required: true
@@ -78,11 +78,12 @@ data_types:
   kubernetes.datatypes.ObjectMeta:
     derived_from: kubernetes.datatypes.Root
     properties:
-      lables:
+      labels:
         type: map
         enty_schema:
           type: string
           required: false
+        required: false
       name:
         type: string
         required: false
@@ -115,20 +116,18 @@ data_types:
     properties:
       name:
         type: string
-        #required: true
-        required: false
+        required: true
       image:
         description: Docker image name. More info https://kubernetes.io/docs/concepts/containers/images This field is optional to allow higher level config management to default or override container images in workload controllers like Deployments and StatefulSets.
         type: string
 #        constraints:
 #          - pattern: (.*)\/?(.*)\:(.*)
-        required: false
-        #required: true
+        required: true
       ports:
         type: list
         enty_schema:
           type: kubernetes.datatypes.ContainerPort
-        required: false
+        required: true
       resources:
         description: Compute Resources required by this container. Cannot be updated.
         type: kubernetes.datatypes.ResourceRequirements
@@ -139,6 +138,14 @@ data_types:
         entry_schema:
           type: string
         required: false
+      command:
+        description: Entrypoint array. Not executed within a shell. The docker image's ENTRYPOINT is used if this is not provided. Variable references $(VAR_NAME) are expanded using the container's environment. If a variable cannot be resolved, the reference in the input string will be unchanged.
+        default: "[\"/bin/echo\"]"
+        type: list
+        entry_schema:
+          type: string
+        required: false
+
 
   kubernetes.datatypes.PodSpec:
     derived_from: kubernetes.datatypes.Root
@@ -156,10 +163,12 @@ data_types:
       name:
         description: If specified, this must be an IANA_SVC_NAME and unique within the pod. Each named port in a pod must have a unique name. Name for the port that can be referred to by services.
         type: string
-        required: false
+        required: true
       containerPort:
         description: Number of port to expose on the pod's IP address. This must be a valid port number, 0 < x < 65536
         type: integer
+        constraints:
+          - in_range: [1,65535]
         required: true
 
   kubernetes.datatypes.ResourceRequirements:
@@ -199,30 +208,34 @@ data_types:
       selector:
         description: Label selector for pods. Existing ReplicaSets whose pods are selected by this will be the ones affected by this deployment. It must match the pod template's labels.
         type: kubernetes.datatypes.LabelSelector
-        required: true
+        required: false
       template:
         type: kubernetes.datatypes.Pod
-        required: false
+        required: true
 
   kubernetes.datatypes.ServiceSpec:
     derived_from: kubernetes.datatypes.Root
     properties:
       clusterIP:
-        description: clusterIP is the IP address of the service and is usually assigned randomly by the master. If an address is specified manually and is not in use by others, it will be allocated to the service; otherwise, creation of the service will fail. This field can not be changed through updates. Valid values are "None", empty string (""), or a valid IP address. "None" can be specified for headless services when proxying is not required.
+        description: clusterIP is the IP address of the service and is usually assigned randomly by the master. If an address is specified manually and is not in use by others, it will be allocated to the service.
         type: string
+        constraints:
+          - pattern: ([0-9A-Fa-f]{1,4}:){7}[0-9A-Fa-f]{1,4}|(\d{1,3}\.){3}\d{1,3}
         required: false
       externalIPs:
-        description: externalIPs is a list of IP addresses for which nodes in the cluster will also accept traffic for this service. These IPs are not managed by Kubernetes. The user is responsible for ensuring that traffic arrives at a node with this IP. A common example is external load-balancers that are not part of the Kubernetes system.
+        description: externalIPs is a list of IP addresses for which nodes in the cluster will also accept traffic for this service.
         type: list
         entry_schema:
           type: string
+          constraints:
+            - pattern: ([0-9A-Fa-f]{1,4}:){7}[0-9A-Fa-f]{1,4}|(\d{1,3}\.){3}\d{1,3}
         required: false
       ports:
         description: The list of ports that are exposed by this service.
         type: list
         entry_schema:
           type: kubernetes.datatypes.ServicePort
-        required: false
+        required: true
       selector:
         description: Route service traffic to pods with label keys and values matching this selector. If empty or not present, the service is assumed to have an external process managing its endpoints, which Kubernetes will not modify.
         type: map
@@ -234,15 +247,21 @@ data_types:
       protocol:
         description: The IP protocol for this port. Supports "TCP", "UDP", and "SCTP". Default is TCP.
         type: string
-        default: TCP
         constraints:
           - valid_values: [TCP, UDP, SCTP]
         required: false
       targetPort:
-        description: Name of the port to access on the pods targeted by the service.Name must be an IANA_SVC_NAME. If this is a string, it will be looked up as a named port in the target Pod's container ports. If this is not specified, the value of the 'port' field is used (an identity map). This field is ignored for services with clusterIP=None, and should be omitted or set equal to the 'port' field.
-        type: string
+        description: Number or name of the port to access on the pods targeted by the service. Number must be in the range 1 to 65535. Name must be an IANA_SVC_NAME. If this is a string, it will be looked up as a named port in the target Pod's container ports.
+        type: integer
+        constraints:
+          - in_range: [1,65535]
         required: false
-      nodePort:
-        description: he port on each node on which this service is exposed when type=NodePort or LoadBalancer.
+      port:
+        description: the port on each node on which this service is exposed when type=NodePort or LoadBalancer.
         type: integer
         required: false
+#        required: true
+#      nodePort:
+#        description: The port on each node on which this service is exposed when type=NodePort or LoadBalancer. Usually assigned by the system.
+#        type: integer
+#        required: false

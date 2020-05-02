@@ -16,8 +16,11 @@ class KubernetesConfigurationTool(ConfigurationTool):
     def get_k8s_kind_for_create(self, node_k8s):
         props_dict = dict()
         node = node_k8s.nodetemplate
+        props_dict.update({KIND: node.entity_tpl.get(TYPE).split('.')[2]})
+        api = node.get_property_value(API_GROUP) + '/' + node.get_property_value(API_VERSION) \
+            if (node.get_property_value(API_GROUP) != '') else node.get_property_value(API_VERSION)
+        props_dict.update({API_VERSION: api})
         [props_dict.update({prop.name: prop.value}) for prop in node.get_properties_objects()
          if prop.name != API_VERSION and prop.name != API_GROUP]
-        props_dict.update({KIND:node.entity_tpl.get(TYPE).split('.')[2]})
-        props_dict.update({API_VERSION : node.get_property_value(API_GROUP) + '/' + node.get_property_value(API_VERSION)})
+
         return props_dict

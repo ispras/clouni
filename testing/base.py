@@ -23,7 +23,7 @@ class TestAnsibleProviderOutput ():
             }
         }
     }
-    PROVIDERS = ['openstack', 'amazon']
+    PROVIDERS = ['openstack', 'amazon','kubernetes']
 
     def write_template(self, template, filename=None):
         if not filename:
@@ -39,6 +39,10 @@ class TestAnsibleProviderOutput ():
 
     def parse_yaml(self, content):
         r = yaml.load(content)
+        return r
+
+    def parse_all_yaml(self, content):
+        r = yaml.load_all(content)
         return r
 
     def prepare_yaml(self, content):
@@ -57,6 +61,15 @@ class TestAnsibleProviderOutput ():
         print(r)
         self.delete_template(template_filename)
         playbook = self.parse_yaml(r)
+        return playbook
+
+    def get_k8s_output(self, template, template_filename = None):
+        if not template_filename:
+            template_filename = self.TESTING_TEMPLATE_FILENAME
+        self.write_template(self.prepare_yaml(template))
+        r = common_translate(template_filename, False, self.PROVIDER, {}, "kubernetes")
+        print(r)
+        playbook = list(self.parse_all_yaml(r))
         return playbook
 
     def update_node_template(self, template, node_name, update_value, param_type):
