@@ -207,11 +207,24 @@ class ProviderToscaTemplate (object):
                         nodetemplate = node.templates.get(v)
                         node_filter = dict()
                         properties = nodetemplate.get(PROPERTIES)
-                        capabilities = nodetemplate.get(CAPABILITIES)
+                        props_list = []
                         if properties:
-                            node_filter[PROPERTIES] = properties
+                            for prop_name, prop in properties.items():
+                                props_list.append({prop_name: prop})
+                        capabilities = nodetemplate.get(CAPABILITIES)
+                        caps_list = []
                         if capabilities:
-                            node_filter[CAPABILITIES] = capabilities
+                            for cap_name, cap in capabilities.items():
+                                cap_props = cap.get(PROPERTIES, {})
+                                cap_props_list = []
+                                for prop_name, prop in cap_props.items():
+                                    cap_props_list.append({prop_name, prop})
+                                caps_list.append({PROPERTIES: cap_props_list})
+
+                        if properties:
+                            node_filter[PROPERTIES] = props_list
+                        if capabilities:
+                            node_filter[CAPABILITIES] = caps_list
                         req[k] = dict(
                             node_filter=node_filter
                         )
@@ -332,7 +345,7 @@ class ProviderToscaTemplate (object):
 
     def translate_to_provider(self):
         new_element_templates, new_artifacts = translate_to_provider(self.tosca_elements_map_to_provider(),
-                                                   self.tosca_topology_template.nodetemplates)
+                                                   self.tosca_topology_template)
 
         dict_tpl = copy.deepcopy(self.tosca_topology_template.tpl)
         if new_element_templates.get(NODES):

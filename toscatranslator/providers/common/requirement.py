@@ -1,10 +1,10 @@
-from toscatranslator.common.exception import UnavailableNodeFilterError
+from toscatranslator.common.exception import UnavailableNodeFilterError, ValueType
 from toscaparser.common.exception import ExceptionCollector
 
 from toscatranslator.common.tosca_reserved_keys import REQUIREMENT_DEFAULT_PARAMS, RELATIONSHIP, \
     NAME_SUFFIX, ID_SUFFIX, NAME, ID, NODE_FILTER, CAPABILITIES, PROPERTIES, GET_FUNCTIONS
 
-import six
+import six, copy
 
 
 class ProviderRequirement (object):
@@ -20,11 +20,12 @@ class ProviderRequirement (object):
         self.node_filter_key = node_filter_key
         self.value = None
 
-        self.requires = self.DEFAULT_REQUIRED_PARAMS
+        self.requires = copy.deepcopy(self.DEFAULT_REQUIRED_PARAMS)
         if self.name[-5:] == NAME_SUFFIX:
             self.requires = [NAME]
         elif self.name[-3:] == ID_SUFFIX:
             self.requires = [ID]
+        self.requires.append(self.name)
 
         self.filter()
 
@@ -39,23 +40,40 @@ class ProviderRequirement (object):
             ExceptionCollector.appendException(UnavailableNodeFilterError(
                 what=self.name
             ))
-        capabilities = data.get(CAPABILITIES, {})
-        for requires in self.requires:
-            temp_value = data.get(PROPERTIES, {}).get(requires)
-            if temp_value is not None:
-                self.value = temp_value
-                return
+        capabilities = data.get(CAPABILITIES, []) # is the list as the requirements
+        properties = data.get(PROPERTIES, [])
+        if not isinstance(capabilities, list):
+            ExceptionCollector.appendException(ValueType(
+                what="requirements: " + self.name + ": node_filter: capabilities",
+                type="list"
+            ))
+        if not isinstance(properties, list):
+            ExceptionCollector.appendException(ValueType(
+                what="requirements: " + self.name + ": node_filter: properties",
+                type="list"
+            ))
 
-            for cap_name, cap_val in capabilities.items():
-                temp_value = cap_val.get(PROPERTIES, {}).get(requires)
+        for requires in self.requires:
+            for prop in properties:
+                temp_value = prop.get(requires)
                 if temp_value is not None:
                     self.value = temp_value
                     return
 
+            for cap in capabilities:
+                for cap_name, cap_val in cap.items():
+                    cap_props = cap_val.get(PROPERTIES, [])
+                    for prop in cap_props:
+                        temp_value = prop.get(requires)
+                        if temp_value is not None:
+                            self.value = temp_value
+                            return
+
         if not self.value:
             ExceptionCollector.appendException(UnavailableNodeFilterError(
                 what=self.name,
-                param=self.requires
+                param=self.requires,
+                data=data
             ))
 
     def get_value(self):
