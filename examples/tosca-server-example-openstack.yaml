@@ -6,116 +6,185 @@ imports:
 
 topology_template:
   node_templates:
-    server_kube_master_server:
-      type:  openstack.nodes.Server
-      properties:
-        name:  server_kube_master_0
-        meta:
-          - cube_master=true
-      requirements:
-#        - nics:  server_kube_master_port
-        - nics:
-            node_filter:
-              properties:
-                name:  test-two-routers
-        - flavor:
-            node_filter:
-              properties:
-                vcpus:  1
-        - security_groups:  server_kube_master_securitygroup
-        - image:
-            node_filter:
-              properties:
-                name: { get_operation_output: [server_kube_master_server_image, Target, choose, name] }
-            relationship: server_kube_master_server_image
-
-    server_kube_master_port:
-      type:  openstack.nodes.Port
-      properties:
-        fixed_ips:
-          - { get_operation_output: [ server_kube_master_port_network, Target, modify_value, value ] }
-        name:  server_kube_master_port_0
-      requirements:
-        - dependencies:
-            relationship: server_kube_master_port_network
-
-    server_kube_master_floatingip:
-      type:  openstack.nodes.FloatingIp
+    server_kube_master_floating_ip:
+      type: openstack.nodes.FloatingIp
       attributes:
-        floating_ip_address:  10.100.115.15
+        floating_ip_address: 10.100.115.15
       requirements:
         - network:
             node_filter:
               properties:
-                name:  { get_operation_output: [server_kube_master_floatingip_network, Target, choose, name] }
-            relationship: server_kube_master_floatingip_network
+                name:
+                  get_operation_output:
+                    - server_kube_master_server_name
+                    - Target
+                    - choose_os_network_facts_ansible_facts_openstack_networks
+                    - name
         - server: server_kube_master_server
-
-    server_kube_master_securitygrouprule:
-      type:  openstack.nodes.SecurityGroupRule
-      attributes:
-        protocol:  tcp
-        port_range_min:  1000
-        port_range_max:  1000
-        remote_ip_prefix:  0.0.0.0
-      requirements:
-        - security_group:  server_kube_master_securitygroup
-
-    server_kube_master_securitygroup:
-      type:  openstack.nodes.SecurityGroup
+    server_kube_master_port:
+      type: openstack.nodes.Port
       properties:
-        name:  server_kube_master_securitygroup
-
+        fixed_ips:
+          - get_operation_output:
+              - server_kube_master_server_fixed_ips
+              - Extra
+              - modify_properties_fixed_ips
+              - modified_properties_fixed_ips
+        name: server_kube_master_port_0
+    server_kube_master_security_group:
+      type: openstack.nodes.SecurityGroup
+      properties:
+        name: server_kube_master_security_group
+    server_kube_master_security_group_rule:
+      type: openstack.nodes.SecurityGroupRule
+      attributes:
+        direction: ingress
+        port_range_max: 1000
+        port_range_min: 1000
+        protocol: tcp
+        remote_ip_prefix: 0.0.0.0
+      requirements:
+        - security_group: server_kube_master_security_group
+    server_kube_master_server:
+      type: openstack.nodes.Server
+      properties:
+        meta:
+          - cube_master=true
+        name: server_kube_master
+      requirements:
+        - nics: server_kube_master_port
+        - flavor:
+            node_filter:
+              properties:
+                vcpus: 1
+        - flavor:
+            node_filter:
+              properties:
+                disk: 160 MiB
+        - flavor:
+            node_filter:
+              properties:
+                ram: 1024 MiB
+        - security_groups: server_kube_master_security_group
+        - image:
+            node_filter:
+              properties:
+                name:
+                  get_operation_output:
+                    - server_kube_master_server_name
+                    - Target
+                    - choose_os_server_facts_ansible_facts_openstack_servers
+                    - name
   relationship_templates:
-
-    server_kube_master_server_image:
+    server_kube_master_server_fixed_ips:
+      type: openstack.relationships.DependsOn
+      interfaces:
+        Extra:
+          modify_properties_fixed_ips:
+            implementation: server_kube_master_ansible_set_fact.yaml
+            inputs:
+              input_parameter:
+                get_operation_output:
+                  - server_kube_master_server_fixed_ips
+                  - Target
+                  - choose_os_network_facts_ansible_facts_openstack_networks
+                  - name
+              input_value: 192.168.12.25
+        Target:
+          choose_os_network_facts_ansible_facts_openstack_networks:
+            implementation: equals.yaml
+            inputs:
+              input_args:
+                - id
+                - get_operation_output:
+                    - server_kube_master_server_fixed_ips
+                    - Target
+                    - choose_os_subnet_facts_ansible_facts_openstack_subnets
+                    - network_id
+              input_facts:
+                get_operation_output:
+                  - SELF
+                  - Target
+                  - total_os_network_facts_ansible_facts_openstack_networks
+                  - target_objects
+          choose_os_subnet_facts_ansible_facts_openstack_subnets:
+            implementation: ip_contains.yaml
+            inputs:
+              input_args:
+                - allocation_pool_start
+                - allocation_pool_end
+                - 192.168.12.25
+              input_facts:
+                get_operation_output:
+                  - SELF
+                  - Target
+                  - total_os_subnet_facts_ansible_facts_openstack_subnets
+                  - target_objects
+          total_os_network_facts_ansible_facts_openstack_networks:
+            implementation:
+              - server_kube_master_ansible_os_network_facts.yaml
+              - server_kube_master_ansible_set_fact.yaml
+          total_os_subnet_facts_ansible_facts_openstack_subnets:
+            implementation:
+              - server_kube_master_ansible_os_subnet_facts.yaml
+              - server_kube_master_ansible_set_fact.yaml
+    server_kube_master_server_name:
       type: openstack.relationships.DependsOn
       interfaces:
         Target:
-          total: server_kube_master_server_image_total.yaml
-          choose:
+          choose_os_network_facts_ansible_facts_openstack_networks:
+            implementation: equals.yaml
+            inputs:
+              input_args:
+                - id
+                - get_operation_output:
+                    - server_kube_master_server_name
+                    - Target
+                    - choose_os_subnet_facts_ansible_facts_openstack_subnets
+                    - network_id
+              input_facts:
+                get_operation_output:
+                  - SELF
+                  - Target
+                  - total_os_network_facts_ansible_facts_openstack_networks
+                  - target_objects
+          choose_os_server_facts_ansible_facts_openstack_servers:
             implementation: contains.yaml
             inputs:
-              facts: { get_operation_output: SELF, Target, total, target_objects }
-              args: ["ubuntu", "xenial", "16.04"]
-
-    server_kube_master_floatingip_network:
-      type: openstack.relationships.DependsOn
-      interfaces:
-        Target:
-          total: server_kube_master_floatingip_network_total.yaml
-          choose:
-            implementation: equals.yaml
-            inputs:
-              facts: {get_operation_output: [SELF, Target, total, target_objects]}
-              name: {get_operation_output: [SELF, Subnet, choose, name]}
-        Subnet:
-          total: server_kube_master_floating_ip_subnet_total.yaml
-          choose:
+              input_args:
+                - name
+                - architecture: x86_64
+                  distribution: xenial
+                  type: ubuntu
+                  version: 16.04
+              input_facts:
+                get_operation_output:
+                  - SELF
+                  - Target
+                  - total_os_server_facts_ansible_facts_openstack_servers
+                  - target_objects
+          choose_os_subnet_facts_ansible_facts_openstack_subnets:
             implementation: ip_contains.yaml
             inputs:
-              facts: {get_operation_output: [SELF, Subnet, total, target_objects]}
-              ip: 10.100.115.15
-
-    server_kube_master_port_network:
-      type: openstack.relationships.DependsOn
-      interfaces:
-        Target:
-          total: server_kube_master_port_network_total.yaml
-          choose:
-            implementation: equals.yaml
-            inputs:
-              facts: {get_operation_output: [SELF, Target, total, target_objects]}
-              name: {get_operation_output: [SELF, Subnet, choose, name]}
-          modify_value:
-            implementation: server_kube_master_port_configure.yaml
-            inputs:
-              network_name: { get_operation_output: [ SELF, Target, choose, name ] }
-              ip: 192.168.12.25
-        Subnet:
-          total: server_kube_master_port_subnet_total.yaml
-          choose:
-            implementation: ip_contains.yaml
-            inputs:
-              facts: {get_operation_output: [SELF, Subnet, total, target_objects]}
-              ip: 192.168.12.25
+              input_args:
+                - allocation_pool_start
+                - allocation_pool_end
+                - 10.100.115.15
+              input_facts:
+                get_operation_output:
+                  - SELF
+                  - Target
+                  - total_os_subnet_facts_ansible_facts_openstack_subnets
+                  - target_objects
+          total_os_network_facts_ansible_facts_openstack_networks:
+            implementation:
+              - server_kube_master_ansible_os_network_facts.yaml
+              - server_kube_master_ansible_set_fact.yaml
+          total_os_server_facts_ansible_facts_openstack_servers:
+            implementation:
+              - server_kube_master_ansible_os_server_facts.yaml
+              - server_kube_master_ansible_set_fact.yaml
+          total_os_subnet_facts_ansible_facts_openstack_subnets:
+            implementation:
+              - server_kube_master_ansible_os_subnet_facts.yaml
+              - server_kube_master_ansible_set_fact.yaml
