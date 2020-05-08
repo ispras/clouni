@@ -14,12 +14,12 @@ topology_template:
         - network:
             node_filter:
               properties:
-                name:
-                  get_operation_output:
-                    - server_kube_master_server_name
-                    - Target
-                    - choose_os_network_facts_ansible_facts_openstack_networks
-                    - name
+                - name:
+                    get_operation_output:
+                      - server_kube_master_server_name
+                      - Target
+                      - choose_os_network_facts_ansible_facts_openstack_networks
+                      - name
         - server: server_kube_master_server
     server_kube_master_port:
       type: openstack.nodes.Port
@@ -56,25 +56,19 @@ topology_template:
         - flavor:
             node_filter:
               properties:
-                vcpus: 1
-        - flavor:
-            node_filter:
-              properties:
-                disk: 160 MiB
-        - flavor:
-            node_filter:
-              properties:
-                ram: 1024 MiB
+                - vcpus: 1
+                - disk: 160 MiB
+                - ram: 1024 MiB
         - security_groups: server_kube_master_security_group
         - image:
             node_filter:
               properties:
-                name:
-                  get_operation_output:
-                    - server_kube_master_server_name
-                    - Target
-                    - choose_os_server_facts_ansible_facts_openstack_servers
-                    - name
+                - name:
+                    get_operation_output:
+                      - server_kube_master_server_name
+                      - Target
+                      - choose_os_server_facts_ansible_facts_openstack_servers
+                      - name
   relationship_templates:
     server_kube_master_server_fixed_ips:
       type: openstack.relationships.DependsOn

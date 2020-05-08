@@ -1,5 +1,5 @@
 import unittest
-from testing.base import TestAnsibleProviderOutput
+from testing.base import TestAnsibleProvider
 import copy
 
 from toscatranslator import shell
@@ -11,7 +11,7 @@ SEC_GROUP_MODULE_NAME = 'os_security_group'
 SEC_RULE_MODULE_NAME = 'os_security_group_rule'
 
 
-class TestAnsibleOpenStackOutput (unittest.TestCase, TestAnsibleProviderOutput):
+class TestAnsibleOpenStackOutput (unittest.TestCase, TestAnsibleProvider):
     PROVIDER = 'openstack'
 
     def test_validation(self):
@@ -35,20 +35,6 @@ class TestAnsibleOpenStackOutput (unittest.TestCase, TestAnsibleProviderOutput):
         server = tasks[0][SERVER_MODULE_NAME]
         self.assertEqual(server['name'], self.NODE_NAME)
 
-    def test_meta(self):
-        template = copy.deepcopy(self.DEFAULT_TEMPLATE)
-        testing_value = ["master=true"]
-        testing_parameter = {
-            "meta": testing_value
-        }
-        template = self.update_template_attribute(template, self.NODE_NAME, testing_parameter)
-        playbook = self.get_ansible_output(template)
-
-        self.assertIsNotNone(next(iter(playbook), {}).get('tasks'))
-        tasks = playbook[0]['tasks']
-
-        self.check_meta(tasks, testing_value)
-
     def check_meta (self, tasks, testing_value=None):
         server_name = None
         for task in tasks:
@@ -60,20 +46,6 @@ class TestAnsibleOpenStackOutput (unittest.TestCase, TestAnsibleProviderOutput):
                 if testing_value:
                     self.assertEqual(server_meta, testing_value)
         self.assertIsNotNone(server_name)
-
-    def test_private_address(self):
-        template = copy.deepcopy(self.DEFAULT_TEMPLATE)
-        testing_value = "192.168.12.25"
-        testing_parameter = {
-            "private_address": testing_value
-        }
-        template = self.update_template_attribute(template, self.NODE_NAME, testing_parameter)
-        playbook = self.get_ansible_output(template)
-
-        self.assertIsNotNone(next(iter(playbook), {}).get('tasks'))
-        tasks = playbook[0]['tasks']
-
-        self.check_private_address(tasks, testing_value)
 
     def check_private_address(self, tasks, testing_value=None):
         port_name = None
@@ -89,20 +61,6 @@ class TestAnsibleOpenStackOutput (unittest.TestCase, TestAnsibleProviderOutput):
                 self.assertIsNotNone(port_name)
                 self.assertIn(port_name, server_nics)
         self.assertIsNotNone(server_nics)
-
-    def test_public_address(self):
-        template = copy.deepcopy(self.DEFAULT_TEMPLATE)
-        testing_value = "10.100.115.15"
-        testing_parameter = {
-            "public_address": testing_value
-        }
-        template = self.update_template_attribute(template, self.NODE_NAME, testing_parameter)
-        playbook = self.get_ansible_output(template)
-
-        self.assertIsNotNone(next(iter(playbook), {}).get('tasks'))
-
-        tasks = playbook[0]['tasks']
-        self.check_public_address(tasks, testing_value)
 
     def check_public_address(self, tasks, testing_value=None):
         fip_server = None
@@ -122,24 +80,6 @@ class TestAnsibleOpenStackOutput (unittest.TestCase, TestAnsibleProviderOutput):
                 server_name = task[SERVER_MODULE_NAME]['name']
         self.assertIsNotNone(fip_server)
 
-    def test_network_name(self):
-        template = copy.deepcopy(self.DEFAULT_TEMPLATE)
-        testing_value = "test-two-routers"
-        testing_parameter = {
-            "networks": {
-                "default": {
-                    "name": testing_value
-                }
-            }
-        }
-        template = self.update_template_attribute(template, self.NODE_NAME, testing_parameter)
-        playbook = self.get_ansible_output(template)
-
-        self.assertIsNotNone(next(iter(playbook), {}).get('tasks'))
-
-        tasks = playbook[0]['tasks']
-        self.check_network_name(tasks, testing_value)
-
     def check_network_name(self, tasks, testing_value=None):
         server_name = None
         for task in tasks:
@@ -152,21 +92,6 @@ class TestAnsibleOpenStackOutput (unittest.TestCase, TestAnsibleProviderOutput):
                     self.assertIn(testing_value, server_nics)
         self.assertIsNotNone(server_name)
 
-    def test_host_capabilities(self):
-        template = copy.deepcopy(self.DEFAULT_TEMPLATE)
-        testing_parameter = {
-            "num_cpus": 1,
-            "disk_size": "160 GiB",
-            "mem_size": "1024 MiB"
-        }
-        template = self.update_template_capability_properties(template, self.NODE_NAME, "host", testing_parameter)
-        playbook = self.get_ansible_output(template)
-
-        self.assertIsNotNone(next(iter(playbook), {}).get('tasks'))
-
-        tasks = playbook[0]['tasks']
-        self.check_host_capabilities(tasks)
-
     def check_host_capabilities(self, tasks, testing_value=None):
         server_name = None
         for task in tasks:
@@ -178,27 +103,6 @@ class TestAnsibleOpenStackOutput (unittest.TestCase, TestAnsibleProviderOutput):
                 if testing_value:
                     self.assertEqual(server_flavor, testing_value)
         self.assertIsNotNone(server_name)
-
-    def test_endpoint_capabilities(self):
-        template = copy.deepcopy(self.DEFAULT_TEMPLATE)
-        testing_parameter = {
-            "endpoint": {
-                "properties": {
-                    "protocol": "tcp",
-                    "port": 1000,
-                    "initiator": "target"
-                },
-                "attributes": {
-                    "ip_address": "0.0.0.0"
-                }
-            }
-        }
-        template = self.update_template_capability(template, self.NODE_NAME, testing_parameter)
-        playbook = self.get_ansible_output(template)
-        self.assertIsNotNone(next(iter(playbook), {}).get('tasks'))
-
-        tasks = playbook[0]['tasks']
-        self.check_endpoint_capabilities(tasks)
 
     def check_endpoint_capabilities(self, tasks, testing_value=None):
         sec_group_name = None
@@ -230,21 +134,6 @@ class TestAnsibleOpenStackOutput (unittest.TestCase, TestAnsibleProviderOutput):
                 self.assertIsNotNone(sec_group_name)
                 self.assertIn(sec_group_name, server_groups)
         self.assertIsNotNone(server_name)
-
-    def test_os_capabilities(self):
-        template = copy.deepcopy(self.DEFAULT_TEMPLATE)
-        testing_parameter = {
-            "architecture": "x86_64",
-            "type": "ubuntu",
-            "distribution": "xenial",
-            "version": 16.04
-        }
-        template = self.update_template_capability_properties(template, self.NODE_NAME, "os", testing_parameter)
-        playbook = self.get_ansible_output(template)
-        self.assertIsNotNone(next(iter(playbook), {}).get('tasks'))
-
-        tasks = playbook[0]['tasks']
-        self.check_os_capabilities(tasks)
 
     def check_os_capabilities(self, tasks, testing_value=None):
         server_name = None
