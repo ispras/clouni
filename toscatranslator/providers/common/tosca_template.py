@@ -2,9 +2,8 @@ import os
 import copy
 import json
 import yaml
-import fnmatch
 
-from toscaparser.common.exception import ExceptionCollector
+from toscaparser.common.exception import ExceptionCollector, ValidationError
 
 from toscatranslator.providers.common.translator_to_provider import translate as translate_to_provider
 
@@ -15,22 +14,37 @@ from toscaparser.imports import ImportsLoader
 from toscaparser.topology_template import TopologyTemplate
 
 from toscatranslator.configuration_tools.combined.combine_configuration_tools import CONFIGURATION_TOOLS
-from toscatranslator.common.exception import ProviderMappingFileError, TemplateDependencyError, UnsupportedExecutorType
+from toscatranslator.common.exception import ProviderFileError, TemplateDependencyError, UnsupportedExecutorType,\
+    ProviderConfigurationParameterError
 
 from toscatranslator.common.tosca_reserved_keys import *
 from toscatranslator.providers.common.provider_resource import ProviderResource
+from toscatranslator.providers.common.provider_configuration import ProviderConfiguration
 
 
 class ProviderToscaTemplate (object):
-
-    TOSCA_ELEMENTS_MAP_FILE = 'tosca_elements_map_to_%(provider)s.*'
-    FILE_DEFINITION = 'TOSCA_%(provider)s_definition_1_0.yaml'
+    REQUIRED_CONFIG_PARAMS = (TOSCA_ELEMENTS_MAP_FILE, TOSCA_ELEMENTS_DEFINITION_FILE) = \
+        ('tosca_elements_map_file', 'tosca_elements_definition_file')
     DEPENDENCY_FUNCTIONS = (GET_PROPERTY, GET_ATTRIBUTE, GET_OPERATION_OUTPUT)
     DEFAULT_ARTIFACTS_DIRECTOR = ARTIFACTS
 
     def __init__(self, tosca_parser_template, provider):
 
         self.provider = provider
+        self.provider_config = ProviderConfiguration(self.provider)
+        ExceptionCollector.start()
+        for sec in self.REQUIRED_CONFIG_PARAMS:
+            if not self.provider_config.config[self.provider_config.MAIN_SECTION].get(sec):
+                ExceptionCollector.appendException(ProviderConfigurationParameterError(
+                    what=sec
+                ))
+        ExceptionCollector.stop()
+        if ExceptionCollector.exceptionsCaught():
+            raise ValidationError(
+                message='\nTranslating to provider failed: '
+                    .join(ExceptionCollector.getExceptionsReport())
+            )
+
         # toscaparser.tosca_template:ToscaTemplate
         self.tosca_parser_template = tosca_parser_template
         # toscaparser.topology_template:TopologyTemplate
@@ -286,41 +300,40 @@ class ProviderToscaTemplate (object):
             self.search_get_function(rel.name, rel.entity_tpl)
 
     def definition_file(self):
-        file_definition = self.FILE_DEFINITION % {'provider': self.provider}
-        cur_dir = os.path.dirname(__file__)
-        par_dir = os.path.dirname(cur_dir)
-        file_name = os.path.join(par_dir, self.provider, file_definition)
+        file_definition = self.provider_config.config['main'][self.TOSCA_ELEMENTS_DEFINITION_FILE]
+        if not os.path.isabs(file_definition):
+            file_definition = os.path.join(self.provider_config.config_directory, file_definition)
 
-        return file_name
+        if not os.path.isfile(file_definition):
+            ExceptionCollector.appendException(ProviderFileError(
+                what=file_definition
+            ))
+
+        return file_definition
 
     def tosca_elements_map_to_provider(self):
-        tosca_elements_map_file = self.TOSCA_ELEMENTS_MAP_FILE % {'provider': self.provider}
-        par_dir = os.path.dirname(os.path.dirname(__file__))
-        data_dict = dict()
-        is_find = False
-        for file_name in os.listdir(os.path.join(par_dir, self.provider)):
-            if fnmatch.fnmatch(file_name, tosca_elements_map_file + '*'):
-                with open(os.path.join(par_dir, self.provider, file_name), 'r') as file_obj:
-                    data = file_obj.read()
-                    is_find = True
-                    try:
-                        if file_name.lower().endswith(('.json')):
-                            data_dict = json.loads(data)
-                            break
-                        else:
-                            data_dict = yaml.safe_load(data)
-                            break
-                    except:
-                        continue
+        tosca_elements_map_file = self.provider_config.config['main'][self.TOSCA_ELEMENTS_MAP_FILE]
+        if not os.path.isabs(tosca_elements_map_file):
+            tosca_elements_map_file = os.path.join(self.provider_config.config_directory, tosca_elements_map_file)
+
+        if not os.path.isfile(tosca_elements_map_file):
+            ExceptionCollector.appendException(ProviderFileError(
+                what=tosca_elements_map_file
+            ))
+
+        with open(tosca_elements_map_file, 'r') as file_obj:
+            data = file_obj.read()
+            try:
+                data_dict = json.loads(data)
+            except:
+                try:
+                    data_dict = yaml.safe_load(data)
+                except:
+                    pass
         if 0 == len(data_dict):
-            if is_find:
-                ExceptionCollector.appendException(ProviderMappingFileError(
-                    what=tosca_elements_map_file
-                ))
-            else:
-                ExceptionCollector.appendException(FileNotFoundError(
-                    'Can\'t find mapping file: ' + tosca_elements_map_file + '\nPlease, check that extension is .yaml or .json')
-                )
+            ExceptionCollector.appendException(ProviderFileError(
+                what=tosca_elements_map_file
+            ))
         return data_dict
 
     def generate_artifacts(self, new_artifacts, directory=None):

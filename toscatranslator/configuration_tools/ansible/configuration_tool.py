@@ -1,6 +1,7 @@
 from toscatranslator.configuration_tools.common.configuration_tool import *
 from toscatranslator.common.tosca_reserved_keys import PARAMETERS, VALUE, EXTRA, SOURCE, GET_OPERATION_OUTPUT, INPUTS
-
+from toscatranslator.common import snake_case
+from toscatranslator.providers.common.provider_configuration import ProviderConfiguration
 
 import copy, yaml, os, itertools
 
@@ -16,6 +17,8 @@ class AnsibleConfigurationTool(ConfigurationTool):
     """
 
     def to_dsl_for_create(self, provider, nodes_relationships_queue):
+        self.provider_config = ProviderConfiguration(provider)
+
         for v in nodes_relationships_queue:
             self.gather_global_operations(v)
 
@@ -92,10 +95,20 @@ class AnsibleConfigurationTool(ConfigurationTool):
         return [self.ansible_task_as_dict]
 
     def ansible_description_by_type(self, provider_source_obj):
-        return "Create element"
+        module_desc = 'Create element'
+        if 'ansible' in self.provider_config.config.sections():
+            new_module_desc = self.provider_config.config['ansible'].get('module_description')
+            if new_module_desc:
+                module_desc = new_module_desc
+        return module_desc + ' ' + snake_case.convert(provider_source_obj.type_name).replace('_', ' ')
 
     def ansible_module_by_type(self, provider_source_obj):
-        return "os_" + provider_source_obj.type_name.lower()
+        module_prefix = ''
+        if 'ansible' in self.provider_config.config.sections():
+            new_module_prefix = self.provider_config.config['ansible'].get('module_prefix')
+            if new_module_prefix:
+                module_prefix = new_module_prefix
+        return module_prefix + snake_case.convert(provider_source_obj.type_name)
 
     def get_ansible_tasks_from_operation(self, op_name):
         tasks = []

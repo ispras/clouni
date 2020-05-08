@@ -26,8 +26,8 @@ class ToscaParametersMappingFailed(TOSCAException):
     msg_fmt = _('Unable to parse the following parameter %(what)s')
 
 
-class ProviderMappingFileError(TOSCAException):
-    msg_fmt = _('Errors in mapping file "%(what)s"')
+class ProviderFileError(TOSCAException):
+    msg_fmt = _('Error parsing file "%(what)s"')
 
 
 class TemplateDependencyError(TOSCAException):

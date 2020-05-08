@@ -1,4 +1,8 @@
 import itertools
+import os
+
+ROOT_POINTER = 'clouni_root_pointer'
+
 
 def deep_update_dict(source, overrides):
     assert isinstance(source, dict)
@@ -13,3 +17,7 @@ def deep_update_dict(source, overrides):
         else:
             source[k] = v
     return source
+
+
+def get_project_root_path():
+    return os.path.dirname(os.path.abspath(ROOT_POINTER))
