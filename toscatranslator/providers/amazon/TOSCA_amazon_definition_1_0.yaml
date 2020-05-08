@@ -132,7 +132,7 @@ node_types:
           relationship: amazon.relationships.DependsOn
           occurrences: [ 0, UNBOUNDED ]
 
-  amazon.nodes.ElasticIP: # ec2_eip, ec2_eip_facts
+  amazon.nodes.Eip: # ec2_eip, ec2_eip_facts
     derived_from: amazon.nodes.Root
     properties:
       private_ip_address:
@@ -149,11 +149,11 @@ node_types:
           occurrences: [ 0, 1 ]
       - device_id: # network_interface_id in facts
           capability: amazon.capabilities.network.Bindable
-          node: amazon.nodes.ElasticNetworkInterface
+          node: amazon.nodes.Eni
           relationship: amazon.relationships.network.BindsTo
           occurrences: [ 0, 1 ]
 
-  amazon.nodes.ElasticNetworkInterface: # ec2_eni, ec2_eni_facts
+  amazon.nodes.Eni: # ec2_eni, ec2_eni_facts
     derived_from: amazon.nodes.Root
     properties:
       eni_id: # output after create is [interface, id], network_interface_id in facts
@@ -177,16 +177,16 @@ node_types:
     requirements:
       - security_groups: # output after create is groups, groups in facts
           capability: amazon.capabilities.SecurityGroup
-          node: amazon.nodes.SecurityGroup
+          node: amazon.nodes.Group
           relationship: amazon.relationships.DependsOn
           occurrences: [ 0, UNBOUNDED ]
       - subnet_id:
           capability: amazon.capabilities.Node
-          node: amazon.nodes.VirtualPrivateCloudSubnet
+          node: amazon.nodes.VpcSubnet
           relationship: amazon.relationships.DependsOn
           occurrences: [ 0, 1 ]
 
-  amazon.nodes.Image: # ec2_ami, ec2_ami_facts
+  amazon.nodes.Ami: # ec2_ami, ec2_ami_facts
     derived_from: amazon.nodes.Root
     attributes:
       description:
@@ -259,26 +259,26 @@ node_types:
     requirements:
       - image_id:
           capability: amazon.capabilities.Node
-          node: amazon.nodes.Image
+          node: amazon.nodes.Ami
           relationship: amazon.relationships.DependsOn
           occurrences: [ 0, 1 ]
       - network: # network_interfaces after create, network_interfaces in facts
           capability: amazon.capabilities.Node
-          node: amazon.nodes.ElasticNetworkInterface
+          node: amazon.nodes.Eni
           relationship: amazon.relationships.DependsOn
           occurrences: [ 0, UNBOUNDED ]
       - security_groups: # contains only id after create, contains only id in facts
           capability: amazon.capabilities.Node
-          node: amazon.nodes.SecurityGroup
+          node: amazon.nodes.Group
           relationship: amazon.relationships.DependsOn
           occurrences: [ 0, UNBOUNDED ]
       - vpc_subnet_id: # subnet_id after create, subnet_id in facts
           capability: amazon.capabilities.Node
-          node: amazon.nodes.VirtualPrivateCloudSubnet
+          node: amazon.nodes.VpcSubnet
           relationship: amazon.relationships.DependsOn
           occurrences: [ 0, 1 ]
 
-  amazon.nodes.SecurityGroup: # ec2_group, ec2_group_facts
+  amazon.nodes.Group: # ec2_group, ec2_group_facts
     derived_from: amazon.nodes.Root
     attributes:
       description:
@@ -308,7 +308,7 @@ node_types:
           relationship: amazon.relationships.DependsOn
           occurrences: [ 0, 1 ]
 
-  amazon.nodes.VirtualPrivateCloud: # ec2_vpc_net, ec2_vpc_net_facts
+  amazon.nodes.Vpc: # ec2_vpc_net, ec2_vpc_net_facts
     derived_from: amazon.nodes.Root
     properties:
       cidr_block:
@@ -326,7 +326,7 @@ node_types:
         type: string
         required: false
 
-  amazon.nodes.VirtualPrivateCloudSubnet: # ec2_vpc_subnet, ec2_vpc_subnet_facts
+  amazon.nodes.VpcSubnet: # ec2_vpc_subnet, ec2_vpc_subnet_facts
     derived_from: amazon.nodes.Root
     properties:
       cidr: # after create cidr_block, in facts cidr_block

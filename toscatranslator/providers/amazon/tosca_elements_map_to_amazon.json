@@ -44,6 +44,7 @@
           "value": {
             "value": "apiname",
             "facts": "ec2_instance_type_facts",
+            "executor": "ansible",
             "condition": "contains",
             "arguments": [
               "{self[value]}",
@@ -57,12 +58,12 @@
             "value": "{self[value]}"
           },
           {
-            "parameter": "amazon.nodes.SecurityGroup.properties.name",
-            "value": "{self[name]}_security_group"
+            "parameter": "amazon.nodes.Group.properties.name",
+            "value": "{self[name]}_group"
           },
           {
             "parameter": "amazon.nodes.Instance.requirements.security_groups",
-            "value": "{self[name]}_security_group"
+            "value": "{self[name]}_group"
           }
         ],
         "endpoint.properties.protocol": {
@@ -87,30 +88,31 @@
           "reason": "Not supported in AWS"
         },
         "endpoint.properties.network_name": {
-          "facts": "ec2_vpc_",
+          "facts": "ec2_vpc_net_facts",
+          "executor": "ansible",
           "condition": "equals"
         },
         "endpoint.properties.initiator.target": {
-          "parameter": "amazon.nodes.SecurityGroup.properties.rules",
+          "parameter": "amazon.nodes.Group.properties.rules",
           "value": [
             "{self[buffer][security_group_rule]}"
           ]
         },
         "endpoint.properties.initiator.source": {
-          "parameter": "amazon.nodes.SecurityGroup.properties.rules_egress",
+          "parameter": "amazon.nodes.Group.properties.rules_egress",
           "value": [
             "{self[buffer][security_group_rule]}"
           ]
         },
         "endpoint.properties.initiator.peer": [
           {
-            "parameter": "amazon.nodes.SecurityGroup.properties.rules",
+            "parameter": "amazon.nodes.Group.properties.rules",
             "value": [
               "{self[buffer][security_group_rule]}"
             ]
           },
           {
-            "parameter": "amazon.nodes.SecurityGroup.properties.rules_egress",
+            "parameter": "amazon.nodes.Group.properties.rules_egress",
             "value": [
               "{self[buffer][security_group_rule]}"
             ]
@@ -121,16 +123,22 @@
           "reason": "Not implemented yet"
         },
         "os.properties": {
-          "parameter": "amazon.nodes.Instance.requirements.image_id.node_filter.properties.image_id",
-          "value": {
-            "value": "image_id",
-            "facts": "ec2_ami_facts",
-            "condition": "contains",
-            "arguments": [
-              ["architecture", "name"],
-              "{self[value]}"
-            ]
-          }
+          "parameter": "amazon.nodes.Instance.requirements.image_id.node_filter.properties",
+          "value": [
+            {
+              "parameter": "image_id",
+              "value": {
+                "value": "image_id",
+                "facts": "ec2_ami_facts",
+                "executor": "ansible",
+                "condition": "contains",
+                "arguments": [
+                  ["architecture", "name"],
+                  "{self[value]}"
+                ]
+              }
+            }
+          ]
         },
         "scalable": {
           "error": true,
