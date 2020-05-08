@@ -7,7 +7,11 @@ class UnsupportedRequirementError(TOSCAException):
 
 
 class UnavailableNodeFilterError (TOSCAException):
-    msg_fmt = _('The "%(what)s" requirement support "node_filter" parameter only with "%(param)s" specifying')
+    msg_fmt = _('The "%(what)s" requirement support "node_filter" parameter only with "%(param)s" specifying, '
+                'but only "%(data)s" is present')
+
+class ValueType (TOSCAException):
+    msg_fmt = _('The value "%(what)s" must be of type "%(type)s"')
 
 
 class UnspecifiedParameter(TOSCAException):
@@ -32,3 +36,10 @@ class TemplateDependencyError(TOSCAException):
 
 class UnsupportedExecutorType(TOSCAException):
     msg_fmt = _('Unsupported executor/configuration tool name: "%(what)s"')
+
+
+class ProviderConfigurationNotFound(TOSCAException):
+    msg_fmt = _('Provider configuration was not found. It must be one of the variants: "%(what)s"')
+
+class ProviderConfigurationParameterError(TOSCAException):
+    msg_fmt = _('Provider configuration parameter "%(what)s" has unsupported value or missing')
