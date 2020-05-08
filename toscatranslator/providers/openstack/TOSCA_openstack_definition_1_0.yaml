@@ -576,7 +576,7 @@ node_types:
         type: string
         required: true
       metadata:
-        type: string
+        type: list
         required: false
       scheduler_hints:
         type: string

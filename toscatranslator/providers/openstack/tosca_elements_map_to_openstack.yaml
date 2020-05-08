@@ -36,59 +36,100 @@ tosca.nodes.Compute:
           - attributes.floating_ip_address
           - parameter: requirements
             value:
-              - parameter: network.node_filter.properties.name
+              - parameter: network.node_filter.properties
                 value:
-                  value: name
-                  facts: os_network_facts.ansible_facts.openstack_networks
-                  condition: equals
-                  executor: ansible
-                  arguments:
-                    - id
-                    - value: network_id
-                      condition: ip_contains
-                      facts: os_subnet_facts.ansible_facts.openstack_subnets
+                  - parameter: name
+                    value:
+                      value: name
+                      facts: os_network_facts.ansible_facts.openstack_networks
+                      condition: equals
                       executor: ansible
                       arguments:
-                        - allocation_pool_start
-                        - allocation_pool_end
-                        - "{self[value]}"
+                        - id
+                        - value: network_id
+                          condition: ip_contains
+                          facts: os_subnet_facts.ansible_facts.openstack_subnets
+                          executor: ansible
+                          arguments:
+                            - allocation_pool_start
+                            - allocation_pool_end
+                            - "{self[value]}"
               - parameter: server
                 value: "{self[name]}_server"
-      networks.*.network_name: openstack.nodes.Server.requirements.nics.node_filter.properties.name
-      networks.*.network_id: openstack.nodes.Server.requirements.nics.node_filter.properties.id
+      networks.*.network_name:
+        parameter: openstack.nodes.Server.requirements.nics.node_filter.properties
+        value:
+          - parameter: name
+            value: "{self[value]}"
+      networks.*.network_id:
+        parameter: openstack.nodes.Server.requirements.nics.node_filter.properties
+        value:
+          - parameter: id
+            value: "{self[value]}"
       networks.*.addresses:
-        parameter: openstack.nodes.Server.requirements.nics.node_filter.properties.id
+        parameter: openstack.nodes.Server.requirements.nics.node_filter.properties
         value:
-          value: network_id
-          facts: os_subnet_facts.ansible_facts.openstack_subnets
-          executor: ansible
-          condition: ip_contains
-          arguments:
-            - allocation_pool_start
-            - allocation_pool_end
-            - "{self[value]}"
-      ports.*.port_name: openstack.nodes.Server.requirements.nics.node_filter.properties.name
-      ports.*.port_id: openstack.nodes.Server.requirements.nics.node_filter.properties.id
-      ports.*.network_id: openstack.nodes.Server.requirements.nics.node_filter.properties.id
-      ports.*.mac_address: openstack.nodes.Server.requirements.nics.node_filter.properties.mac_address
+          - parameter: id
+            value: network_id
+            facts: os_subnet_facts.ansible_facts.openstack_subnets
+            executor: ansible
+            condition: ip_contains
+            arguments:
+              - allocation_pool_start
+              - allocation_pool_end
+              - "{self[value]}"
+      ports.*.port_name:
+        parameter: openstack.nodes.Server.requirements.nics.node_filter.properties
+        value:
+          - parameter: name
+            value: "{self[value]}"
+      ports.*.port_id:
+        parameter: openstack.nodes.Server.requirements.nics.node_filter.properties
+        value:
+          - parameter: id
+            value: "{self[value]}"
+      ports.*.network_id:
+        parameter: openstack.nodes.Server.requirements.nics.node_filter.properties
+        value:
+          - parameter: id
+            value: "{self[value]}"
+      ports.*.mac_address:
+        parameter: openstack.nodes.Server.requirements.nics.node_filter.properties
+        value:
+          - parameter: mac_address
+            value: "{self[value]}"
       ports.*.addresses:
-        parameter: openstack.nodes.Server.requirements.nics.node_filter.properties.id
+        parameter: openstack.nodes.Server.requirements.nics.node_filter.properties
         value:
-          value: network_id
-          facts: os_subnet_facts.ansible_facts.openstack_subnets
-          executor: ansible
-          condition: ip_contains
-          arguments:
-            - allocation_pool_start
-            - allocation_pool_end
-            - "{self[value]}"
+          - parameter: id
+            value:
+              value: network_id
+              facts: os_subnet_facts.ansible_facts.openstack_subnets
+              executor: ansible
+              condition: ip_contains
+              arguments:
+                - allocation_pool_start
+                - allocation_pool_end
+                - "{self[value]}"
     capabilities:
-      host.properties.num_cpus: openstack.nodes.Server.requirements.flavor.node_filter.properties.vcpus
+      host.properties.num_cpus:
+        parameter: openstack.nodes.Server.requirements.flavor.node_filter.properties
+        value:
+          - parameter: vcpus
+            value: "{self[value]}"
       host.properties.cpu_frequency:
         error: true
         reason: Openstack doesn't support parameter {self[parameter]}
-      host.properties.disk_size: openstack.nodes.Server.requirements.flavor.node_filter.properties.disk
-      host.properties.mem_size: openstack.nodes.Server.requirements.flavor.node_filter.properties.ram
+      host.properties.disk_size:
+        parameter: openstack.nodes.Server.requirements.flavor.node_filter.properties
+        value:
+          - parameter: disk
+            value: "{self[value]}"
+      host.properties.mem_size:
+        parameter: openstack.nodes.Server.requirements.flavor.node_filter.properties
+        value:
+          - parameter: ram
+            value: "{self[value]}"
       endpoint.attributes.ip_address:
         - openstack.nodes.SecurityGroupRule.attributes.remote_ip_prefix
         - parameter: openstack.nodes.SecurityGroup.properties.name
@@ -118,18 +159,27 @@ tosca.nodes.Compute:
         error: true
         reason: Not implemented yet
       os.properties:
-        parameter: openstack.nodes.Server.requirements.image.node_filter.properties.name
+        parameter: openstack.nodes.Server.requirements.image.node_filter.properties
         value:
-          value: name
-          facts: os_server_facts.ansible_facts.openstack_servers
-          executor: ansible
-          condition: contains
-          arguments:
-            - name
-            - "{self[value]}"
+          - parameter: name
+            value:
+              value: name
+              facts: os_server_facts.ansible_facts.openstack_servers
+              executor: ansible
+              condition: contains
+              arguments:
+                - name
+                - "{self[value]}"
       scalable:
         error: true
         reason: Not described in TOSCA Profile YAML v1.0
     requirements.local_storage:
       error: true
       reason: Bad description in TOSCA Profile YAML v1.0
+
+tosca.relationships.DependsOn: openstack.relationships.DependsOn
+tosca.relationships.HostedOn: openstack.relationships.HostedOn
+tosca.relationships.ConnectsTo: openstack.relationships.ConnectsTo
+tosca.relationships.AttachesTo: openstack.relationships.AttachesTo
+tosca.relationships.network.LinksTo: openstack.relationships.network.LinksTo
+tosca.relationships.network.BindsTo: openstack.relationships.network.BindsTo
