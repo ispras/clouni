@@ -17,10 +17,11 @@ SET_FACT_SOURCE = "set_fact"
 INDIVISIBLE_KEYS = [GET_OPERATION_OUTPUT, INPUTS, IMPLEMENTATION]
 
 
-def translate_from_provider(node):
+def translate_element_from_provider(node):
+    (_, element_type, _) = tosca_type.parse(node.type)
     node_templates = {
-        NODES: {
-            node.name: node.entity_tpl
+        element_type: {
+            node.name: copy.deepcopy(node.entity_tpl)
         }
     }
     return node_templates
@@ -28,7 +29,8 @@ def translate_from_provider(node):
 
 def get_structure_of_mapped_param(mapped_param, value, self=None, type_list_parameters=None, indivisible=False):
     if mapped_param is None:
-        return []
+        # NOTE The case when parameter was 'self'
+        return [], None
     if self is None:
         self = value
 
@@ -45,25 +47,25 @@ def get_structure_of_mapped_param(mapped_param, value, self=None, type_list_para
                 len_v = len(value)
                 if len_v == 1:
                     type_list_parameters.append(len(mapped_param.split(SEPARATOR)))
-                    param = get_structure_of_mapped_param(mapped_param, value[0], self, type_list_parameters)
-                    return param
+                    param, _ = get_structure_of_mapped_param(mapped_param, value[0], self, type_list_parameters)
+                    return param, None
 
                 for v in value:
                     if isinstance(v, str):
-                        param = get_structure_of_mapped_param(SEPARATOR.join([mapped_param, v]), self, self,
+                        param, _ = get_structure_of_mapped_param(SEPARATOR.join([mapped_param, v]), self, self,
                                                               type_list_parameters)
                     else:
-                        param = get_structure_of_mapped_param(mapped_param, v, self, type_list_parameters)
+                        param, _ = get_structure_of_mapped_param(mapped_param, v, self, type_list_parameters)
                     r += param
-                return r
+                return r, None
 
             if isinstance(value, dict):
                 r = []
                 for k, v in value.items():
-                    param = get_structure_of_mapped_param(SEPARATOR.join([mapped_param, k]), v, self,
+                    param, _ = get_structure_of_mapped_param(SEPARATOR.join([mapped_param, k]), v, self,
                                                           type_list_parameters)
                     r += param
-                return r
+                return r, None
 
         # NOTE: end of recursion
         num = len(splitted_mapped_param)
@@ -87,21 +89,21 @@ def get_structure_of_mapped_param(mapped_param, value, self=None, type_list_para
                 if cur_section == REQUIREMENTS:
                     parameter_structure = [parameter_structure]
                 structure[node_type][cur_section] = parameter_structure
-                return [structure]
+                return [structure], None
 
         # NOTE: Case when node has no parameters but needed
         ExceptionCollector.appendException(ToscaParametersMappingFailed(
             what=mapped_param
         ))
         structure[mapped_param] = dict()
-        return [structure]
+        return [structure], None
 
     if isinstance(mapped_param, list):
         r = []
         for p in mapped_param:
-            param = get_structure_of_mapped_param(p, value, self, type_list_parameters)
+            param, _ = get_structure_of_mapped_param(p, value, self, type_list_parameters)
             r += param
-        return r
+        return r, None
 
     if isinstance(mapped_param, dict):
         # NOTE: Assert number of keys! Always start of recursion?
@@ -112,7 +114,7 @@ def get_structure_of_mapped_param(mapped_param, value, self=None, type_list_para
         if num_of_keys == 1 or num_of_keys == 2 and KEYNAME in mapped_param.keys():
             for k, v in mapped_param.items():
                 if k != PARAMETER and k != KEYNAME:
-                    param = get_structure_of_mapped_param(k, v, self, type_list_parameters)
+                    param, _ = get_structure_of_mapped_param(k, v, self, type_list_parameters)
                     if isinstance(param, tuple):
                         (param, keyname) = param
                         if mapped_param.get(KEYNAME):
@@ -252,60 +254,67 @@ def get_resulted_mapping_values(parameter, mapping_value, value):
     :return:
     """
     mapping_value = copy.deepcopy(mapping_value)
+    if isinstance(mapping_value, six.string_types):
+        mapping_value = {
+            PARAMETER: mapping_value,
+            VALUE: "{self[value]}"
+        }
     mapping_value_parameter = mapping_value.get(PARAMETER)
     if mapping_value_parameter:
-        splitted_mapping_value_parameter = mapping_value_parameter.split(SEPARATOR)
-        has_section = False
-        for v in splitted_mapping_value_parameter:
-            if v in NODE_TEMPLATE_KEYS:
-                has_section = True
-                break
-        if not has_section:
-            mapping_value_value = mapping_value.get(VALUE)
-            if isinstance(mapping_value_value, list):
-                if len(mapping_value_value) > 1:
-                    r = []
-                    for v in mapping_value_value:
-                        mapping_value[VALUE] = v
-                        item = get_resulted_mapping_values(parameter, mapping_value, value)
-                        if isinstance(item, list):
-                            if len(item) == 1:
+        # NOTE at first check if parameter self[buffer] parameter
+        if not (mapping_value_parameter[:6] == '{self[' and mapping_value_parameter.index('}') == len(mapping_value_parameter) - 1):
+            splitted_mapping_value_parameter = mapping_value_parameter.split(SEPARATOR)
+            has_section = False
+            for v in splitted_mapping_value_parameter:
+                if v in NODE_TEMPLATE_KEYS:
+                    has_section = True
+                    break
+            if not has_section:
+                mapping_value_value = mapping_value.get(VALUE)
+                if isinstance(mapping_value_value, list):
+                    if len(mapping_value_value) > 1:
+                        r = []
+                        for v in mapping_value_value:
+                            mapping_value[VALUE] = v
+                            item = get_resulted_mapping_values(parameter, mapping_value, value)
+                            if isinstance(item, list):
+                                if len(item) == 1:
+                                    item = [item]
+                            else:
                                 item = [item]
-                        else:
-                            item = [item]
-                        r.extend(item)
-                    return r
-            if isinstance(mapping_value_value, six.string_types):
-                splitted_mapping_value_value = mapping_value_value.split(SEPARATOR)
-                for i in range(len(splitted_mapping_value_value)):
-                    if splitted_mapping_value_value[i] in NODE_TEMPLATE_KEYS:
-                        # parameter_tag = SEPARATOR.join(splitted_mapping_value_value[:i+1])
-                        # value_new = SEPARATOR.join(splitted_mapping_value_value[i-1:])
-                        # mapping_value[PARAMETER] = mapping_value_parameter + SEPARATOR + parameter_tag
-                        # mapping_value[VALUE] = value_new
-                        mapping_value[PARAMETER] = mapping_value_parameter + SEPARATOR + mapping_value_value
-                        mapping_value[VALUE] = "{self[value]}"
-                        return dict(
-                            parameter=parameter,
-                            map=mapping_value,
-                            value=value
-                        )
-            if isinstance(mapping_value_value, dict):
-                # NOTE the only valid case when the value is parameter-value structure
-                mapping_value_value_parameter = mapping_value_value.get(PARAMETER)
-                mapping_value_value_value = mapping_value_value.get(VALUE)
-                if mapping_value_value_parameter and mapping_value_value_value:
-                    mapping_value_value_keyname = mapping_value_value.get(KEYNAME)
-                    if mapping_value_value_keyname:
-                        mapping_value[KEYNAME] = mapping_value_value_keyname
-                    mapping_value[PARAMETER] = mapping_value_parameter + SEPARATOR + mapping_value_value_parameter
-                    mapping_value[VALUE] = mapping_value_value_value
-                    r = get_resulted_mapping_values(parameter, mapping_value, value)
-                    return r
+                            r.extend(item)
+                        return r
+                if isinstance(mapping_value_value, six.string_types):
+                    splitted_mapping_value_value = mapping_value_value.split(SEPARATOR)
+                    for i in range(len(splitted_mapping_value_value)):
+                        if splitted_mapping_value_value[i] in NODE_TEMPLATE_KEYS:
+                            # parameter_tag = SEPARATOR.join(splitted_mapping_value_value[:i+1])
+                            # value_new = SEPARATOR.join(splitted_mapping_value_value[i-1:])
+                            # mapping_value[PARAMETER] = mapping_value_parameter + SEPARATOR + parameter_tag
+                            # mapping_value[VALUE] = value_new
+                            mapping_value[PARAMETER] = mapping_value_parameter + SEPARATOR + mapping_value_value
+                            mapping_value[VALUE] = "{self[value]}"
+                            return dict(
+                                parameter=parameter,
+                                map=mapping_value,
+                                value=value
+                            )
+                if isinstance(mapping_value_value, dict):
+                    # NOTE the only valid case when the value is parameter-value structure
+                    mapping_value_value_parameter = mapping_value_value.get(PARAMETER)
+                    mapping_value_value_value = mapping_value_value.get(VALUE)
+                    if mapping_value_value_parameter and mapping_value_value_value:
+                        mapping_value_value_keyname = mapping_value_value.get(KEYNAME)
+                        if mapping_value_value_keyname:
+                            mapping_value[KEYNAME] = mapping_value_value_keyname
+                        mapping_value[PARAMETER] = mapping_value_parameter + SEPARATOR + mapping_value_value_parameter
+                        mapping_value[VALUE] = mapping_value_value_value
+                        r = get_resulted_mapping_values(parameter, mapping_value, value)
+                        return r
 
-            ExceptionCollector.appendException(ToscaParametersMappingFailed(
-                what=mapping_value
-            ))
+                ExceptionCollector.appendException(ToscaParametersMappingFailed(
+                    what=mapping_value
+                ))
 
     return dict(
             parameter=parameter,
@@ -431,7 +440,7 @@ def restructure_mapping(tosca_elements_map_to_provider, node):
     return get_restructured_mapping_item('', '', tosca_elements_map_to_provider, value={node.type: template})
 
 
-def translate_from_tosca(restructured_mapping, tpl_name):
+def translate_node_from_tosca(restructured_mapping, tpl_name):
     """
     Translator from TOSCA definitions in provider definitions using rules from element_map_to_provider
     :param restructured_mapping: list of dicts(parameter, map, value)
@@ -733,7 +742,7 @@ def restructure_mapping_facts(elements_map, extra_elements_map=None, target_para
     return elements_map, extra_elements_map
 
 
-def translate(tosca_elements_map_to_provider, node_templates):
+def translate(tosca_elements_map_to_provider, topology_template):
     """
     Main function of this file, the only which is used outside the file
     :param tosca_elements_map_to_provider: dict from provider specific file
@@ -742,18 +751,22 @@ def translate(tosca_elements_map_to_provider, node_templates):
     :return: list of new node templates and relationship templates and
     list of artifacts to be used for generating scripts
     """
+    node_templates = topology_template.nodetemplates
+    relationship_templates = topology_template.relationship_templates
+    element_templates = node_templates + relationship_templates
+
     new_element_templates = {}
     artifacts = []
 
-    for node in node_templates:
-        (namespace, _, _) = tosca_type.parse(node.type)
+    for element in element_templates:
+        (namespace, _, _) = tosca_type.parse(element.type)
         if namespace == TOSCA:
-            restructured_mapping = restructure_mapping(tosca_elements_map_to_provider, node)
+            restructured_mapping = restructure_mapping(tosca_elements_map_to_provider, element)
 
             restructured_mapping, extra_mappings = restructure_mapping_facts(restructured_mapping)
             restructured_mapping.extend(extra_mappings)
 
-            tpl_structure, artifacts = translate_from_tosca(restructured_mapping, node.name)
+            tpl_structure, artifacts = translate_node_from_tosca(restructured_mapping, element.name)
             for tpl_name, temp_tpl in tpl_structure.items():
                 for node_type, tpl in temp_tpl.items():
                     (_, element_type, _) = tosca_type.parse(node_type)
@@ -761,6 +774,7 @@ def translate(tosca_elements_map_to_provider, node_templates):
                     new_element_templates[element_type] = new_element_templates.get(element_type, {})
                     new_element_templates[element_type].update({tpl_name: copy.deepcopy(tpl)})
         else:
-            new_element_templates = copy.deepcopy(translate_from_provider(node))
+            new_element = translate_element_from_provider(element)
+            new_element_templates = deep_update_dict(new_element_templates, new_element)
 
     return new_element_templates, artifacts
