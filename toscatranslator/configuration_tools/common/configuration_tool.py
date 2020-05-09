@@ -115,7 +115,7 @@ class ConfigurationTool(object):
                 o[0] = element_template_name
             temp_op_name = '_'.join(o[:3]).lower()
 
-            seed(time)
+            seed(time())
             output_id = o[-1] + '_' + str(randint(OUTPUT_ID_RANGE_START, OUTPUT_ID_RANGE_END))
             updating_op_info = {
                 temp_op_name: {

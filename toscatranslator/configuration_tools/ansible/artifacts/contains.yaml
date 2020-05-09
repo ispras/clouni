@@ -1,0 +1,87 @@
+# input_facts and input_args are defined
+
+- set_fact:
+    argv_0: "{{ argv[0] }}"
+- set_fact:
+    argv_1: "{{ argv[1] }}"
+
+# Make list from arguments
+- set_fact:
+    new_argv_0: "{{ [] }}"
+  when: "{{ argv_0 | type_debug == dict }}"
+
+- set_fact:
+    new_argv_0: "{{ new_argv_0 + [item.value] }}"
+  with_dict: "{{ argv_0 }}"
+  when: "{{ argv_0 | type_debug == dict }}"
+
+- set_fact:
+    argv_0: "{{ new_argv_0 }}"
+  when: "{{ argv_0 | type_debug == dict }}"
+
+- set_fact:
+    argv_0: "{{ [argv_0] }}"
+  when: "{{ argv_0 | type_debug != list }}"
+
+
+- set_fact:
+    new_argv_1: "{{ [] }}"
+  when: "{{ argv_1 | type_debug == dict }}"
+
+- set_fact:
+    new_argv_1: "{{ new_argv_1 + [item.value] }}"
+  with_dict: "{{ argv_1 }}"
+  when: "{{ argv_1 | type_debug == dict }}"
+
+- set_fact:
+    argv_1: "{{ new_argv_1 }}"
+  when: "{{ argv_1 | type_debug == dict }}"
+
+- set_fact:
+    argv_1: "{{ [argv_1] }}"
+  when: "{{ argv_1 | type_debug != list }}"
+
+
+# Find the matchable
+- set_fact:
+    one_fact_common_value: "{{ {} }}"
+
+- set_fact:
+    one_fact_common_value: "{{ one_fact_common_value[item[0]] | default('') + input_facts[item[0]][item[1]] }}"
+  with_items:
+    - "{{ range(0, input_facts | length) | list }}"
+    - "{{ argv_0 }}"
+
+- set_fact:
+    fitted_object_numbers: "{{ {} }}"
+
+- set_fact:
+    fitted_object_numbers: "{{ fitted_object_numbers[item] = True }}"
+  with_items: "{{ range(0, input_facts | length) | list }}"
+
+- set_fact:
+    fitted_object_numbers: "{{ fitted_object_numbers[item] = False }}"
+  with_items:
+    - "{{ range(0, input_facts | length) | list }}"
+    - "{{ argv_1 }}"
+  when: "{{ item[1] not in one_fact_common_value[item[0]] }}"
+
+- set_fact:
+    matched_objects: "{{ [] }}"
+
+- set_fact:
+    matched_objects: "{{ matched_objects + [ input_facts[item] ] }}"
+  with_items: "{{ range(0, input_facts | length) | list }}"
+  when: "{{ fitted_object_numbers[item] }}"
+
+- debug:
+    msg: "WARNING: there are more than one matchable objects: {{ matched_objects }}"
+  when: "{{ matched_objects | length > 1 }}"
+
+- fail:
+    msg: "There are no matchable objects"
+  when: "{{ matched_objects | length == 0 }}"
+
+- set_fact:
+    matched_object: "{{ item }}"
+  with_items: "{{ matched_objects }}"

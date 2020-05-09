@@ -9,12 +9,18 @@ from toscatranslator.configuration_tools.combined.combine_configuration_tools im
 import copy
 import six
 
+from random import randint, seed
+from time import time
+
 from toscatranslator.common.utils import deep_update_dict
 
 SEPARATOR = '.'
 MAP_KEY = "map"
 SET_FACT_SOURCE = "set_fact"
 INDIVISIBLE_KEYS = [GET_OPERATION_OUTPUT, INPUTS, IMPLEMENTATION]
+
+ARTIFACT_RANGE_START = 1000
+ARTIFACT_RANGE_END = 9999
 
 
 def translate_element_from_provider(node):
@@ -209,7 +215,10 @@ def restructure_value(mapping_value, self, if_format_str=True, if_upper=True):
                 self[ARTIFACTS] = []
             # TODO add managing of file extensions depending on configuration tool
             extension = '.yaml'
-            artifact_name = self[NAME] + '_' + executor_name + '_' + source_name + extension
+
+            seed(time())
+            artifact_name = '_'.join([self[NAME], executor_name, source_name,
+                                      str(randint(ARTIFACT_RANGE_START, ARTIFACT_RANGE_END))]) + extension
             flat_mapping_value.update(
                 name=artifact_name,
                 configuration_tool=executor_name
@@ -524,6 +533,7 @@ def get_source_structure_from_facts(condition, fact_name, value, arguments, exec
     facts_result = "facts_result"
     if len(fact_name_splitted) > 1:
         facts_result += "[\"" + "\"][\"".join(fact_name_splitted[1:]) + "\"]"
+    facts_result = "{{{{ " + facts_result + " }}}}"
 
     provider = target_parameter_splitted[0]
     target_interface_name = "Target"
@@ -584,7 +594,17 @@ def get_source_structure_from_facts(condition, fact_name, value, arguments, exec
         PARAMETER: target_choose_parameter_new,
         KEYNAME: relationship_name,
         VALUE: {
-            IMPLEMENTATION: condition + ".yaml",
+            IMPLEMENTATION: [
+                condition + ".yaml",
+                {
+                    SOURCE: SET_FACT_SOURCE,
+                    PARAMETERS: {
+                        value: "{{{{ matched_object[" + value + "] }}}}"
+                    },
+                    VALUE: "tmp_value",
+                    EXECUTOR: executor
+                }
+            ],
             INPUTS: {
                 "input_facts": {
                     GET_OPERATION_OUTPUT: [

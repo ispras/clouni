@@ -164,11 +164,12 @@ tosca.nodes.Compute:
           - parameter: name
             value:
               value: name
-              facts: os_server_facts.ansible_facts.openstack_servers
+              facts: os_image_facts.ansible_facts.openstack_image
               executor: ansible
               condition: contains
               arguments:
-                - name
+                - - name
+                  - properties
                 - "{self[value]}"
       scalable:
         error: true

@@ -21,7 +21,7 @@ node_types:
         occurrences: [ 1, 1 ]
     artifacts:
       contains:
-        implementation: contain.yaml
+        implementation: contains.yaml
         description: Contain function
       equals:
         implementation: equals.yaml

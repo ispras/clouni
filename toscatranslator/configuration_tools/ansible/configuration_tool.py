@@ -29,7 +29,7 @@ class AnsibleConfigurationTool(ConfigurationTool):
         for v in nodes_relationships_queue:
             (_, element_type, _) = tosca_type.parse(v.type)
             if element_type == NODES:
-                new_conf_args =  self.replace_all_get_functions(v.configuration_args)
+                new_conf_args = self.replace_all_get_functions(v.configuration_args)
                 v.configuration_args = new_conf_args
                 elements_queue.append(v)
 
@@ -118,6 +118,8 @@ class AnsibleConfigurationTool(ConfigurationTool):
             return []
 
         import_task_arg = op_info[IMPLEMENTATION]
+        if not isinstance(import_task_arg, list):
+            import_task_arg = [import_task_arg]
         if op_info.get(INPUTS):
             for k, v in op_info[INPUTS].items():
                 arg_v = v
@@ -125,21 +127,26 @@ class AnsibleConfigurationTool(ConfigurationTool):
                 if isinstance(v, (dict, list, set, tuple)):
                     seed(time)
                     arg_v = '_'.join([k, str(randint(OUTPUT_ID_RANGE_START, OUTPUT_ID_RANGE_END))])
-                    arg_v = self.rap_ansible_variable(arg_v)
                     new_task = {
                         SET_FACT_MODULE: {
                             arg_v: v
                         }
                     }
                     tasks.append(new_task)
+                    arg_v = self.rap_ansible_variable(arg_v)
                 arg_k = k
+                arg_v = '\"' + arg_v + '\"'
                 temp_arg = arg_k + '=' + arg_v
-                import_task_arg += ' ' + temp_arg
+                new_import_task_arg = []
+                for i in import_task_arg:
+                    new_import_task_arg.append(i + ' ' + temp_arg)
+                import_task_arg = new_import_task_arg
 
-        new_task = {
-            IMPORT_TASKS_MODULE: import_task_arg
-        }
-        tasks.append(new_task)
+        for i in import_task_arg:
+            new_task = {
+                IMPORT_TASKS_MODULE: i
+            }
+            tasks.append(new_task)
         for k, v in op_info[OUTPUT_IDS].items():
             new_task = {
                 SET_FACT_MODULE: {
