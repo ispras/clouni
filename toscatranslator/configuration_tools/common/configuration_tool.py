@@ -5,12 +5,14 @@ from toscatranslator.common.tosca_reserved_keys import NODES, RELATIONSHIPS, INT
     IMPLEMENTATION
 
 from toscaparser.common.exception import ExceptionCollector
-from toscatranslator.common.exception import TemplateDependencyError
+from toscatranslator.common.exception import TemplateDependencyError, ConditionFileError
 
 
 from random import randint,seed
 from time import time
-import copy
+import copy, os
+
+from shutil import copyfile
 
 OUTPUT_IDS = 'output_ids'
 OUTPUT_ID_RANGE_START = 1000
@@ -139,3 +141,6 @@ class ConfigurationTool(object):
                 required_operations.extend(self.list_get_operation_outputs(v))
 
         return required_operations
+
+    def copy_conditions_to_the_directory(self, used_conditions_set, directory):
+        raise NotImplementedError

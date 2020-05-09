@@ -10,6 +10,8 @@ DEFAULT_HOST = 'localhost'
 SET_FACT_MODULE = 'set_fact'
 IMPORT_TASKS_MODULE = 'include'
 
+ARTIFACTS_DIRECTORY = 'artifacts'
+
 
 class AnsibleConfigurationTool(ConfigurationTool):
     """
@@ -181,3 +183,14 @@ class AnsibleConfigurationTool(ConfigurationTool):
             f.write(filedata)
 
         return
+
+    def copy_conditions_to_the_directory(self, conditions_set, target_directory):
+        tool_artifacts_dir = os.path.join(os.path.dirname(os.path.realpath(__file__)), ARTIFACTS_DIRECTORY)
+        for cond in conditions_set:
+            filename = os.path.join(tool_artifacts_dir, cond + '.yaml')
+            if not os.path.isfile(filename):
+                ExceptionCollector.appendException(ConditionFileError(
+                    what=filename
+                ))
+            target_filename = os.path.join(target_directory, cond + '.yaml')
+            copyfile(filename, target_filename)

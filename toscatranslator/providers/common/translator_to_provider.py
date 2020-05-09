@@ -667,6 +667,7 @@ def restructure_mapping_facts(elements_map, extra_elements_map=None, target_para
     :param source_value:
     :return:
     """
+    conditions = []
     elements_map = copy.deepcopy(elements_map)
     if not extra_elements_map:
         extra_elements_map = []
@@ -684,9 +685,10 @@ def restructure_mapping_facts(elements_map, extra_elements_map=None, target_para
                     target_parameter = cur_parameter
         new_elements_map = dict()
         for k, v in elements_map.items():
-            cur_elements, extra_elements_map = restructure_mapping_facts(v, extra_elements_map, target_parameter,
+            cur_elements, extra_elements_map, new_conditions = restructure_mapping_facts(v, extra_elements_map, target_parameter,
                                                                          source_parameter, source_value)
             new_elements_map.update({k: cur_elements})
+            conditions.extend(new_conditions)
 
         if isinstance(new_elements_map.get(PARAMETER, ''), dict):
             separated_target_parameter = target_parameter.split(SEPARATOR)
@@ -770,18 +772,21 @@ def restructure_mapping_facts(elements_map, extra_elements_map=None, target_para
                                                                                    executor,
                                                                                    target_parameter, source_parameter,
                                                                                    source_value)
+            conditions.append(condition)
             extra_elements_map.extend(cur_extra_elements)
-        return new_elements_map, extra_elements_map
+
+        return new_elements_map, extra_elements_map, conditions
 
     if isinstance(elements_map, list):
         new_elements_map = []
         for k in elements_map:
-            cur_elements, extra_elements_map = restructure_mapping_facts(k, extra_elements_map, target_parameter,
+            cur_elements, extra_elements_map, new_conditions = restructure_mapping_facts(k, extra_elements_map, target_parameter,
                                                                          source_parameter, source_value)
             new_elements_map.append(cur_elements)
-        return new_elements_map, extra_elements_map
+            conditions.extend(new_conditions)
+        return new_elements_map, extra_elements_map, conditions
 
-    return elements_map, extra_elements_map
+    return elements_map, extra_elements_map, conditions
 
 
 def translate(tosca_elements_map_to_provider, topology_template):
@@ -799,13 +804,14 @@ def translate(tosca_elements_map_to_provider, topology_template):
 
     new_element_templates = {}
     artifacts = []
+    conditions = []
 
     for element in element_templates:
         (namespace, _, _) = tosca_type.parse(element.type)
         if namespace == TOSCA:
             restructured_mapping = restructure_mapping(tosca_elements_map_to_provider, element)
 
-            restructured_mapping, extra_mappings = restructure_mapping_facts(restructured_mapping)
+            restructured_mapping, extra_mappings, conditions = restructure_mapping_facts(restructured_mapping)
             restructured_mapping.extend(extra_mappings)
 
             tpl_structure, artifacts = translate_node_from_tosca(restructured_mapping, element.name)
@@ -819,4 +825,6 @@ def translate(tosca_elements_map_to_provider, topology_template):
             new_element = translate_element_from_provider(element)
             new_element_templates = deep_update_dict(new_element_templates, new_element)
 
-    return new_element_templates, artifacts
+        conditions = set(conditions)
+
+    return new_element_templates, artifacts, conditions

@@ -55,6 +55,7 @@ class ProviderToscaTemplate (object):
         self.provider_defs = import_definition_file.get_custom_defs()
 
         self.artifacts = [self.definition_file()]
+        self.used_conditions_set = set()
 
         self.topology_template = self.translate_to_provider()
 
@@ -91,14 +92,18 @@ class ProviderToscaTemplate (object):
             provider_nodes.append(provider_node_instance)
         return provider_nodes
 
-    def to_configuration_dsl_for_create(self, configuration_tool):
+    def to_configuration_dsl_for_create(self, configuration_tool, directory=None):
         """
         Fulfill configuration_content with functions based on configuration tool from every node
         :return:
         """
+        if not directory:
+            directory = self.DEFAULT_ARTIFACTS_DIRECTOR
+
         self.configuration_content = ''
         self.configuration_ready = False
         tool = CONFIGURATION_TOOLS.get(configuration_tool)()
+        tool.copy_conditions_to_the_directory(self.used_conditions_set, directory)
         content = tool.to_dsl_for_create(self.provider, self.provider_nodes_queue)
 
         self.configuration_content = yaml.dump(content)
@@ -357,9 +362,10 @@ class ProviderToscaTemplate (object):
         return
 
     def translate_to_provider(self):
-        new_element_templates, new_artifacts = translate_to_provider(self.tosca_elements_map_to_provider(),
+        new_element_templates, new_artifacts, conditions_set = translate_to_provider(self.tosca_elements_map_to_provider(),
                                                    self.tosca_topology_template)
 
+        self.used_conditions_set = conditions_set
         dict_tpl = copy.deepcopy(self.tosca_topology_template.tpl)
         if new_element_templates.get(NODES):
             dict_tpl[NODE_TEMPLATES] = new_element_templates[NODES]

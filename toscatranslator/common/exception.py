@@ -41,5 +41,10 @@ class UnsupportedExecutorType(TOSCAException):
 class ProviderConfigurationNotFound(TOSCAException):
     msg_fmt = _('Provider configuration was not found. It must be one of the variants: "%(what)s"')
 
+
 class ProviderConfigurationParameterError(TOSCAException):
     msg_fmt = _('Provider configuration parameter "%(what)s" has unsupported value or missing')
+
+
+class ConditionFileError(TOSCAException):
+    msg_fmt = _('Error loading condition file "%(what)s"')
