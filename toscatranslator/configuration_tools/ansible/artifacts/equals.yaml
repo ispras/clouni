@@ -1,0 +1,25 @@
+# input_facts and input_args are defined
+# matched_object is required
+
+- set_fact:
+    matched_objects: "{{ [] }}"
+
+- name: Create list of matched objects
+  set_fact:
+    matched_objects: "{{ matched_objects + [item] }}"
+  with_items: "{{ input_facts }}"
+  loop_control:
+    label: "{{ item[input_args[0]], input_args[1] }}"
+  when: item[input_args[0]] == input_args[1]
+
+- debug:
+    msg: "WARNING: there are more than one matchable objects: {{ matched_objects }}"
+  when: matched_objects | length > 1
+
+- fail:
+    msg: "There are no matchable objects"
+  when: matched_objects | length == 0
+
+- set_fact:
+    matched_object: "{{ item }}"
+  with_items: "{{ matched_objects }}"

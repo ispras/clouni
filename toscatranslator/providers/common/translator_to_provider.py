@@ -526,14 +526,35 @@ def get_source_structure_from_facts(condition, fact_name, value, arguments, exec
     :param source_value:
     :return:
     """
+
+    if isinstance(fact_name, six.string_types):
+        fact_name_splitted = fact_name.split(SEPARATOR)
+        source_name = fact_name_splitted[0]
+        facts_result = "facts_result"
+        if len(fact_name_splitted) > 1:
+            facts_result += "[\"" + "\"][\"".join(fact_name_splitted[1:]) + "\"]"
+        facts_result = "{{{{ " + facts_result + " }}}}"
+        new_global_elements_map_total_implementation = [
+            {
+                SOURCE: source_name,
+                VALUE: "facts_result",
+                EXECUTOR: executor,
+                PARAMETERS: {}
+            },
+            {
+                SOURCE: SET_FACT_SOURCE,
+                PARAMETERS: {
+                    "target_objects": facts_result
+                },
+                VALUE: "tmp_value",
+                EXECUTOR: executor
+            }
+        ]
+    else:
+        new_global_elements_map_total_implementation = fact_name
+
     target_parameter_splitted = target_parameter.split(SEPARATOR)
-    fact_name_splitted = fact_name.split(SEPARATOR)
-    source_name = fact_name_splitted[0]
     relationship_name = "{self[name]}_server_" + snake_case.convert(target_parameter_splitted[-1])
-    facts_result = "facts_result"
-    if len(fact_name_splitted) > 1:
-        facts_result += "[\"" + "\"][\"".join(fact_name_splitted[1:]) + "\"]"
-    facts_result = "{{{{ " + facts_result + " }}}}"
 
     provider = target_parameter_splitted[0]
     target_interface_name = "Target"
@@ -551,7 +572,23 @@ def get_source_structure_from_facts(condition, fact_name, value, arguments, exec
             what=target_parameter
         ))
 
-    tag_operation_name = fact_name.replace(SEPARATOR, '_')
+    tag_operation_name = None
+    if isinstance(fact_name, six.string_types):
+        tag_operation_name = fact_name.replace(SEPARATOR, '_')
+    elif isinstance(fact_name, dict):
+        for k, v in fact_name:
+            tag_operation_name = k.replace(SEPARATOR, '_')
+            break
+    elif isinstance(fact_name, list):
+        if isinstance(fact_name[0], dict):
+            for k, v in fact_name[0].items():
+                tag_operation_name = k.replace(SEPARATOR, '_')
+                break
+        else:
+            tag_operation_name = str(fact_name[0]).replace(SEPARATOR, '_')
+    else:
+        tag_operation_name = str(fact_name).replace(SEPARATOR, '_')
+
     choose_operation_name = "choose_" + tag_operation_name
     total_operation_name = "total_" + tag_operation_name
 
@@ -572,22 +609,7 @@ def get_source_structure_from_facts(condition, fact_name, value, arguments, exec
         PARAMETER: target_total_parameter_new,
         KEYNAME: relationship_name,
         VALUE: {
-            IMPLEMENTATION: [
-                {
-                    SOURCE: source_name,
-                    VALUE: "facts_result",
-                    EXECUTOR: executor,
-                    PARAMETERS: {}
-                },
-                {
-                    SOURCE: SET_FACT_SOURCE,
-                    PARAMETERS: {
-                      "target_objects": facts_result
-                    },
-                    VALUE: "tmp_value",
-                    EXECUTOR: executor
-                }
-            ]
+            IMPLEMENTATION: new_global_elements_map_total_implementation
         }
     }
     new_global_elements_map_choose = {
@@ -599,7 +621,7 @@ def get_source_structure_from_facts(condition, fact_name, value, arguments, exec
                 {
                     SOURCE: SET_FACT_SOURCE,
                     PARAMETERS: {
-                        value: "{{{{ matched_object[" + value + "] }}}}"
+                        value: "{{{{ matched_object[\"" + value + "\"] }}}}"
                     },
                     VALUE: "tmp_value",
                     EXECUTOR: executor
@@ -707,7 +729,7 @@ def restructure_mapping_facts(elements_map, extra_elements_map=None, target_para
                             VALUE: "default_value",
                             EXECUTOR: ANSIBLE,
                             PARAMETERS: {
-                                value_name: "{{{{ {{ parameter: value }} }}}}" # so many braces because format
+                                value_name: "{{{{ {{ input_parameter: input_value }} }}}}" # so many braces because format
                                 # uses braces and replace '{{' with '{'
                             }
                         },

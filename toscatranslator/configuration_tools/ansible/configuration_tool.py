@@ -8,7 +8,7 @@ import copy, yaml, os, itertools
 REGISTER = 'register'
 DEFAULT_HOST = 'localhost'
 SET_FACT_MODULE = 'set_fact'
-IMPORT_TASKS_MODULE = 'import_tasks'
+IMPORT_TASKS_MODULE = 'include'
 
 
 class AnsibleConfigurationTool(ConfigurationTool):
