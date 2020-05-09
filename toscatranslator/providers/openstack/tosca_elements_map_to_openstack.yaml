@@ -13,13 +13,13 @@ tosca.nodes.Compute:
             - parameter:
                 value: name
                 condition: equals
-                facts: os_network_facts.ansible_facts.openstack_networks
+                facts: os_networks_facts.ansible_facts.openstack_networks
                 executor: ansible
                 arguments:
                   - id
                   - value: network_id
                     condition: ip_contains
-                    facts: os_subnet_facts.ansible_facts.openstack_subnets
+                    facts: os_subnets_facts.ansible_facts.openstack_subnets
                     executor: ansible
                     arguments:
                       - allocation_pool_start
@@ -41,14 +41,14 @@ tosca.nodes.Compute:
                   - parameter: name
                     value:
                       value: name
-                      facts: os_network_facts.ansible_facts.openstack_networks
+                      facts: os_networks_facts.ansible_facts.openstack_networks
                       condition: equals
                       executor: ansible
                       arguments:
                         - id
                         - value: network_id
                           condition: ip_contains
-                          facts: os_subnet_facts.ansible_facts.openstack_subnets
+                          facts: os_subnets_facts.ansible_facts.openstack_subnets
                           executor: ansible
                           arguments:
                             - allocation_pool_start
@@ -71,7 +71,7 @@ tosca.nodes.Compute:
         value:
           - parameter: id
             value: network_id
-            facts: os_subnet_facts.ansible_facts.openstack_subnets
+            facts: os_subnets_facts.ansible_facts.openstack_subnets
             executor: ansible
             condition: ip_contains
             arguments:
@@ -104,7 +104,7 @@ tosca.nodes.Compute:
           - parameter: id
             value:
               value: network_id
-              facts: os_subnet_facts.ansible_facts.openstack_subnets
+              facts: os_subnets_facts.ansible_facts.openstack_subnets
               executor: ansible
               condition: ip_contains
               arguments:
