@@ -35,6 +35,9 @@ class TestAnsibleOpenStackOutput (unittest.TestCase, TestAnsibleProvider):
         server = tasks[0][SERVER_MODULE_NAME]
         self.assertEqual(server['name'], self.NODE_NAME)
 
+    def test_meta(self):
+        super(TestAnsibleOpenStackOutput, self).test_meta()
+
     def check_meta (self, tasks, testing_value=None):
         server_name = None
         for task in tasks:
@@ -46,6 +49,9 @@ class TestAnsibleOpenStackOutput (unittest.TestCase, TestAnsibleProvider):
                 if testing_value:
                     self.assertEqual(server_meta, testing_value)
         self.assertIsNotNone(server_name)
+
+    def test_private_address(self):
+        super(TestAnsibleOpenStackOutput, self).test_private_address()
 
     def check_private_address(self, tasks, testing_value=None):
         port_name = None
@@ -61,6 +67,9 @@ class TestAnsibleOpenStackOutput (unittest.TestCase, TestAnsibleProvider):
                 self.assertIsNotNone(port_name)
                 self.assertIn(port_name, server_nics)
         self.assertIsNotNone(server_nics)
+
+    def test_public_address(self):
+        super(TestAnsibleOpenStackOutput, self).test_public_address()
 
     def check_public_address(self, tasks, testing_value=None):
         fip_server = None
@@ -80,6 +89,9 @@ class TestAnsibleOpenStackOutput (unittest.TestCase, TestAnsibleProvider):
                 server_name = task[SERVER_MODULE_NAME]['name']
         self.assertIsNotNone(fip_server)
 
+    def test_network_name(self):
+        super(TestAnsibleOpenStackOutput, self).test_network_name()
+
     def check_network_name(self, tasks, testing_value=None):
         server_name = None
         for task in tasks:
@@ -92,6 +104,9 @@ class TestAnsibleOpenStackOutput (unittest.TestCase, TestAnsibleProvider):
                     self.assertIn(testing_value, server_nics)
         self.assertIsNotNone(server_name)
 
+    def test_host_capabilities(self):
+        super(TestAnsibleOpenStackOutput, self).test_host_capabilities()
+
     def check_host_capabilities(self, tasks, testing_value=None):
         server_name = None
         for task in tasks:
@@ -103,6 +118,9 @@ class TestAnsibleOpenStackOutput (unittest.TestCase, TestAnsibleProvider):
                 if testing_value:
                     self.assertEqual(server_flavor, testing_value)
         self.assertIsNotNone(server_name)
+
+    def test_endpoint_capabilities(self):
+        super(TestAnsibleOpenStackOutput, self).test_endpoint_capabilities()
 
     def check_endpoint_capabilities(self, tasks, testing_value=None):
         sec_group_name = None
@@ -134,6 +152,9 @@ class TestAnsibleOpenStackOutput (unittest.TestCase, TestAnsibleProvider):
                 self.assertIsNotNone(sec_group_name)
                 self.assertIn(sec_group_name, server_groups)
         self.assertIsNotNone(server_name)
+
+    def test_os_capabilities(self):
+        super(TestAnsibleOpenStackOutput, self).test_os_capabilities()
 
     def check_os_capabilities(self, tasks, testing_value=None):
         server_name = None
