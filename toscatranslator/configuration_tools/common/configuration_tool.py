@@ -28,7 +28,7 @@ class ConfigurationTool(object):
         self.global_variables = {}
 
 
-    def to_dsl_for_create(self, provider, nodes_relationships_queue):
+    def to_dsl_for_create(self, provider, nodes_relationships_queue, target_directory):
         """
 
         :param provider: provider keyname

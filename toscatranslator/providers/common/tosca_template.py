@@ -104,7 +104,7 @@ class ProviderToscaTemplate (object):
         self.configuration_ready = False
         tool = CONFIGURATION_TOOLS.get(configuration_tool)()
         tool.copy_conditions_to_the_directory(self.used_conditions_set, directory)
-        content = tool.to_dsl_for_create(self.provider, self.provider_nodes_queue)
+        content = tool.to_dsl_for_create(self.provider, self.provider_nodes_queue, directory)
 
         self.configuration_content = yaml.dump(content)
         self.configuration_ready = True

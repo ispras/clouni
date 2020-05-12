@@ -65,6 +65,7 @@ class ProviderResource(object):
         relationship_template_names = set()
         provider_requirements = ProviderRequirements(self.requirement_definitions, self.provider)
         self.requirements = provider_requirements.get_requirements(node)
+        self.node_filter_artifacts = []
         for key, req in self.requirements.items():
             if type(req) is list:
                 self.configuration_args[key] = list(v.get_value() for v in req)

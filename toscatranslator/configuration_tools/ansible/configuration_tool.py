@@ -1,7 +1,9 @@
 from toscatranslator.configuration_tools.common.configuration_tool import *
-from toscatranslator.common.tosca_reserved_keys import PARAMETERS, VALUE, EXTRA, SOURCE, GET_OPERATION_OUTPUT, INPUTS
+from toscatranslator.common.tosca_reserved_keys import PARAMETERS, VALUE, EXTRA, SOURCE, GET_OPERATION_OUTPUT, INPUTS, \
+    NODE_FILTER
 from toscatranslator.common import snake_case
 from toscatranslator.providers.common.provider_configuration import ProviderConfiguration
+from toscatranslator.common.exception import ProviderConfigurationParameterError
 
 import copy, yaml, os, itertools
 
@@ -18,7 +20,8 @@ class AnsibleConfigurationTool(ConfigurationTool):
     Must be tested by TestAnsibleOpenstack.test_translating_to_ansible
     """
 
-    def to_dsl_for_create(self, provider, nodes_relationships_queue):
+    def to_dsl_for_create(self, provider, nodes_relationships_queue, target_directory):
+        self.target_directory = target_directory
         self.provider_config = ProviderConfiguration(provider)
 
         for v in nodes_relationships_queue:
@@ -86,27 +89,100 @@ class AnsibleConfigurationTool(ConfigurationTool):
         if additional_args is None:
             additional_args = {}
 
+        ansible_tasks_for_create = []
+
+        config = self.provider_config.get_subsection('ansible', 'node_filter')
+        if not config:
+            config = {}
+        node_filter_source_prefix = config.get('node_filter_source_prefix', '')
+        node_filter_source_postfix = config.get('node_filter_source_postfix', '')
+        node_filter_exceptions = config.get('node_filter_exceptions', '')
+        node_filter_inner_variable = config.get('node_filter_inner_variable')
+
+        configuration_args = {}
+        for arg_key, arg in element_object.configuration_args.items():
+            if isinstance(arg, dict):
+                node_filter_key = arg.get(SOURCE, {}).get(NODE_FILTER)
+                node_filter_value = arg.get(VALUE)
+                node_filter_params = arg.get(PARAMETERS)
+
+                if node_filter_key and node_filter_value and node_filter_params:
+                    node_filter_source = node_filter_source_prefix + node_filter_key + node_filter_source_postfix
+                    if node_filter_exceptions.get(node_filter_key):
+                        node_filter_source = node_filter_exceptions[node_filter_key]
+
+                    seed(time())
+                    node_filter_value_with_id = node_filter_value + '_' + str(randint(OUTPUT_ID_RANGE_START, OUTPUT_ID_RANGE_END))
+
+                    NODE_FILTER_FACTS = 'node_filter_facts'
+                    NODE_FILTER_FACTS_REGISTER = NODE_FILTER_FACTS + '_raw'
+                    NODE_FILTER_FACTS_VALUE = NODE_FILTER_FACTS_REGISTER
+                    NODE_FILTER_PARAMS = 'node_filter_params'
+                    if node_filter_inner_variable:
+                        if isinstance(node_filter_inner_variable, dict):
+                            node_filter_inner_variable = node_filter_inner_variable.get(node_filter_key, '')
+                        if isinstance(node_filter_inner_variable, six.string_types):
+                            node_filter_inner_variable = [node_filter_inner_variable]
+                        if isinstance(node_filter_inner_variable, list):
+                            for v in node_filter_inner_variable:
+                                NODE_FILTER_FACTS_VALUE += '[\"' + v + '\"]'
+                        else:
+                            ExceptionCollector.appendException(ProviderConfigurationParameterError(
+                                what='ansible.node_filter: node_filter_inner_variable'
+                            ))
+
+                    ansible_tasks = [
+                        {
+                            node_filter_source: {},
+                            REGISTER: NODE_FILTER_FACTS_REGISTER
+                        },
+                        {
+                            SET_FACT_MODULE: {
+                                NODE_FILTER_FACTS: self.rap_ansible_variable(NODE_FILTER_FACTS_VALUE)
+                            }
+                        },
+                        {
+                            SET_FACT_MODULE: {
+                                NODE_FILTER_PARAMS: node_filter_params
+                            }
+                        },
+                        {
+                            IMPORT_TASKS_MODULE: "equals.yaml input_facts='"+ self.rap_ansible_variable(NODE_FILTER_FACTS) +
+                                                 "' input_args='" + self.rap_ansible_variable(NODE_FILTER_PARAMS) + "'"
+                        },
+                        {
+                            SET_FACT_MODULE: {
+                                node_filter_value_with_id: self.rap_ansible_variable('matched_object[\"' + node_filter_value + '\"]')
+                            }
+                        }
+                    ]
+                    self.copy_conditions_to_the_directory({'equals'}, self.target_directory)
+                    ansible_tasks_for_create.extend(ansible_tasks)
+                    arg = self.rap_ansible_variable(node_filter_value_with_id)
+            configuration_args[arg_key] = arg
+
         ansible_args = copy.copy(element_object.configuration_args)
         ansible_args['state'] = 'present'
-        self.ansible_task_as_dict = dict()
-        self.ansible_task_as_dict['name'] = self.ansible_description_by_type(element_object)
-        self.ansible_task_as_dict[self.ansible_module_by_type(element_object)] = \
-            element_object.configuration_args
-        self.ansible_task = yaml.dump(self.ansible_task_as_dict)
+        ansible_task_as_dict = dict()
+        ansible_task_as_dict['name'] = self.ansible_description_by_type(element_object)
+        ansible_task_as_dict[self.ansible_module_by_type(element_object)] = configuration_args
+        ansible_tasks_for_create.append(ansible_task_as_dict)
 
-        return [self.ansible_task_as_dict]
+        return ansible_tasks_for_create
 
     def ansible_description_by_type(self, provider_source_obj):
         module_desc = 'Create element'
-        if 'ansible' in self.provider_config.config.sections():
-            new_module_desc = self.provider_config.config['ansible'].get('module_description')
+        ansible_config = self.provider_config.get_section('ansible')
+        if ansible_config:
+            new_module_desc = ansible_config.get('module_description')
             if new_module_desc:
                 module_desc = new_module_desc
         return module_desc + ' ' + snake_case.convert(provider_source_obj.type_name).replace('_', ' ')
 
     def ansible_module_by_type(self, provider_source_obj):
         module_prefix = ''
-        if 'ansible' in self.provider_config.config.sections():
+        ansible_config = self.provider_config.get_section('ansible')
+        if ansible_config:
             new_module_prefix = self.provider_config.config['ansible'].get('module_prefix')
             if new_module_prefix:
                 module_prefix = new_module_prefix
@@ -127,7 +203,7 @@ class AnsibleConfigurationTool(ConfigurationTool):
                 arg_v = v
 
                 if isinstance(v, (dict, list, set, tuple)):
-                    seed(time)
+                    seed(time())
                     arg_v = '_'.join([k, str(randint(OUTPUT_ID_RANGE_START, OUTPUT_ID_RANGE_END))])
                     new_task = {
                         SET_FACT_MODULE: {
