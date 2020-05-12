@@ -499,7 +499,30 @@ def translate_node_from_tosca(restructured_mapping, tpl_name):
                                 resulted_structure[keyname][node_type][section] = params
                             else:
                                 if section == REQUIREMENTS:
-                                    resulted_structure[keyname][node_type][section] += params
+                                    # NOTE params is of type list
+                                    # resulted_structure[keyname][node_type][section] is of type list
+                                    # Search for the same requirements
+                                    left_params = copy.deepcopy(params)
+                                    for i in range(len(resulted_structure[keyname][node_type][section])):
+                                        r = resulted_structure[keyname][node_type][section][i]
+                                        r_keys = set(r.keys())
+                                        for j in range(len(params)):
+                                            new = params[j]
+                                            new_keys = set(new.keys())
+                                            common = r_keys.intersection(new_keys)
+                                            if bool(common):
+                                                for v in common:
+                                                    temp_v = resulted_structure[keyname][node_type][section][i][v]
+                                                    resulted_structure[keyname][node_type][section][i][v] = \
+                                                        deep_update_dict(temp_v, params[j][v])
+                                                    left_params[j].pop(v)
+                                                    if not bool(left_params[j]):
+                                                        left_params = left_params[:j].extend(left_params[j+1:])
+                                                        # NOTE if empty list is extended with empty list it returns None without error
+                                                        if not left_params:
+                                                            left_params = []
+
+                                    resulted_structure[keyname][node_type][section].extend(left_params)
                                 else:
                                     if isinstance(params, list):
                                         for params_i in params:
