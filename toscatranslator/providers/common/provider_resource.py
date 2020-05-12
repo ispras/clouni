@@ -84,8 +84,7 @@ class ProviderResource(object):
             if relation.name in relationship_template_names:
                 self.relationship_templates.append(relation)
 
-        if not hasattr(self, 'NODE_PRIORITY_BY_TYPE'):
-            ProviderResource.NODE_PRIORITY_BY_TYPE = self.compute_node_priorities(node.custom_def)
+        self.node_priority = self.compute_node_priorities(node.custom_def)
 
     def get_node_type_priority(self, node_type_definitions, node_type_name):
         """
@@ -179,5 +178,5 @@ class ProviderResource(object):
         return self.get_definitions_by_name(ARTIFACTS)
 
     def node_priority_by_type(self):
-        return self.NODE_PRIORITY_BY_TYPE.get(self.type)
+        return self.node_priority.get(self.type)
 
