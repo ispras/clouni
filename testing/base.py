@@ -159,7 +159,7 @@ class TestAnsibleProvider (BaseAnsibleProvider):
             testing_parameter = {
                 "networks": {
                     "default": {
-                        "name": testing_value
+                        "network_name": testing_value
                     }
                 }
             }
