@@ -272,6 +272,7 @@ class AnsibleConfigurationTool(ConfigurationTool):
         return
 
     def copy_conditions_to_the_directory(self, conditions_set, target_directory):
+        os.makedirs(target_directory, exist_ok=True)
         tool_artifacts_dir = os.path.join(os.path.dirname(os.path.realpath(__file__)), ARTIFACTS_DIRECTORY)
         for cond in conditions_set:
             filename = os.path.join(tool_artifacts_dir, cond + '.yaml')
