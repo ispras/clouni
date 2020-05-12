@@ -54,7 +54,7 @@ class ProviderToscaTemplate (object):
                                                self.tosca_topology_template.tpl)
         self.provider_defs = import_definition_file.get_custom_defs()
 
-        self.artifacts = [self.definition_file()]
+        self.artifacts = []
         self.used_conditions_set = set()
 
         self.topology_template = self.translate_to_provider()
@@ -104,11 +104,38 @@ class ProviderToscaTemplate (object):
         self.configuration_ready = False
         tool = CONFIGURATION_TOOLS.get(configuration_tool)()
         tool.copy_conditions_to_the_directory(self.used_conditions_set, directory)
-        content = tool.to_dsl_for_create(self.provider, self.provider_nodes_queue, directory)
+        tool_artifacts = []
+        for art in self.artifacts:
+            executor = art.get(EXECUTOR)
+            if bool(executor) and executor != configuration_tool:
+                self.generate_artifacts([art], directory)
+            else:
+                tool_artifacts.append(art)
+        content = tool.to_dsl_for_create(self.provider, self.provider_nodes_queue, tool_artifacts, directory)
 
         self.configuration_content = yaml.dump(content)
         self.configuration_ready = True
         return self.configuration_content
+
+    def generate_artifacts(self, new_artifacts, directory=None):
+        """
+        From the info of new artifacts generate files which execute
+        :param new_artifacts: list of dicts containing (value, source, parameters, executor, name, configuration_tool)
+        :return: None
+        """
+        if not directory:
+            directory = self.DEFAULT_ARTIFACTS_DIRECTOR
+
+        for art in new_artifacts:
+            filename = os.path.join(directory, art[NAME])
+            configuration_class = CONFIGURATION_TOOLS.get(art[EXECUTOR])()
+            if not configuration_class:
+                ExceptionCollector.appendException(UnsupportedExecutorType(
+                    what=art[EXECUTOR]
+                ))
+            configuration_class.create_artifact(filename, art)
+            self.artifacts.append(filename)
+        return
 
     def _sort_nodes_by_priority(self):
         """
@@ -341,26 +368,6 @@ class ProviderToscaTemplate (object):
             ))
         return data_dict
 
-    def generate_artifacts(self, new_artifacts, directory=None):
-        """
-        From the info of new artifacts generate files which execute
-        :param new_artifacts: list of dicts containing (value, source, parameters, executor, name, configuration_tool)
-        :return: None
-        """
-        if not directory:
-            directory = self.DEFAULT_ARTIFACTS_DIRECTOR
-
-        for art in new_artifacts:
-            filename = os.path.join(directory, art[NAME])
-            configuration_class = CONFIGURATION_TOOLS.get(art[EXECUTOR])()
-            if not configuration_class:
-                ExceptionCollector.appendException(UnsupportedExecutorType(
-                    what=art[EXECUTOR]
-                ))
-            configuration_class.create_artifact(filename, art)
-            self.artifacts.append(filename)
-        return
-
     def translate_to_provider(self):
         new_element_templates, new_artifacts, conditions_set = translate_to_provider(self.tosca_elements_map_to_provider(),
                                                    self.tosca_topology_template)
@@ -378,7 +385,7 @@ class ProviderToscaTemplate (object):
             if element_type == RELATIONSHIP_TYPES:
                 rel_types.append(v)
         topology_tpl = TopologyTemplate(dict_tpl, self.provider_defs, rel_types)
-        self.generate_artifacts(new_artifacts)
+        self.artifacts.extend(new_artifacts)
 
         return topology_tpl
 

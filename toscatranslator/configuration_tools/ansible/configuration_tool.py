@@ -1,6 +1,6 @@
 from toscatranslator.configuration_tools.common.configuration_tool import *
 from toscatranslator.common.tosca_reserved_keys import PARAMETERS, VALUE, EXTRA, SOURCE, GET_OPERATION_OUTPUT, INPUTS, \
-    NODE_FILTER
+    NODE_FILTER, NAME
 from toscatranslator.common import snake_case
 from toscatranslator.providers.common.provider_configuration import ProviderConfiguration
 from toscatranslator.common.exception import ProviderConfigurationParameterError
@@ -20,9 +20,12 @@ class AnsibleConfigurationTool(ConfigurationTool):
     Must be tested by TestAnsibleOpenstack.test_translating_to_ansible
     """
 
-    def to_dsl_for_create(self, provider, nodes_relationships_queue, target_directory):
+    def to_dsl_for_create(self, provider, nodes_relationships_queue, artifacts, target_directory):
         self.target_directory = target_directory
         self.provider_config = ProviderConfiguration(provider)
+        self.artifacts = {}
+        for art in artifacts:
+            self.artifacts[art[NAME]] = art
 
         for v in nodes_relationships_queue:
             self.gather_global_operations(v)
@@ -50,6 +53,7 @@ class AnsibleConfigurationTool(ConfigurationTool):
             hosts=DEFAULT_HOST,
             tasks=ansible_task_list
         )]
+
         return ansible_playbook
 
     def replace_all_get_functions(self, data):
@@ -117,7 +121,6 @@ class AnsibleConfigurationTool(ConfigurationTool):
                     NODE_FILTER_FACTS = 'node_filter_facts'
                     NODE_FILTER_FACTS_REGISTER = NODE_FILTER_FACTS + '_raw'
                     NODE_FILTER_FACTS_VALUE = NODE_FILTER_FACTS_REGISTER
-                    NODE_FILTER_PARAMS = 'node_filter_params'
                     if node_filter_inner_variable:
                         if isinstance(node_filter_inner_variable, dict):
                             node_filter_inner_variable = node_filter_inner_variable.get(node_filter_key, '')
@@ -138,17 +141,16 @@ class AnsibleConfigurationTool(ConfigurationTool):
                         },
                         {
                             SET_FACT_MODULE: {
-                                NODE_FILTER_FACTS: self.rap_ansible_variable(NODE_FILTER_FACTS_VALUE)
+                                "input_facts": self.rap_ansible_variable(NODE_FILTER_FACTS_VALUE)
                             }
                         },
                         {
                             SET_FACT_MODULE: {
-                                NODE_FILTER_PARAMS: node_filter_params
+                                "input_args": node_filter_params
                             }
                         },
                         {
-                            IMPORT_TASKS_MODULE: "equals.yaml input_facts='"+ self.rap_ansible_variable(NODE_FILTER_FACTS) +
-                                                 "' input_args='" + self.rap_ansible_variable(NODE_FILTER_PARAMS) + "'"
+                            IMPORT_TASKS_MODULE: 'equals.yaml'
                         },
                         {
                             SET_FACT_MODULE: {
@@ -198,6 +200,7 @@ class AnsibleConfigurationTool(ConfigurationTool):
         import_task_arg = op_info[IMPLEMENTATION]
         if not isinstance(import_task_arg, list):
             import_task_arg = [import_task_arg]
+
         if op_info.get(INPUTS):
             for k, v in op_info[INPUTS].items():
                 arg_v = v
@@ -213,18 +216,22 @@ class AnsibleConfigurationTool(ConfigurationTool):
                     tasks.append(new_task)
                     arg_v = self.rap_ansible_variable(arg_v)
                 arg_k = k
-                arg_v = '\"' + arg_v + '\"'
-                temp_arg = arg_k + '=' + arg_v
-                new_import_task_arg = []
-                for i in import_task_arg:
-                    new_import_task_arg.append(i + ' ' + temp_arg)
-                import_task_arg = new_import_task_arg
-
+                new_task = {
+                    SET_FACT_MODULE: {
+                        arg_k: arg_v
+                    }
+                }
+                tasks.append(new_task)
         for i in import_task_arg:
-            new_task = {
-                IMPORT_TASKS_MODULE: i
-            }
-            tasks.append(new_task)
+            if self.artifacts.get(i):
+                art_data = self.artifacts[i]
+                new_tasks = self.create_artifact_data(art_data)
+                tasks.extend(new_tasks)
+            else:
+                new_task = {
+                    IMPORT_TASKS_MODULE: i
+                }
+                tasks.append(new_task)
         for k, v in op_info[OUTPUT_IDS].items():
             new_task = {
                 SET_FACT_MODULE: {
@@ -238,8 +245,8 @@ class AnsibleConfigurationTool(ConfigurationTool):
         r = "{{ " + s + " }}"
         return r
 
-    def create_artifact(self, filename, data):
-        os.makedirs(os.path.dirname(filename), exist_ok=True)
+    @staticmethod
+    def create_artifact_data(data):
         parameters = data[PARAMETERS]
         source = data[SOURCE]
         extra = data.get(EXTRA)
@@ -253,7 +260,11 @@ class AnsibleConfigurationTool(ConfigurationTool):
         ]
         if extra:
             task_data.update(extra)
+        return tasks
 
+    def create_artifact(self, filename, data):
+        os.makedirs(os.path.dirname(filename), exist_ok=True)
+        tasks = AnsibleConfigurationTool.create_artifact_data(data)
         with open(filename, "w") as f:
             filedata = yaml.dump(tasks)
             f.write(filedata)

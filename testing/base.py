@@ -176,7 +176,7 @@ class TestAnsibleProvider (BaseAnsibleProvider):
             template = copy.deepcopy(self.DEFAULT_TEMPLATE)
             testing_parameter = {
                 "num_cpus": 1,
-                "disk_size": "160 GiB",
+                "disk_size": "5 GiB",
                 "mem_size": "1024 MiB"
             }
             template = self.update_template_capability_properties(template, self.NODE_NAME, "host", testing_parameter)
