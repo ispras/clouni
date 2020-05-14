@@ -95,7 +95,9 @@ data_types:
     derived_from: kubernetes.datatypes.Root
     properties:
       matchLabels:
-        description: matchLabels is a map of {key,value} pairs. A single {key,value} in the matchLabels map is equivalent to an element of matchExpressions, whose key field is "key", the operator is "In", and the values array contains only "value". The requirements are ANDed.
+        description: >
+          matchLabels is a map of {key,value} pairs. A single {key,value} in the matchLabels map is equivalent to an element of matchExpressions,
+          whose key field is "key", the operator is "In", and the values array contains only "value". The requirements are ANDed.
         type: map
         required: true
 
@@ -111,6 +113,17 @@ data_types:
         type: kubernetes.datatypes.PodSpec
         required: true
 
+  kubernetes.datatypes.PodSpec:
+    derived_from: kubernetes.datatypes.Root
+    properties:
+      containers:
+        description: >
+          List of containers belonging to the pod. Containers cannot currently be added or removed. There must be at least one container in a Pod. Cannot be updated.
+        type: list
+        entry_schema:
+          type: kubernetes.datatypes.Container
+        required: true
+
   kubernetes.datatypes.Container:
     derived_from:  kubernetes.datatypes.Root
     properties:
@@ -118,7 +131,9 @@ data_types:
         type: string
         required: true
       image:
-        description: Docker image name. More info https://kubernetes.io/docs/concepts/containers/images This field is optional to allow higher level config management to default or override container images in workload controllers like Deployments and StatefulSets.
+        description: >
+          Docker image name. More info https://kubernetes.io/docs/concepts/containers/images This field is optional to allow higher level config management
+          to default or override container images in workload controllers like Deployments and StatefulSets.
         type: string
 #        constraints:
 #          - pattern: (.*)\/?(.*)\:(.*)
@@ -133,35 +148,32 @@ data_types:
         type: kubernetes.datatypes.ResourceRequirements
         required: false
       args:
-        description: Arguments to the entrypoint. The docker image's CMD is used if this is not provided. Variable references $(VAR_NAME) are expanded using the container's environment. If a variable cannot be resolved, the reference in the input string will be unchanged. The $(VAR_NAME) syntax can be escaped with a double $$, ie $$(VAR_NAME). Escaped references will never be expanded, regardless of whether the variable exists or not. Cannot be updated.
+        description: >
+          Arguments to the entrypoint. The docker image's CMD is used if this is not provided. Variable references $(VAR_NAME) are expanded using the container's environment.
+          If a variable cannot be resolved, the reference in the input string will be unchanged. The $(VAR_NAME) syntax can be escaped with a double $$, ie $$(VAR_NAME).
+          Escaped references will never be expanded, regardless of whether the variable exists or not. Cannot be updated.
         type: list
         entry_schema:
           type: string
         required: false
       command:
-        description: Entrypoint array. Not executed within a shell. The docker image's ENTRYPOINT is used if this is not provided. Variable references $(VAR_NAME) are expanded using the container's environment. If a variable cannot be resolved, the reference in the input string will be unchanged.
-        default: "[\"/bin/echo\"]"
+        description: >
+          Entrypoint array. Not executed within a shell. The docker image's ENTRYPOINT is used if this is not provided.
+          Variable references $(VAR_NAME) are expanded using the container's environment. If a variable cannot be resolved,
+          the reference in the input string will be unchanged.
+        default: [\"/bin/echo\"]
         type: list
         entry_schema:
           type: string
         required: false
 
-
-  kubernetes.datatypes.PodSpec:
-    derived_from: kubernetes.datatypes.Root
-    properties:
-      containers:
-        description: List of containers belonging to the pod. Containers cannot currently be added or removed. There must be at least one container in a Pod. Cannot be updated.
-        type: list
-        entry_schema:
-          type: kubernetes.datatypes.Container
-        required: true
-
   kubernetes.datatypes.ContainerPort:
     derived_from:  kubernetes.datatypes.Root
     properties:
       name:
-        description: If specified, this must be an IANA_SVC_NAME and unique within the pod. Each named port in a pod must have a unique name. Name for the port that can be referred to by services.
+        description: >
+          If specified, this must be an IANA_SVC_NAME and unique within the pod. Each named port in a pod must have a unique name.
+          Name for the port that can be referred to by services.
         type: string
         required: true
       containerPort:
@@ -206,7 +218,9 @@ data_types:
         constraints:
           - greater_or_equal: 0
       selector:
-        description: Label selector for pods. Existing ReplicaSets whose pods are selected by this will be the ones affected by this deployment. It must match the pod template's labels.
+        description: >
+          Label selector for pods. Existing ReplicaSets whose pods are selected by this will be the ones affected by this deployment.
+          It must match the pod template's labels.
         type: kubernetes.datatypes.LabelSelector
         required: false
       template:
@@ -217,7 +231,9 @@ data_types:
     derived_from: kubernetes.datatypes.Root
     properties:
       clusterIP:
-        description: clusterIP is the IP address of the service and is usually assigned randomly by the master. If an address is specified manually and is not in use by others, it will be allocated to the service.
+        description: >
+          clusterIP is the IP address of the service and is usually assigned randomly by the master. If an address is specified manually and is not in use by others,
+          it will be allocated to the service.
         type: string
         constraints:
           - pattern: ([0-9A-Fa-f]{1,4}:){7}[0-9A-Fa-f]{1,4}|(\d{1,3}\.){3}\d{1,3}
@@ -237,7 +253,9 @@ data_types:
           type: kubernetes.datatypes.ServicePort
         required: true
       selector:
-        description: Route service traffic to pods with label keys and values matching this selector. If empty or not present, the service is assumed to have an external process managing its endpoints, which Kubernetes will not modify.
+        description: >
+          Route service traffic to pods with label keys and values matching this selector. If empty or not present, the service is assumed to have an external
+          process managing its endpoints, which Kubernetes will not modify.
         type: map
         required: false
 
@@ -251,7 +269,9 @@ data_types:
           - valid_values: [TCP, UDP, SCTP]
         required: false
       targetPort:
-        description: Number or name of the port to access on the pods targeted by the service. Number must be in the range 1 to 65535. Name must be an IANA_SVC_NAME. If this is a string, it will be looked up as a named port in the target Pod's container ports.
+        description: >
+          Number or name of the port to access on the pods targeted by the service. Number must be in the range 1 to 65535. Name must be an IANA_SVC_NAME. If this is a string,
+          it will be looked up as a named port in the target Pod's container ports.
         type: integer
         constraints:
           - in_range: [1,65535]

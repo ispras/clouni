@@ -356,6 +356,7 @@ class ProviderToscaTemplate (object):
 
         with open(tosca_elements_map_file, 'r') as file_obj:
             data = file_obj.read()
+            data_dict ={}
             try:
                 data_dict = json.loads(data)
             except:

@@ -30,61 +30,64 @@ tosca.nodes.Compute:
         error: true
         reason: "disk_size not supported in Kubernetes"
       mem_size:
-        - parameter: "kubernetes.nodes.Deployment.properties.spec.template.spec.containers"
-          value:
-            - parameter: resources
-              value:
-                - parameter: limits
-                  value:
-                    - parameter: memory
-                      value: "{self[value]}"
-    endpoint.properties:
-      protocol:
-        parameter: "kubernetes.nodes.Service.properties.spec.ports"
+        parameter: "kubernetes.nodes.Deployment.properties.spec.template.spec.containers"
         value:
-          - parameter: protocol
-            value: "{self[value]}"
-      port:
-        - parameter: "kubernetes.nodes.Service.properties.spec.ports"
-          value:
-            - parameter: port
-              value: "{self[value]}"
-        - parameter: "kubernetes.nodes.Service.properties.metadata.name"
-          value: "{self[name]}-service"
-      port_name:
-        - parameter: "kubernetes.nodes.Service.properties.spec.ports"
-          value:
-            - parameter: targetPort
-              value: "{self[value]}"
-        - parameter: "kubernetes.nodes.Deployment.properties.spec.template.spec.containers"
-          value:
-            - parameter: ports
+          - parameter: resources
+            value:
+              parameter: limits
               value:
-                - parameter: name
-                  value: "{self[value]}"
-                - parameter: containerPort
-                  value: "{self[value]}"
-        - parameter: "kubernetes.nodes.Service.properties.spec.selector"
-          value:
-            app: "{self[name]}"
-        - parameter: "kubernetes.nodes.Deployment.properties.spec.selector.matchLabels"
-          value:
-            app: "{self[name]}"
-      secure:
-        error: true
-        reason: "secure not supported in Kubernetes"
-      url_path:
-        error: true
-        reason: "url_path not supported in Kubernetes"
-      network_name:
-        error: true
-        reason: "network_name not supported in Kubernetes"
-      initiator:
-        error: true
-        reason: "initiator not supported in Kubernetes"
-      ports:
-        error: true
-        reason: "ports not supported in Kubernetes"
+                parameter: memory
+                value: "{self[value]}"
+#                   source: units.py
+#                   parameters:
+#                        source_value: "{self[value]}"
+#                        target_unit: B
+#                  executor: python
+#                  value: default
+    endpoint.properties:
+      - protocol:
+          parameter: "{self[buffer][protocol]}"
+          value: "{self[value]}"
+        port:
+          - parameter: "{self[buffer][port]}"
+            value: "{self[value]}"
+          - parameter: "kubernetes.nodes.Service.properties.metadata.name"
+            value: "{self[name]}-service"
+        port_name:
+          - parameter: "{self[buffer][targetPort]}"
+            value: "{self[value]}"
+          - parameter: "kubernetes.nodes.Deployment.properties.spec.template.spec.containers"
+            value:
+              - parameter: ports
+                value:
+                  - parameter: name
+                    value: "{self[value]}"
+                  - parameter: containerPort
+                    value: "{self[value]}"
+          - parameter: "kubernetes.nodes.Service.properties.spec.selector"
+            value:
+              app: "{self[name]}"
+          - parameter: "kubernetes.nodes.Deployment.properties.spec.selector.matchLabels"
+            value:
+              app: "{self[name]}"
+        secure:
+          error: true
+          reason: "secure not supported in Kubernetes"
+        url_path:
+          error: true
+          reason: "url_path not supported in Kubernetes"
+        network_name:
+          error: true
+          reason: "network_name not supported in Kubernetes"
+        initiator:
+          error: true
+          reason: "initiator not supported in Kubernetes"
+        ports:
+          error: true
+          reason: "ports not supported in Kubernetes"
+      - parameter: "kubernetes.nodes.Service.properties.spec.ports"
+        value:
+          - "{self[buffer]}"
     os.properties:
       - architecture:
           error: true
@@ -95,13 +98,13 @@ tosca.nodes.Compute:
         distribution:
           parameter: "{self[buffer][image]}"
           value: "{self[value]}"
-          #        version:
-          #          parameter: "{self[buffer][tag]}"
-          #          value: ":{self[value]}"
+        version:
+          parameter: "{self[buffer][ver]}"
+          value: ":{self[value]}"
       - parameter: "kubernetes.nodes.Deployment.properties.spec.template.spec.containers"
         value:
           - parameter: image
-            value: "{self[buffer][image]}"#{self[buffer][tag]}"
+            value: "{self[buffer][image]}:{self[buffer][ver]}"
       - parameter: "kubernetes.nodes.Deployment.properties.metadata.name"
         value: "{self[name]}-deployment"
       - parameter: "kubernetes.nodes.Deployment.properties.metadata.labels"

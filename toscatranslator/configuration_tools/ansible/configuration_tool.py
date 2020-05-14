@@ -54,7 +54,7 @@ class AnsibleConfigurationTool(ConfigurationTool):
             tasks=ansible_task_list
         )]
 
-        return ansible_playbook
+        return yaml.dump(ansible_playbook)
 
     def replace_all_get_functions(self, data):
         if isinstance(data, dict):

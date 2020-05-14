@@ -21,7 +21,6 @@ OUTPUT_ID_RANGE_END = 9999
 
 class ConfigurationTool(object):
 
-
     def __init__(self):
         self.global_operations_queue = []
         self.global_operations_info = {}
@@ -143,4 +142,4 @@ class ConfigurationTool(object):
         return required_operations
 
     def copy_conditions_to_the_directory(self, used_conditions_set, directory):
-        raise NotImplementedError
+        raise NotImplementedError()

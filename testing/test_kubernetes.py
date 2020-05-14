@@ -2,11 +2,11 @@ import unittest
 import copy
 
 from toscaparser.common.exception import MissingRequiredFieldError, ValidationError
-from testing.base import TestAnsibleProviderOutput
+from testing.base import BaseAnsibleProvider
 from toscatranslator import shell
 
 
-class TestKubernetesOutput(unittest.TestCase, TestAnsibleProviderOutput):
+class TestKubernetesOutput(unittest.TestCase, BaseAnsibleProvider):
     PROVIDER = 'kubernetes'
 
     def setUp(self):
@@ -17,11 +17,14 @@ class TestKubernetesOutput(unittest.TestCase, TestAnsibleProviderOutput):
         self.delete_template(self.TESTING_TEMPLATE_FILENAME)
 
     # FIXME:  bug 7606
-    @unittest.skip
+    # @unittest.skip
+    def test_validation(self):
+        shell.main(['--template-file',  r'C:\Projects\tosca-tool\examples\tosca-server-example-kubernetes.yaml', '--validate-only'])
+
     def test_k8s_translate(self):
         shell.main(
-            ['--template-file', 'examples/tosca-server-example-kubernetes.yaml', '--provider',
-             'kubernetes', '--configuration-tool', 'kubernetes'])
+            ['--template-file', r'C:\Projects\tosca-tool\examples\tosca-server-example-kubernetes.yaml', '--provider',
+             self.PROVIDER, '--configuration-tool', 'kubernetes'])
 
     def update_port(self, template):
         testing_parameter = {'endpoint': {'properties': {'port': 888}}}
@@ -45,10 +48,8 @@ class TestKubernetesOutput(unittest.TestCase, TestAnsibleProviderOutput):
                                                       {'private_address': '192.168.12.2578'})
             self.update_port(template)
 
-    # FIXME:  bug 7606
-    @unittest.expectedFailure
     def test_private_address_with_protocol(self):
-        template = self.update_template_attribute(self.template, self.NODE_NAME, {'private_address': '10.233.0.2'})
+        template = self.update_template_attribute(self.template, self.NODE_NAME, {'private_address': '192.168.12.25'})
         testing_parameter = {'endpoint': {'properties': {'port': 888, 'protocol': 'TCP'}}}
         template = self.update_template_capability(template, self.NODE_NAME, testing_parameter)
         manifest = self.get_k8s_output(template)
@@ -74,22 +75,19 @@ class TestKubernetesOutput(unittest.TestCase, TestAnsibleProviderOutput):
             template = self.update_template_attribute(template, self.NODE_NAME, {'private_address': '192.168.12.24'})
             self.get_k8s_output(template)
 
-    # FIXME:  bug 7606
-    @unittest.expectedFailure
     def test_service_with_targetPort(self):
-        with self.assertRaises(ValidationError):
-            testing_parameter = {'endpoint': {'properties': {'port_name': 8000, 'port': 888}},
-                                 'os': {'properties': {'type': 'ubuntu', 'distribution': 'xenial'}}}
-            template = self.update_template_capability(self.template, self.NODE_NAME, testing_parameter)
-            manifest = self.get_k8s_output(template)
-            self.assertEqual(manifest[1].get('apiVersion'), 'v1')
-            self.assertEqual(manifest[1].get('kind'), 'Service')
-            self.assertEqual(manifest[1].get('metadata'), dict({'name': 'server_master-service'}))
-            self.assertEqual(manifest[1].get('spec'),
-                             {'ports': [{'targetPort': 8000}], 'selector': {'app': 'server_master'}})
-            testing_parameter = {'endpoint': {'properties': {'port_name': 655555}}}
-            template = self.update_template_capability(template, self.NODE_NAME, testing_parameter)
-            manifest = self.get_k8s_output(template)
+        testing_parameter = {'endpoint': {'properties': {'port_name': 8000, 'port': 888}},
+                             'os': {'properties': {'type': 'ubuntu', 'distribution': 'xenial'}}}
+        template = self.update_template_capability(self.template, self.NODE_NAME, testing_parameter)
+        manifest = self.get_k8s_output(template)
+        self.assertEqual(manifest[1].get('apiVersion'), 'v1')
+        self.assertEqual(manifest[1].get('kind'), 'Service')
+        self.assertEqual(manifest[1].get('metadata'), dict({'name': 'server_master-service'}))
+        self.assertEqual(manifest[1].get('spec'),
+                         {'ports': [{'targetPort': 8000}], 'selector': {'app': 'server_master'}})
+        testing_parameter = {'endpoint': {'properties': {'port_name': 65555}}}
+        template = self.update_template_capability(template, self.NODE_NAME, testing_parameter)
+        manifest = self.get_k8s_output(template)
 
 
     # testing a Deployment

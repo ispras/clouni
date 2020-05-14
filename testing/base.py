@@ -43,7 +43,7 @@ class BaseAnsibleProvider:
         return r
 
     def parse_all_yaml(self, content):
-        r = yaml.load_all(content)
+        r = yaml.full_load_all(content)
         return r
 
     def prepare_yaml(self, content):
@@ -68,10 +68,10 @@ class BaseAnsibleProvider:
         if not template_filename:
             template_filename = self.TESTING_TEMPLATE_FILENAME
         self.write_template(self.prepare_yaml(template))
-        r = common_translate(template_filename, False, self.PROVIDER, {}, "kubernetes")
+        r = common_translate(template_filename, False, self.PROVIDER, 'kubernetes')
         print(r)
-        playbook = list(self.parse_all_yaml(r))
-        return playbook
+        manifest = list(self.parse_all_yaml(r))
+        return manifest
 
     def update_node_template(self, template, node_name, update_value, param_type):
         update_value = {
