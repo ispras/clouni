@@ -103,7 +103,8 @@ class ProviderToscaTemplate (object):
         self.configuration_content = ''
         self.configuration_ready = False
         tool = CONFIGURATION_TOOLS.get(configuration_tool)()
-        tool.copy_conditions_to_the_directory(self.used_conditions_set, directory)
+        if bool(self.used_conditions_set):
+            tool.copy_conditions_to_the_directory(self.used_conditions_set, directory)
         tool_artifacts = []
         for art in self.artifacts:
             executor = art.get(EXECUTOR)
