@@ -22,6 +22,9 @@ INDIVISIBLE_KEYS = [GET_OPERATION_OUTPUT, INPUTS, IMPLEMENTATION]
 ARTIFACT_RANGE_START = 1000
 ARTIFACT_RANGE_END = 9999
 
+PYTHON_EXECUTOR = 'python'
+PYTHON_SOURCE_DIRECTORY = 'toscatranslator.providers.common.python_sources'
+
 
 def translate_element_from_provider(node):
     (_, element_type, _) = tosca_type.parse(node.type)
@@ -207,14 +210,18 @@ def restructure_value(mapping_value, self, if_format_str=True, if_upper=True):
         extra_parameters = flat_mapping_value.get(EXTRA)
         executor_name = flat_mapping_value.get(EXECUTOR)
         if source_name is not None and executor_name is not None:
-            if executor_name not in CONFIGURATION_TOOLS.keys():
+            if not CONFIGURATION_TOOLS.get(executor_name):
                 ExceptionCollector.appendException(UnsupportedExecutorType(
                     what=executor_name
                 ))
             if self.get(ARTIFACTS) is None:
                 self[ARTIFACTS] = []
-            # TODO add managing of file extensions depending on configuration tool
-            extension = '.yaml'
+            if executor_name is PYTHON_EXECUTOR:
+                # TODO execute `source_name` function with argument `parameters_dict`
+                raise NotImplementedError()
+
+            tool = CONFIGURATION_TOOLS[executor_name]()
+            extension = tool.get_artifact_extension()
 
             seed(time())
             artifact_name = '_'.join([self[NAME], executor_name, source_name,

@@ -144,3 +144,6 @@ class ConfigurationTool(object):
 
     def copy_conditions_to_the_directory(self, used_conditions_set, directory):
         raise NotImplementedError
+
+    def get_artifact_extension(self):
+        return self.ARTIFACT_EXTENSION
