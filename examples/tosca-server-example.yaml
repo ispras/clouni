@@ -8,7 +8,8 @@ topology_template:
     server_kube_master:
       type: tosca.nodes.Compute
       attributes:
-        meta: "cube_master=true"
+        meta:
+          - "cube_master=true"
         private_address: 192.168.12.25
         public_address: 10.100.115.15
         networks:
@@ -17,8 +18,8 @@ topology_template:
         host:
           properties:
             num_cpus: 1
-#            disk_size: 160 MiB
-#            mem_size: 1024 MiB
+            disk_size: 160 MiB
+            mem_size: 1024 MiB
         endpoint:
           properties:
             protocol: tcp

@@ -5,57 +5,90 @@ imports:
 
 topology_template:
   node_templates:
-    instance:
-      type: amazon.nodes.Instance
+    server_kube_master_group:
+      type: amazon.nodes.Group
       properties:
-        instance_type: t2.micro
-      requirements:
-        - image_id:
-            node_filter:
-              capabilities:
-                self:
-                  properties:
-                    architecture: x86_64
-        - network:
-            node_filter:
-              capabilities:
-                self:
-                  properties:
-                    private_ip_address: 172.31.41.191
-        - network:
-            node_filter:
-              capabilities:
-                self:
-                  properties:
-                    network_interface_id: eni-0b6db202849ec396d
-        - network:
-            node_filter:
-              capabilities:
-                self:
-                  properties:
-                    mac_address: 0a:56:15:5e:60:3e
-        - security_groups: instance_security_group
-        - vpc_subnet_id:
-            node_filter:
-              capabilities:
-                self:
-                  properties:
-                    cidr_block: 172.31.32.0/20
-
-
-# <create_security_group_id>: ec2_group
-    instance_security_group:
-      type: amazon.nodes.SecurityGroup
-      properties:
+        name: server_kube_master_group
         rules:
           - proto: tcp
-            ports:
-              - 1
-            cidr_ip: 0.0.0.0
+          - ports:
+              - 1000
+    server_kube_master_instance:
+      type: amazon.nodes.Instance
+      attributes:
+        name: server_kube_master
+        network:
+          interface:
+            properties:
+              assign_public_ip: true
+              private_ip_address: 192.168.12.25
+      properties:
+        instance_type:
+          get_operation_output:
+            - server_kube_master_server_instance_type
+            - Target
+            - choose_ec2_instance_type_facts
+            - apiname
+        tags:
+          metadata:
+            - cube_master=true
       requirements:
-        - vpc_id:
+        - security_groups: server_kube_master_group
+        - image_id:
             node_filter:
-              capabilities:
-                self:
-                  properties:
-                    vpc_id: vpc-c3918cab
+              properties:
+                - image_id:
+                    get_operation_output:
+                      - server_kube_master_server_image_id
+                      - Target
+                      - choose_ec2_ami_facts
+                      - image_id
+  relationship_templates:
+    server_kube_master_server_image_id:
+      type: amazon.relationships.DependsOn
+      interfaces:
+        Target:
+          choose_ec2_ami_facts:
+            implementation: contains.yaml
+            inputs:
+              input_args:
+                - - architecture
+                  - name
+                - architecture: x86_64
+                  distribution: xenial
+                  type: ubuntu
+                  version: 16.04
+              input_facts:
+                get_operation_output:
+                  - SELF
+                  - Target
+                  - total_ec2_ami_facts
+                  - target_objects
+          total_ec2_ami_facts:
+            implementation:
+              - server_kube_master_ansible_ec2_ami_facts.yaml
+              - server_kube_master_ansible_set_fact.yaml
+    server_kube_master_server_instance_type:
+      type: amazon.relationships.DependsOn
+      interfaces:
+        Target:
+          choose_ec2_instance_type_facts:
+            implementation: contains.yaml
+            inputs:
+              input_args:
+                - disk_size: 160 MiB
+                  mem_size: 1024 MiB
+                  num_cpus: 1
+                - - vcpus
+                  - memory
+                  - storage
+              input_facts:
+                get_operation_output:
+                  - SELF
+                  - Target
+                  - total_ec2_instance_type_facts
+                  - target_objects
+          total_ec2_instance_type_facts:
+            implementation:
+              - server_kube_master_ansible_ec2_instance_type_facts.yaml
+              - server_kube_master_ansible_set_fact.yaml

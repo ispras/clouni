@@ -7,14 +7,42 @@
       os_security_group:
         cloud: ispras
         name: server_kube_master_security_group
+
+    - import: server_kube_master_port_network_total.yaml
+
+    - set_fact:
+        target_objects_0003: {{ target_objects }}
+
+    - import: server_kube_master_port_subnet_total.yaml
+
+    - set_fact:
+        target_objects_0005: {{ target_objects }}
+
+    - import: ip_contains.yaml facts={{ target_objects_0005 }} ip=192.168.12.25
+
+    - set_fact:
+        name_0004: {{ name }}
+
+    - import: equals.yaml facts={{ target_objects_0003 }} name={{ name_0004 }}
+
+    - set_fact:
+        name_0002: {{ name }}
+
+    - import: server_kube_master_port_configure.yaml network_name={{ name_0002 }} ip=192.168.12.25
+
+    - set_fact:
+        network_ip_struct_0001: {{ network_ip_struct }}
+
     - name: Create Port
       os_port:
         cloud: ispras
         network: test-two-routers
         fixed_ips:
-        - ip_address: 192.168.12.26
+        - {{ network_ip_struct_0001 }}
         name: server_kube_master_port_0
         vnic_type: normal
+
+
     - name: Create SecurityGroupRule
       os_security_group_rule:
         cloud: ispras
@@ -24,17 +52,53 @@
         protocol: tcp
         remote_ip_prefix: 0.0.0.0
         security_group: server_kube_master_security_group
+
+    - import: server_kube_master_server_image_total.yaml
+
+    - set_fact:
+        target_objects_0007: {{ target_objects}}
+
+    - import: contains.yaml facts={{ target_objects_0007 }} args=["ubuntu", "xenial", "16.04"]
+
+    - set_fact:
+        name_0006: {{ name }}
+
     - name: Create Server
       os_server:
         cloud: ispras
         availability_zone: nova
         config_drive: false
         flavor: ispras.medium
-        image: Ubuntu 16.04 Xenial Trusty x86_64 cloud image (recovered)
-        meta: "kube_master=true"
+        image: {{ name_0006 }}
+        meta:
+          - "cube_master=true"
         name: server-kube-master
         network: test-two-routers
-#        nics:
-#          - server_kube_master_port_0
         security_groups:
           - server_kube_master_security_group
+
+    - import: server_kube_master_floatingip_network_total.yaml
+
+    - set_fact:
+        target_objects_0009: {{ target_objects }}
+
+    - import: server_kube_master_floatingip_subnet_total.yaml
+
+    - set_fact:
+        target_objects_0011: {{ target_objects }}
+
+    - import: ip_contains.yaml facts={{ target_objects_0011 }} ip=10.100.115.15
+
+    - set_fact:
+        name_0010: {{ name }}
+
+    - import: equals.yaml facts={{ target_objects_0009 }} name={{ name_0010 }}
+
+    - set_fact:
+        name_0008: {{ name }}
+
+    - name: Create Floating IP
+      os_floating_ip:
+        floating_ip_address:  10.100.115.15
+        network: {{ name_0008 }}
+        server: server_kube_master_server

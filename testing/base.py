@@ -1,29 +1,30 @@
 from toscatranslator.common.translator_to_configuration_dsl import translate as common_translate
+from toscatranslator import shell
 import os
 import yaml
+import copy
 
 from toscatranslator.common.utils import deep_update_dict
+from toscatranslator.common.tosca_reserved_keys import PROVIDERS, ANSIBLE, TYPE, \
+    IMPORTS, TOSCA_DEFINITIONS_VERSION, ATTRIBUTES, PROPERTIES, CAPABILITIES, REQUIREMENTS, TOPOLOGY_TEMPLATE, NODE_TEMPLATES
 
-(ATTRIBUTES, PROPERTIES, CAPABILITIES, REQUIREMENTS, TYPE) = ('attributes', 'properties', 'capabilities', 'requirements', 'type')
-(TOPOLOGY_TEMPLATE, NODE_TEMPLATES) = ('topology_template', 'node_templates')
 
-class TestAnsibleProviderOutput ():
+class BaseAnsibleProvider:
     TESTING_TEMPLATE_FILENAME = 'examples/testing-example.yaml'
     NODE_NAME = 'server_master'
     DEFAULT_TEMPLATE = {
-        "tosca_definitions_version": "tosca_simple_yaml_1_0",
-        "imports": [
+        TOSCA_DEFINITIONS_VERSION: "tosca_simple_yaml_1_0",
+        IMPORTS: [
             "toscatranslator/common/TOSCA_definition_1_0.yaml"
         ],
         TOPOLOGY_TEMPLATE: {
             NODE_TEMPLATES: {
                 NODE_NAME: {
-                    "type": "tosca.nodes.Compute"
+                    TYPE: "tosca.nodes.Compute"
                 }
             }
         }
     }
-    PROVIDERS = ['openstack', 'amazon','kubernetes']
 
     def write_template(self, template, filename=None):
         if not filename:
@@ -50,14 +51,14 @@ class TestAnsibleProviderOutput ():
         return r
 
     def test_provider(self):
-        assert self.PROVIDER is not None
-        assert self.PROVIDER in self.PROVIDERS
+        assert hasattr(self, 'PROVIDER') is not None
+        assert self.PROVIDER in PROVIDERS
 
     def get_ansible_output(self, template, template_filename = None):
         if not template_filename:
             template_filename = self.TESTING_TEMPLATE_FILENAME
         self.write_template(self.prepare_yaml(template))
-        r = common_translate(template_filename, False, self.PROVIDER, {}, "ansible")
+        r = common_translate(template_filename, False, self.PROVIDER, ANSIBLE)
         print(r)
         self.delete_template(template_filename)
         playbook = self.parse_yaml(r)
@@ -112,4 +113,127 @@ class TestAnsibleProviderOutput ():
 
     def update_template_requirement(self, template, node_name, update_value):
         return self.update_node_template(template, node_name, update_value, REQUIREMENTS)
+
+
+class TestAnsibleProvider (BaseAnsibleProvider):
+    def test_full_translating(self):
+        shell.main(['--template-file', 'examples/tosca-server-example.yaml', '--provider', self.PROVIDER])
+
+    def test_meta(self):
+        if hasattr(self, 'check_meta'):
+            template = copy.deepcopy(self.DEFAULT_TEMPLATE)
+            testing_value = ["master=true"]
+            testing_parameter = {
+                "meta": testing_value
+            }
+            template = self.update_template_attribute(template, self.NODE_NAME, testing_parameter)
+            playbook = self.get_ansible_output(template)
+
+            assert next(iter(playbook), {}).get('tasks')
+            tasks = playbook[0]['tasks']
+
+            self.check_meta(tasks, testing_value)
+
+    def test_private_address(self):
+        if hasattr(self, 'check_private_address'):
+            template = copy.deepcopy(self.DEFAULT_TEMPLATE)
+            testing_value = "192.168.12.25"
+            testing_parameter = {
+                "private_address": testing_value
+            }
+            template = self.update_template_attribute(template, self.NODE_NAME, testing_parameter)
+            playbook = self.get_ansible_output(template)
+
+            assert next(iter(playbook), {}).get('tasks')
+            tasks = playbook[0]['tasks']
+
+            self.check_private_address(tasks, testing_value)
+
+    def test_public_address(self):
+        if hasattr(self, 'check_public_address'):
+            template = copy.deepcopy(self.DEFAULT_TEMPLATE)
+            testing_value = "10.100.115.15"
+            testing_parameter = {
+                "public_address": testing_value
+            }
+            template = self.update_template_attribute(template, self.NODE_NAME, testing_parameter)
+            playbook = self.get_ansible_output(template)
+
+            assert next(iter(playbook), {}).get('tasks')
+
+            tasks = playbook[0]['tasks']
+            self.check_public_address(tasks, testing_value)
+
+    def test_network_name(self):
+        if hasattr(self, 'check_network_name'):
+            template = copy.deepcopy(self.DEFAULT_TEMPLATE)
+            testing_value = "test-two-routers"
+            testing_parameter = {
+                "networks": {
+                    "default": {
+                        "network_name": testing_value
+                    }
+                }
+            }
+            template = self.update_template_attribute(template, self.NODE_NAME, testing_parameter)
+            playbook = self.get_ansible_output(template)
+
+            assert next(iter(playbook), {}).get('tasks')
+
+            tasks = playbook[0]['tasks']
+            self.check_network_name(tasks, testing_value)
+
+    def test_host_capabilities(self):
+        if hasattr(self, 'check_host_capabilities'):
+            template = copy.deepcopy(self.DEFAULT_TEMPLATE)
+            testing_parameter = {
+                "num_cpus": 1,
+                "disk_size": "5 GiB",
+                "mem_size": "1024 MiB"
+            }
+            template = self.update_template_capability_properties(template, self.NODE_NAME, "host", testing_parameter)
+            playbook = self.get_ansible_output(template)
+
+            assert next(iter(playbook), {}).get('tasks')
+
+            tasks = playbook[0]['tasks']
+            self.check_host_capabilities(tasks)
+
+    def test_endpoint_capabilities(self):
+        if hasattr(self, 'check_endpoint_capabilities'):
+            template = copy.deepcopy(self.DEFAULT_TEMPLATE)
+            testing_parameter = {
+                "endpoint": {
+                    "properties": {
+                        "protocol": "tcp",
+                        "port": 1000,
+                        "initiator": "target"
+                    },
+                    "attributes": {
+                        "ip_address": "0.0.0.0"
+                    }
+                }
+            }
+            template = self.update_template_capability(template, self.NODE_NAME, testing_parameter)
+            playbook = self.get_ansible_output(template)
+            assert next(iter(playbook), {}).get('tasks')
+
+            tasks = playbook[0]['tasks']
+            self.check_endpoint_capabilities(tasks)
+
+    def test_os_capabilities(self):
+        if hasattr(self, 'check_os_capabilities'):
+            template = copy.deepcopy(self.DEFAULT_TEMPLATE)
+            testing_parameter = {
+                "architecture": "x86_64",
+                "type": "ubuntu",
+                "distribution": "xenial",
+                "version": 16.04
+            }
+            template = self.update_template_capability_properties(template, self.NODE_NAME, "os", testing_parameter)
+            playbook = self.get_ansible_output(template)
+            assert next(iter(playbook), {}).get('tasks')
+
+            tasks = playbook[0]['tasks']
+            self.check_os_capabilities(tasks)
 
