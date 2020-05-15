@@ -425,9 +425,10 @@ node_types:
         type: string
         required: false
       meta: # metadata in facts
-        type: list
-        entry_schema:
-          type: string
+        type: string
+#        type: list
+#        entry_schema:
+#          type: string
         required: false
       name:
         type: string
@@ -442,6 +443,9 @@ node_types:
         required: false
       vm_state: # not used in create
         type: string
+        required: false
+      nics:
+        type: list
         required: false
     capabilities:
       bind:

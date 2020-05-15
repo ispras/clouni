@@ -19,7 +19,6 @@ def translate(template_file, validate_only, provider, configuration_tool, a_file
         template_file = os.path.join(os.getcwd(), template_file)
         with open(template_file, 'r') as f:
             template_content = f.read()
-        # tosca_parser_template_object = ToscaTemplate(path=template_file, a_file=a_file)
     else:
         template_content = template_file
     template = yaml_parse(template_content)

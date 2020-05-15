@@ -107,7 +107,7 @@ class TestAnsibleProvider (BaseAnsibleProvider):
     def test_meta(self):
         if hasattr(self, 'check_meta'):
             template = copy.deepcopy(self.DEFAULT_TEMPLATE)
-            testing_value = ["master=true"]
+            testing_value = "master=true"
             testing_parameter = {
                 "meta": testing_value
             }
@@ -122,7 +122,7 @@ class TestAnsibleProvider (BaseAnsibleProvider):
     def test_private_address(self):
         if hasattr(self, 'check_private_address'):
             template = copy.deepcopy(self.DEFAULT_TEMPLATE)
-            testing_value = "192.168.12.25"
+            testing_value = "192.168.12.26"
             testing_parameter = {
                 "private_address": testing_value
             }
@@ -137,7 +137,7 @@ class TestAnsibleProvider (BaseAnsibleProvider):
     def test_public_address(self):
         if hasattr(self, 'check_public_address'):
             template = copy.deepcopy(self.DEFAULT_TEMPLATE)
-            testing_value = "10.100.115.15"
+            testing_value = "10.10.18.217"
             testing_parameter = {
                 "public_address": testing_value
             }
@@ -191,7 +191,7 @@ class TestAnsibleProvider (BaseAnsibleProvider):
                 "endpoint": {
                     "properties": {
                         "protocol": "tcp",
-                        "port": 1000,
+                        "port": 22,
                         "initiator": "target"
                     },
                     "attributes": {
