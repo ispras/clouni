@@ -19,6 +19,7 @@ class AnsibleConfigurationTool(ConfigurationTool):
     """
     Must be tested by TestAnsibleOpenstack.test_translating_to_ansible
     """
+    ARTIFACT_EXTENSION = '.yaml'
 
     def to_dsl_for_create(self, provider, nodes_relationships_queue, artifacts, target_directory):
         self.target_directory = target_directory
