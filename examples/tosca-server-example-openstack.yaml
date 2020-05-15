@@ -1,7 +1,6 @@
 tosca_definitions_version: tosca_simple_yaml_1_0
 
 imports:
-  - toscatranslator/providers/common/TOSCA_provider_definition_1_0.yaml
   - toscatranslator/providers/openstack/TOSCA_openstack_definition_1_0.yaml
 
 topology_template:

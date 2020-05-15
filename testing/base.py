@@ -7,7 +7,7 @@ import copy
 
 from toscatranslator.common.utils import deep_update_dict
 from toscatranslator.common.tosca_reserved_keys import PROVIDERS, ANSIBLE, TYPE, \
-    IMPORTS, TOSCA_DEFINITIONS_VERSION, ATTRIBUTES, PROPERTIES, CAPABILITIES, REQUIREMENTS, TOPOLOGY_TEMPLATE, NODE_TEMPLATES
+    TOSCA_DEFINITIONS_VERSION, ATTRIBUTES, PROPERTIES, CAPABILITIES, REQUIREMENTS, TOPOLOGY_TEMPLATE, NODE_TEMPLATES
 
 
 class BaseAnsibleProvider:
@@ -15,9 +15,6 @@ class BaseAnsibleProvider:
     NODE_NAME = 'server_master'
     DEFAULT_TEMPLATE = {
         TOSCA_DEFINITIONS_VERSION: "tosca_simple_yaml_1_0",
-        IMPORTS: [
-            "toscatranslator/common/TOSCA_definition_1_0.yaml"
-        ],
         TOPOLOGY_TEMPLATE: {
             NODE_TEMPLATES: {
                 NODE_NAME: {

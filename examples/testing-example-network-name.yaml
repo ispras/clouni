@@ -1,5 +1,3 @@
-imports:
-- toscatranslator/common/TOSCA_definition_1_0.yaml
 topology_template:
   node_templates:
     server_master:
