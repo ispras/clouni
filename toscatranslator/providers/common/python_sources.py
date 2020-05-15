@@ -2,7 +2,7 @@ import re
 
 from toscaparser.common.exception import ExceptionCollector
 
-from common.exception import UnsupportedUnit
+from toscatranslator.common.exception import UnsupportedUnit
 
 SCALAR_UNIT_DEFAULT = 'B'
 SCALAR_UNIT_LIST_B = {'B': 1, 'KB': 2, 'K': 2, 'MB': 3, 'M': 3, 'GB': 4, 'G': 4, 'TB': 5, 'T': 5, 'PB': 6, 'P': 6,
