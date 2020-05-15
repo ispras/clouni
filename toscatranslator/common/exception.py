@@ -37,6 +37,8 @@ class TemplateDependencyError(TOSCAException):
 class UnsupportedExecutorType(TOSCAException):
     msg_fmt = _('Unsupported executor/configuration tool name: "%(what)s"')
 
+class UnsupportedUnit(TOSCAException):
+    msg_fmt = _('Unsupported unit "%(what)s"')
 
 class ProviderConfigurationNotFound(TOSCAException):
     msg_fmt = _('Provider configuration was not found. It must be one of the variants: "%(what)s"')
