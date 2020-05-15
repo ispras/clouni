@@ -6,10 +6,11 @@ topology_template:
       type: tosca.nodes.Compute
       attributes:
         meta: "cube_master=true"
-        private_address: 192.168.12.25
+        private_address: 192.168.12.26
         public_address: 10.10.18.217
         networks:
-        - name: test-two-routers
+          default:
+            network_name: test-two-routers
       capabilities:
         host:
           properties:
