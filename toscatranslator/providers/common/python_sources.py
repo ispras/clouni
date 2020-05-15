@@ -30,7 +30,7 @@ def transform_units(source_value, target_unit=None, is_only_numb=False, is_witho
     else:
         target_value += source_value
     if is_only_numb:
-        target_unit = ''
+        return float(target_value)
     if is_without_b:
         target_unit = target_unit[:-1] if target_unit is not None else source_unit[:-1]
     return target_value + ' ' + target_unit

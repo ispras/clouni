@@ -173,12 +173,26 @@ tosca.nodes.Compute:
         parameter: openstack.nodes.Server.requirements.flavor.node_filter.properties
         value:
           - parameter: disk
-            value: "{self[value]}"
+            value:
+              source: transform_units
+              executor: python
+              parameters:
+                source_value: "{self[value]}"
+                target_unit: GiB
+                is_only_numb: true
+              value: default_tmp
       host.properties.mem_size:
         parameter: openstack.nodes.Server.requirements.flavor.node_filter.properties
         value:
           - parameter: ram
-            value: "{self[value]}"
+            value:
+              source: transform_units
+              executor: python
+              parameters:
+                source_value: "{self[value]}"
+                target_unit: MiB
+                is_only_numb: true
+              value: default_tmp
       endpoint.attributes.ip_address:
         - openstack.nodes.SecurityGroupRule.attributes.remote_ip_prefix
         - parameter: openstack.nodes.SecurityGroup.properties.name
