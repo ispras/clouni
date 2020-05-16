@@ -1,0 +1,249 @@
+---
+tosca.nodes.Compute:
+  - parameter: openstack.nodes.Server.properties.name
+    value: "{self[name]}"
+  - attributes:
+      meta: openstack.nodes.Server.properties.meta
+      private_address:
+        - parameter: openstack.nodes.Port.properties.fixed_ips
+          value:
+            - ip_address: "{self[value]}"
+        - parameter: openstack.nodes.Port.requirements.network.node_filter.properties
+          value:
+            - parameter: id
+              value:
+                value: network_id
+                condition: ip_contains
+                facts:
+                  - source: os_subnets_facts
+                    executor: ansible
+                    value: target_objects
+                    parameters: {}
+                  - source: set_fact
+                    executor: ansible
+                    parameters:
+                      target_objects: "{{{{ target_objects['ansible_facts']['openstack_subnets'] }}}}"
+                    value: temp_value
+                  - source: set_fact
+                    executor: ansible
+                    parameters:
+                      new_target_objects: "{{{{ [] }}}}"
+                    value: tmp_value
+                  - source: set_fact
+                    parameters:
+                      new_target_objects: "{{{{ new_target_objects + [item | combine({{ 'allocation_pool_start': item['allocation_pools'][0]['start'] | default([]), 'allocation_pool_end': item['allocation_pools'][0]['end'] | default([]) }})] }}}}"
+                    extra:
+                      with_items: "{{{{ target_objects }}}}"
+                    value: temp_value
+                    executor: ansible
+                  - source: set_fact
+                    parameters:
+                      target_objects: "{{{{ new_target_objects }}}}"
+                    value: temp_value
+                    executor: ansible
+                executor: ansible
+                arguments:
+                  - allocation_pool_start
+                  - allocation_pool_end
+                  - "{self[value]}"
+        - parameter: openstack.nodes.Port.properties.name
+          value: "{self[name]}_port_0"
+        - parameter: openstack.nodes.Server.properties.nics
+#        - parameter: openstack.nodes.Server.requirements.network
+          value:
+          - port-name: "{self[name]}_port_0"
+      public_address:
+        - parameter: openstack.nodes.Server.attributes.auto_ip
+          value: false
+        - parameter: openstack.nodes.FloatingIp
+          value:
+            - attributes.floating_ip_address
+            - parameter: requirements
+              value:
+                - parameter: network.node_filter.properties
+                  value:
+                    - parameter: name
+                      value:
+                        value: name
+                        facts: os_networks_facts.ansible_facts.openstack_networks
+                        condition: equals
+                        executor: ansible
+                        arguments:
+                          - id
+                          - value: network_id
+                            condition: ip_contains
+                            facts:
+                              - source: os_subnets_facts
+                                executor: ansible
+                                value: target_objects
+                                parameters: {}
+                              - source: set_fact
+                                executor: ansible
+                                parameters:
+                                  target_objects: "{{{{ target_objects['ansible_facts']['openstack_subnets'] }}}}"
+                                value: temp_value
+                              - source: set_fact
+                                executor: ansible
+                                parameters:
+                                  new_target_objects: "{{{{ [] }}}}"
+                                value: tmp_value
+                              - source: set_fact
+                                parameters:
+                                  new_target_objects: "{{{{ new_target_objects + [item | combine({{ 'allocation_pool_start': item['allocation_pools'][0]['start'] | default([]), 'allocation_pool_end': item['allocation_pools'][0]['end'] | default([]) }})] }}}}"
+                                extra:
+                                  with_items: "{{{{ target_objects }}}}"
+                                value: temp_value
+                                executor: ansible
+                              - source: set_fact
+                                parameters:
+                                  target_objects: "{{{{ new_target_objects }}}}"
+                                value: temp_value
+                                executor: ansible
+                            executor: ansible
+                            arguments:
+                              - allocation_pool_start
+                              - allocation_pool_end
+                              - "{self[value]}"
+                - parameter: server
+                  value: "{self[name]}_server"
+      networks.*.network_name:
+        parameter: openstack.nodes.Server.properties.nics
+        value:
+          - net-name: "{self[value]}"
+      networks.*.network_id:
+        parameter: openstack.nodes.Server.requirements.nics.node_filter.properties
+        value:
+          - parameter: id
+            value: "{self[value]}"
+      networks.*.addresses:
+        parameter: openstack.nodes.Server.requirements.nics.node_filter.properties
+        value:
+          - parameter: id
+            value: network_id
+            facts: os_subnets_facts.ansible_facts.openstack_subnets
+            executor: ansible
+            condition: ip_contains
+            arguments:
+              - allocation_pool_start
+              - allocation_pool_end
+              - "{self[value]}"
+      ports.*.port_name:
+        parameter: openstack.nodes.Server.requirements.nics.node_filter.properties
+        value:
+          - parameter: name
+            value: "{self[value]}"
+      ports.*.port_id:
+        parameter: openstack.nodes.Server.requirements.nics.node_filter.properties
+        value:
+          - parameter: id
+            value: "{self[value]}"
+      ports.*.network_id:
+        parameter: openstack.nodes.Server.requirements.nics.node_filter.properties
+        value:
+          - parameter: id
+            value: "{self[value]}"
+      ports.*.mac_address:
+        parameter: openstack.nodes.Server.requirements.nics.node_filter.properties
+        value:
+          - parameter: mac_address
+            value: "{self[value]}"
+      ports.*.addresses:
+        parameter: openstack.nodes.Server.requirements.nics.node_filter.properties
+        value:
+          - parameter: id
+            value:
+              value: network_id
+              facts: os_subnets_facts.ansible_facts.openstack_subnets
+              executor: ansible
+              condition: ip_contains
+              arguments:
+                - allocation_pool_start
+                - allocation_pool_end
+                - "{self[value]}"
+    capabilities:
+      host.properties.num_cpus:
+        parameter: openstack.nodes.Server.requirements.flavor.node_filter.properties
+        value:
+          - parameter: vcpus
+            value: "{self[value]}"
+      host.properties.cpu_frequency:
+        error: true
+        reason: Openstack doesn't support parameter {self[parameter]}
+      host.properties.disk_size:
+        parameter: openstack.nodes.Server.requirements.flavor.node_filter.properties
+        value:
+          - parameter: disk
+            value:
+              source: transform_units
+              executor: python
+              parameters:
+                source_value: "{self[value]}"
+                target_unit: GiB
+                is_only_numb: true
+              value: default_tmp
+      host.properties.mem_size:
+        parameter: openstack.nodes.Server.requirements.flavor.node_filter.properties
+        value:
+          - parameter: ram
+            value:
+              source: transform_units
+              executor: python
+              parameters:
+                source_value: "{self[value]}"
+                target_unit: MiB
+                is_only_numb: true
+              value: default_tmp
+      endpoint.attributes.ip_address:
+        - openstack.nodes.SecurityGroupRule.attributes.remote_ip_prefix
+        - parameter: openstack.nodes.SecurityGroup.properties.name
+          value: "{self[name]}_security_group"
+        - parameter: openstack.nodes.Server.requirements.security_groups
+          value: "{self[name]}_security_group"
+        - parameter: openstack.nodes.SecurityGroupRule.requirements.security_group
+          value: "{self[name]}_security_group"
+      endpoint.properties.protocol: openstack.nodes.SecurityGroupRule.attributes.protocol
+      endpoint.properties.port:
+        - openstack.nodes.SecurityGroupRule.attributes.port_range_min
+        - openstack.nodes.SecurityGroupRule.attributes.port_range_max
+      endpoint.properties.secure: {}
+      endpoint.properties.url_path: {}
+      endpoint.properties.port_name: {}
+      endpoint.properties.network_name: {}
+      endpoint.properties.initiator.target:
+        parameter: openstack.nodes.SecurityGroupRule.attributes.direction
+        value: ingress
+      endpoint.properties.initiator.source:
+        parameter: openstack.nodes.SecurityGroupRule.attributes.direction
+        value: egress
+      endpoint.properties.initiator.peer:
+        parameter: openstack.nodes.SecurityGroupRule.attributes.direction
+        value: peer
+      endpoint.properties.ports:
+        error: true
+        reason: Not implemented yet
+      os.properties:
+        parameter: openstack.nodes.Server.requirements.image.node_filter.properties
+        value:
+          - parameter: name
+            value:
+              value: name
+              facts: os_image_facts.ansible_facts.openstack_image
+              executor: ansible
+              condition: contains
+              arguments:
+                - - name
+                  - properties
+                - "{self[value]}"
+      scalable:
+        error: true
+        reason: Not described in TOSCA Profile YAML v1.0
+    requirements.local_storage:
+      error: true
+      reason: Bad description in TOSCA Profile YAML v1.0
+
+tosca.relationships.DependsOn: openstack.relationships.DependsOn
+tosca.relationships.HostedOn: openstack.relationships.HostedOn
+tosca.relationships.ConnectsTo: openstack.relationships.ConnectsTo
+tosca.relationships.AttachesTo: openstack.relationships.AttachesTo
+tosca.relationships.network.LinksTo: openstack.relationships.network.LinksTo
+tosca.relationships.network.BindsTo: openstack.relationships.network.BindsTo

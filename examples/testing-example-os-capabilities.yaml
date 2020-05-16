@@ -1,0 +1,12 @@
+topology_template:
+  node_templates:
+    server_master:
+      capabilities:
+        os:
+          properties:
+            architecture: x86_64
+            distribution: xenial
+            type: ubuntu
+            version: 16.04
+      type: tosca.nodes.Compute
+tosca_definitions_version: tosca_simple_yaml_1_0

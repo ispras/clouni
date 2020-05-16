@@ -1,4 +1,8 @@
 tosca_definitions_version: tosca_simple_yaml_1_0
+
+imports:
+  - toscatranslator/common/TOSCA_definition_1_0.yaml
+
 topology_template:
   node_templates:
     app:
@@ -12,14 +16,14 @@ topology_template:
             min_instances: 3
         host:
           properties:
-            num_cpus: 2
+#            num_cpus: 2
             mem_size: 250MB
         os:
           properties:
             type: ubuntu
-            distribution: xenial
+            version: 16.04
         endpoint:
           properties:
-            protocol: tcp
+            protocol: TCP
             port: 888
-            port_name: test-ports
+            port_name: 80

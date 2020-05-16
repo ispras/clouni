@@ -1,22 +1,24 @@
 import copy
 from toscatranslator.common import tosca_type
+from toscatranslator.common.tosca_reserved_keys import ATTRIBUTES, PROPERTIES, ARTIFACTS, NAME, CAPABILITIES, \
+    REQUIREMENTS, INTERFACES, NODE, NODES, ROOT
 
 from toscatranslator.providers.common.all_requirements import ProviderRequirements
-
-MAX_NUM_PRIORITIES = 5
 
 
 class ProviderResource(object):
 
-    def __init__(self, node, relationship_templates):
+    def __init__(self, provider, node, relationship_templates):
         """
 
         :param node: class NodeTemplate from toscaparser
-        :param relationship_templates: RelationshipTemplate from toscaparser
+        :param relationship_templates: list of RelationshipTemplate from toscaparser
         """
         # NOTE: added as a parameter in toscatranslator.providers.common.tosca_template:ProviderToscaTemplate
 
+        self.provider = provider
         self.nodetemplate = node
+        self.name = node.name
         self.type = node.type
         (_, _, type_name) = tosca_type.parse(self.type)
         self.type_name = type_name
@@ -41,28 +43,29 @@ class ProviderResource(object):
                 self.configuration_args[key] = value
 
         for key in self.attribute_keys:
-            value = node.entity_tpl.get('attributes', {}).get(key)
+            value = node.entity_tpl.get(ATTRIBUTES, {}).get(key)
             if value is not None:
                 self.configuration_args[key] = value
 
         capability_defs = self.capability_definitions_by_name()
         for cap_key, cap_def in capability_defs.items():
             properties = node.get_capabilities().get(cap_key)
-            definition_property_keys = cap_def.get('properties', {}).keys()
+            definition_property_keys = cap_def.get(PROPERTIES, {}).keys()
             if properties:
                 for def_prop_key in definition_property_keys:
                     value = properties.get_property_value(def_prop_key)
                     if value:
                         self.configuration_args[def_prop_key] = value
 
-        if hasattr(node, 'artifacts'):
+        if hasattr(node, ARTIFACTS):
             # TODO: oneliner
             for key, value in node.artifacts:
                 self.configuration_args[key] = value
 
         relationship_template_names = set()
-        provider_requirements = ProviderRequirements(self.requirement_definitions, self.provider())
+        provider_requirements = ProviderRequirements(self.requirement_definitions, self.provider)
         self.requirements = provider_requirements.get_requirements(node)
+        self.node_filter_artifacts = []
         for key, req in self.requirements.items():
             if type(req) is list:
                 self.configuration_args[key] = list(v.get_value() for v in req)
@@ -80,6 +83,46 @@ class ProviderResource(object):
         for relation in relationship_templates:
             if relation.name in relationship_template_names:
                 self.relationship_templates.append(relation)
+
+        self.node_priority = self.compute_node_priorities(node.custom_def)
+
+    def get_node_type_priority(self, node_type_definitions, node_type_name):
+        """
+
+        :param node_type_definitions:
+        :param node_type_name:
+        :return:
+        """
+        (_, _, type_short) = tosca_type.parse(node_type_name)
+        if type_short == ROOT:
+            return 0
+        requirement_definitions = node_type_definitions.get(node_type_name, {}).get(REQUIREMENTS, [])
+        max_dependency_priority = 0
+        for i in requirement_definitions:
+            for k, v in i.items():
+                req_node_type = v.get(NODE)
+                if not req_node_type == ROOT and not req_node_type == node_type_name:
+                    p = self.get_node_type_priority(node_type_definitions, req_node_type)
+                    if p > max_dependency_priority or max_dependency_priority == 0:
+                        max_dependency_priority = p + 1
+        if max_dependency_priority >= self.MAX_NUM_PRIORITIES:
+            ProviderResource.MAX_NUM_PRIORITIES = max_dependency_priority + 1
+        return max_dependency_priority
+
+    def compute_node_priorities(self, node_type_definitions):
+        """
+        Use node type definitions to count priority of the node_type
+        :param node_type_definitions: dict of node type definitions
+        :return:
+        """
+        ProviderResource.MAX_NUM_PRIORITIES = 1
+        node_priorities_by_type = {}
+        for node_type_name, node_type_def in node_type_definitions.items():
+            (_, element_type, type_short) = tosca_type.parse(node_type_name)
+            if type_short != ROOT and element_type == NODES:
+                node_priorities_by_type[node_type_name] = self.get_node_type_priority(node_type_definitions,
+                                                                                      node_type_name)
+        return node_priorities_by_type
 
     def set_definitions_by_name(self, node_type):
         """
@@ -102,17 +145,17 @@ class ProviderResource(object):
                 else:
                     requirement_defs_dict[req_name] = req_params
                 copy_req_def = copy.copy(req_params)
-                copy_req_def['name'] = req_name
+                copy_req_def[NAME] = req_name
                 requirement_defs_list_with_name_added.append(copy_req_def)
 
         # Fulfill the definitions
         self.definitions_by_name = dict(
-            attributes=node_type.get_value(node_type.ATTRIBUTES) or {},
-            properties=node_type.get_value(node_type.PROPERTIES) or {},
-            capabilities=node_type.get_value(node_type.CAPABILITIES, None, True) or {},
+            attributes=node_type.get_value(ATTRIBUTES) or {},
+            properties=node_type.get_value(PROPERTIES) or {},
+            capabilities=node_type.get_value(CAPABILITIES, None, True) or {},
             requirements=requirement_defs_dict,
-            interfaces=node_type.get_value(node_type.INTERFACES) or {},
-            artifacts=node_type.get_value(node_type.ARTIFACTS) or {}
+            interfaces=node_type.get_value(INTERFACES) or {},
+            artifacts=node_type.get_value(ARTIFACTS) or {}
         )
         self.requirement_definitions = requirement_defs_list_with_name_added
 
@@ -120,30 +163,20 @@ class ProviderResource(object):
         return self.definitions_by_name.get(name)
 
     def capability_definitions_by_name(self):
-        return self.get_definitions_by_name('capabilities')
+        return self.get_definitions_by_name(CAPABILITIES)
 
     def property_definitions_by_name(self):
-        return self.get_definitions_by_name('properties')
+        return self.get_definitions_by_name(PROPERTIES)
 
     def attribute_definitions_by_name(self):
-        return self.get_definitions_by_name('attributes')
+        return self.get_definitions_by_name(ATTRIBUTES)
 
     def requirement_definitions_by_name(self):
-        return self.get_definitions_by_name('requirements')
+        return self.get_definitions_by_name(REQUIREMENTS)
 
     def artifact_definitions_by_name(self):
-        return self.get_definitions_by_name('artifacts')
+        return self.get_definitions_by_name(ARTIFACTS)
 
     def node_priority_by_type(self):
-        assert self.NODE_PRIORITY_BY_TYPE is not None
-        return self.NODE_PRIORITY_BY_TYPE.get(self.type_name)
+        return self.node_priority.get(self.type)
 
-    def ansible_description_by_type(self):
-        raise NotImplementedError()
-
-    def ansible_module_by_type(self):
-        raise NotImplementedError()
-
-    def provider(self):
-        assert self.PROVIDER is not None
-        return self.PROVIDER

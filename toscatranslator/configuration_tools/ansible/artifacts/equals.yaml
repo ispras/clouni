@@ -1,0 +1,50 @@
+# input_facts and input_args are defined
+# matched_object is required
+
+- set_fact:
+    input_args: "{{ { input_args[0]: input_args[1]} }}"
+  when: input_args | type_debug == 'list'
+
+# Find the matchable
+- name: Initialise index list to iterate facts
+  set_fact:
+    fact_indexes: "{{ range(0, input_facts | length) | list }}"
+
+- set_fact:
+    fitted_object_numbers: "{{ {} }}"
+
+- name: Initialise parameter which store if the fact is matched
+  set_fact:
+    fitted_object_numbers: "{{ fitted_object_numbers | combine ({item: True}) }}"
+  with_items: "{{ fact_indexes }}"
+
+- name: Check every fact if it matches the condition
+  set_fact:
+    fitted_object_numbers: "{{ fitted_object_numbers | combine ({item[0]: False}) }}"
+  with_nested:
+    - "{{ fact_indexes }}"
+    - "{{ input_args|dict2items }}"
+  when: input_facts[item[0]][item[1].key] != item[1].value
+  loop_control:
+    label: "{{ input_facts[item[0]][item[1].key], item[1].value }}"
+
+- set_fact:
+    matched_objects: "{{ [] }}"
+
+- name: Make list of matched objects
+  set_fact:
+    matched_objects: "{{ matched_objects + [ input_facts[item] ] }}"
+  with_items: "{{ fact_indexes }}"
+  when: fitted_object_numbers[item]
+
+- debug:
+    msg: "WARNING: there are more than one matchable objects: {{ matched_objects }}"
+  when: matched_objects | length > 1
+
+- fail:
+    msg: "There are no matchable objects"
+  when: matched_objects | length == 0
+
+- set_fact:
+    matched_object: "{{ item }}"
+  with_items: "{{ matched_objects }}"

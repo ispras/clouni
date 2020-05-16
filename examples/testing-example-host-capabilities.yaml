@@ -1,0 +1,11 @@
+topology_template:
+  node_templates:
+    server_master:
+      capabilities:
+        host:
+          properties:
+            disk_size: 5 GiB
+            mem_size: 1024 MiB
+            num_cpus: 1
+      type: tosca.nodes.Compute
+tosca_definitions_version: tosca_simple_yaml_1_0

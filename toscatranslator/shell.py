@@ -14,13 +14,12 @@ class TranslatorShell(object):
         self.template_file = args.template_file
         self.validate_only = args.validate_only
         self.provider = args.provider
-        self.facts = args.facts
         self.output_file = args.output_file
         self.configuration_tool = args.configuration_tool
 
         self.working_dir = os.getcwd()
 
-        output = translate(self.template_file, self.validate_only, self.provider, self.facts, self.configuration_tool)
+        output = translate(self.template_file, self.validate_only, self.provider, self.configuration_tool)
         self.output_print(output)
 
     def get_parser(self):
@@ -37,10 +36,6 @@ class TranslatorShell(object):
         parser.add_argument('--provider',
                             required=False,
                             help='Cloud provider name to execute ansible playbook in.')
-        parser.add_argument('--facts',
-                            metavar='<filename>',
-                            required=False,
-                            help='Facts for cloud provider if provider parameter is used.')
         parser.add_argument('--output-file',
                             metavar='<filename>',
                             required=False,
