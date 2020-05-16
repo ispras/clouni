@@ -1,6 +1,5 @@
 from toscatranslator.common.translator_to_configuration_dsl import translate as common_translate
 from toscatranslator import shell
-
 import os
 import yaml
 import copy
@@ -12,7 +11,7 @@ from toscatranslator.common.tosca_reserved_keys import PROVIDERS, ANSIBLE, TYPE,
 
 class BaseAnsibleProvider:
     TESTING_TEMPLATE_FILENAME = 'examples/testing-example.yaml'
-    NODE_NAME = 'server_master'
+    NODE_NAME = 'server-master'
     DEFAULT_TEMPLATE = {
         TOSCA_DEFINITIONS_VERSION: "tosca_simple_yaml_1_0",
         TOPOLOGY_TEMPLATE: {
@@ -40,6 +39,10 @@ class BaseAnsibleProvider:
         r = yaml.load(content)
         return r
 
+    def parse_all_yaml(self, content):
+        r = yaml.full_load_all(content)
+        return r
+
     def prepare_yaml(self, content):
         r = yaml.dump(content)
         return r
@@ -57,6 +60,15 @@ class BaseAnsibleProvider:
         self.delete_template(template_filename)
         playbook = self.parse_yaml(r)
         return playbook
+
+    def get_k8s_output(self, template, template_filename = None):
+        if not template_filename:
+            template_filename = self.TESTING_TEMPLATE_FILENAME
+        self.write_template(self.prepare_yaml(template))
+        r = common_translate(template_filename, False, self.PROVIDER, 'kubernetes')
+        print(r)
+        manifest = list(self.parse_all_yaml(r))
+        return manifest
 
     def update_node_template(self, template, node_name, update_value, param_type):
         update_value = {

@@ -1,9 +1,10 @@
 TOSCA = 'tosca'
 
-(AMAZON, OPENSTACK) = ('amazon', 'openstack')
-PROVIDERS = (AMAZON, OPENSTACK)
+(AMAZON, OPENSTACK, KUBERNETES) = ('amazon', 'openstack', 'kubernetes')
+PROVIDERS = (AMAZON, OPENSTACK, KUBERNETES)
 
 (ANSIBLE) = ('ansible')
+(KUBERNETES) = ('kubernetes')
 
 (GET_INPUT, GET_PROPERTY, GET_ATTRIBUTE, GET_OPERATION_OUTPUT, GET_NODES_OF_TYPE, GET_ARTIFACT) \
     = ('get_input', 'get_property', 'get_attribute', 'get_operation_output', 'get_nodes_of_type', 'get_artifact')
