@@ -112,9 +112,7 @@ class ProviderToscaTemplate (object):
                 self.generate_artifacts([art], directory)
             else:
                 tool_artifacts.append(art)
-        content = tool.to_dsl_for_create(self.provider, self.provider_nodes_queue, tool_artifacts, directory)
-
-        self.configuration_content = yaml.dump(content)
+        self.configuration_content = tool.to_dsl_for_create(self.provider, self.provider_nodes_queue, tool_artifacts, directory)
         self.configuration_ready = True
         return self.configuration_content
 

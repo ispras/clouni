@@ -86,6 +86,8 @@ data_types:
         required: false
       name:
         type: string
+        constraints:
+          - pattern: '[a-z0-9]([-a-z0-9]*[a-z0-9])?(\.[a-z0-9]([-a-z0-9]*[a-z0-9])?)*'
         required: false
       namespace:
         type: string
@@ -135,8 +137,8 @@ data_types:
           Docker image name. More info https://kubernetes.io/docs/concepts/containers/images This field is optional to allow higher level config management
           to default or override container images in workload controllers like Deployments and StatefulSets.
         type: string
-#        constraints:
-#          - pattern: (.*)\/?(.*)\:(.*)
+        constraints:
+          - pattern: (.*)\/?(.*)\:(.*)
         required: true
       ports:
         type: list
@@ -161,7 +163,7 @@ data_types:
           Entrypoint array. Not executed within a shell. The docker image's ENTRYPOINT is used if this is not provided.
           Variable references $(VAR_NAME) are expanded using the container's environment. If a variable cannot be resolved,
           the reference in the input string will be unchanged.
-        default: [\"/bin/echo\"]
+#        default: [\"/bin/echo\"]
         type: list
         entry_schema:
           type: string

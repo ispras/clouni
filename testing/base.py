@@ -11,7 +11,7 @@ from toscatranslator.common.tosca_reserved_keys import PROVIDERS, ANSIBLE, TYPE,
 
 class BaseAnsibleProvider:
     TESTING_TEMPLATE_FILENAME = 'examples/testing-example.yaml'
-    NODE_NAME = 'server_master'
+    NODE_NAME = 'server-master'
     DEFAULT_TEMPLATE = {
         TOSCA_DEFINITIONS_VERSION: "tosca_simple_yaml_1_0",
         TOPOLOGY_TEMPLATE: {

@@ -37,13 +37,13 @@ tosca.nodes.Compute:
               parameter: limits
               value:
                 parameter: memory
-                value: "{self[value]}"
-#                   source: units.py
-#                   parameters:
-#                        source_value: "{self[value]}"
-#                        target_unit: B
-#                  executor: python
-#                  value: default
+                value:
+                  source: transform_units
+                  parameters:
+                    source_value: "{self[value]}"
+                    is_without_b: True
+                  executor: python
+                  value: default
     endpoint.properties:
       - protocol:
           parameter: "{self[buffer][protocol]}"
@@ -104,9 +104,12 @@ tosca.nodes.Compute:
       - parameter: "kubernetes.nodes.Deployment.properties.spec.template.spec.containers"
         value:
           - parameter: image
-            value: "{self[buffer][image]}:{self[buffer][ver]}"
+            value: "{self[buffer][image]}{self[buffer][ver]}"
       - parameter: "kubernetes.nodes.Deployment.properties.metadata.name"
         value: "{self[name]}-deployment"
+      - parameter: "kubernetes.nodes.Deployment.properties.spec.selector.matchLabels"
+        value:
+          app: "{self[name]}"
       - parameter: "kubernetes.nodes.Deployment.properties.metadata.labels"
         value:
           app: "{self[name]}"
@@ -122,3 +125,6 @@ tosca.nodes.Compute:
         error: true
         reason: "max_instances not supported in Kubernetes"
       min_instances: "kubernetes.nodes.Deployment.properties.spec.replicas"
+      default:
+        error: true
+        reason: "max_instances not supported in Kubernetes, try scalable.properties.default"
