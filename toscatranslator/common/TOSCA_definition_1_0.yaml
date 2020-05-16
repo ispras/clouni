@@ -156,7 +156,7 @@ node_types:
     derived_from: tosca.nodes.Root
     attributes:
       meta:
-        type: map
+        type: string
         required: false
       private_address:
         type: string

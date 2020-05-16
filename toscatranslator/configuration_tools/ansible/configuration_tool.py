@@ -19,6 +19,7 @@ class AnsibleConfigurationTool(ConfigurationTool):
     """
     Must be tested by TestAnsibleOpenstack.test_translating_to_ansible
     """
+    ARTIFACT_EXTENSION = '.yaml'
 
     def to_dsl_for_create(self, provider, nodes_relationships_queue, artifacts, target_directory):
         self.target_directory = target_directory
@@ -134,6 +135,7 @@ class AnsibleConfigurationTool(ConfigurationTool):
                                 what='ansible.node_filter: node_filter_inner_variable'
                             ))
 
+                    include_path = self.copy_condition_to_the_directory('equals', self.target_directory)
                     ansible_tasks = [
                         {
                             node_filter_source: {},
@@ -150,7 +152,7 @@ class AnsibleConfigurationTool(ConfigurationTool):
                             }
                         },
                         {
-                            IMPORT_TASKS_MODULE: 'equals.yaml'
+                            IMPORT_TASKS_MODULE: include_path
                         },
                         {
                             SET_FACT_MODULE: {
@@ -158,7 +160,7 @@ class AnsibleConfigurationTool(ConfigurationTool):
                             }
                         }
                     ]
-                    self.copy_conditions_to_the_directory({'equals'}, self.target_directory)
+                    # self.copy_conditions_to_the_directory({'equals'}, self.target_directory)
                     ansible_tasks_for_create.extend(ansible_tasks)
                     arg = self.rap_ansible_variable(node_filter_value_with_id)
             configuration_args[arg_key] = arg
@@ -228,8 +230,9 @@ class AnsibleConfigurationTool(ConfigurationTool):
                 new_tasks = self.create_artifact_data(art_data)
                 tasks.extend(new_tasks)
             else:
+                abs_path_file = os.path.abspath(os.path.join(self.target_directory, i))
                 new_task = {
-                    IMPORT_TASKS_MODULE: i
+                    IMPORT_TASKS_MODULE: abs_path_file
                 }
                 tasks.append(new_task)
         for k, v in op_info[OUTPUT_IDS].items():
@@ -270,6 +273,18 @@ class AnsibleConfigurationTool(ConfigurationTool):
             f.write(filedata)
 
         return
+
+    def copy_condition_to_the_directory(self, cond, target_directory):
+        os.makedirs(target_directory, exist_ok=True)
+        tool_artifacts_dir = os.path.join(os.path.dirname(os.path.realpath(__file__)), ARTIFACTS_DIRECTORY)
+        filename = os.path.join(tool_artifacts_dir, cond + '.yaml')
+        if not os.path.isfile(filename):
+            ExceptionCollector.appendException(ConditionFileError(
+                what=filename
+            ))
+        target_filename = os.path.join(target_directory, cond + '.yaml')
+        copyfile(filename, target_filename)
+        return os.path.abspath(target_filename)
 
     def copy_conditions_to_the_directory(self, conditions_set, target_directory):
         os.makedirs(target_directory, exist_ok=True)

@@ -3,90 +3,113 @@ tosca.nodes.Compute:
   - parameter: openstack.nodes.Server.properties.name
     value: "{self[name]}"
   - attributes:
-      meta:
-        parameter: openstack.nodes.Server.properties.meta
-        value:
-          - "{self[value]}"
+      meta: openstack.nodes.Server.properties.meta
       private_address:
         - parameter: openstack.nodes.Port.properties.fixed_ips
           value:
-            - parameter:
-                value: name
-                condition: equals
-                facts: os_networks_facts.ansible_facts.openstack_networks
+            - ip_address: "{self[value]}"
+        - parameter: openstack.nodes.Port.requirements.network.node_filter.properties
+          value:
+            - parameter: id
+              value:
+                value: network_id
+                condition: ip_contains
+                facts:
+                  - source: os_subnets_facts
+                    executor: ansible
+                    value: target_objects
+                    parameters: {}
+                  - source: set_fact
+                    executor: ansible
+                    parameters:
+                      target_objects: "{{{{ target_objects['ansible_facts']['openstack_subnets'] }}}}"
+                    value: temp_value
+                  - source: set_fact
+                    executor: ansible
+                    parameters:
+                      new_target_objects: "{{{{ [] }}}}"
+                    value: tmp_value
+                  - source: set_fact
+                    parameters:
+                      new_target_objects: "{{{{ new_target_objects + [item | combine({{ 'allocation_pool_start': item['allocation_pools'][0]['start'] | default([]), 'allocation_pool_end': item['allocation_pools'][0]['end'] | default([]) }})] }}}}"
+                    extra:
+                      with_items: "{{{{ target_objects }}}}"
+                    value: temp_value
+                    executor: ansible
+                  - source: set_fact
+                    parameters:
+                      target_objects: "{{{{ new_target_objects }}}}"
+                    value: temp_value
+                    executor: ansible
                 executor: ansible
                 arguments:
-                  - id
-                  - value: network_id
-                    condition: ip_contains
-                    facts:
-                      - source: os_subnets_facts
-                        executor: ansible
-                        value: target_objects
-                        parameters: {}
-                      - source: set_fact
-                        executor: ansible
-                        parameters:
-                          target_objects: "{{{{ target_objects['ansible_facts']['openstack_subnets'] }}}}"
-                        value: temp_value
-                      - source: set_fact
-                        executor: ansible
-                        parameters:
-                          new_target_objects: "{{{{ [] }}}}"
-                        value: tmp_value
-                      - source: set_fact
-                        parameters:
-                          new_target_objects: "{{{{ new_target_objects + [item | combine({{ 'allocation_pool_start': item['allocation_pools'][0]['start'] | default([]), 'allocation_pool_end': item['allocation_pools'][0]['end'] | default([]) }})] }}}}"
-                        extra:
-                          with_items: "{{{{ target_objects }}}}"
-                        value: temp_value
-                        executor: ansible
-                      - source: set_fact
-                        parameters:
-                          target_objects: "{{{{ new_target_objects }}}}"
-                        value: temp_value
-                        executor: ansible
-                    executor: ansible
-                    arguments:
-                      - allocation_pool_start
-                      - allocation_pool_end
-                      - "{self[value]}"
-              value: "{self[value]}"
+                  - allocation_pool_start
+                  - allocation_pool_end
+                  - "{self[value]}"
         - parameter: openstack.nodes.Port.properties.name
           value: "{self[name]}_port_0"
-        - parameter: openstack.nodes.Server.requirements.nics
-          value: "{self[name]}_port"
+        - parameter: openstack.nodes.Server.properties.nics
+#        - parameter: openstack.nodes.Server.requirements.network
+          value:
+          - port-name: "{self[name]}_port_0"
       public_address:
-        parameter: openstack.nodes.FloatingIp
-        value:
-          - attributes.floating_ip_address
-          - parameter: requirements
-            value:
-              - parameter: network.node_filter.properties
-                value:
-                  - parameter: name
-                    value:
-                      value: name
-                      facts: os_networks_facts.ansible_facts.openstack_networks
-                      condition: equals
-                      executor: ansible
-                      arguments:
-                        - id
-                        - value: network_id
-                          condition: ip_contains
-                          facts: os_subnets_facts.ansible_facts.openstack_subnets
-                          executor: ansible
-                          arguments:
-                            - allocation_pool_start
-                            - allocation_pool_end
-                            - "{self[value]}"
-              - parameter: server
-                value: "{self[name]}_server"
+        - parameter: openstack.nodes.Server.attributes.auto_ip
+          value: false
+        - parameter: openstack.nodes.FloatingIp
+          value:
+            - attributes.floating_ip_address
+            - parameter: requirements
+              value:
+                - parameter: network.node_filter.properties
+                  value:
+                    - parameter: name
+                      value:
+                        value: name
+                        facts: os_networks_facts.ansible_facts.openstack_networks
+                        condition: equals
+                        executor: ansible
+                        arguments:
+                          - id
+                          - value: network_id
+                            condition: ip_contains
+                            facts:
+                              - source: os_subnets_facts
+                                executor: ansible
+                                value: target_objects
+                                parameters: {}
+                              - source: set_fact
+                                executor: ansible
+                                parameters:
+                                  target_objects: "{{{{ target_objects['ansible_facts']['openstack_subnets'] }}}}"
+                                value: temp_value
+                              - source: set_fact
+                                executor: ansible
+                                parameters:
+                                  new_target_objects: "{{{{ [] }}}}"
+                                value: tmp_value
+                              - source: set_fact
+                                parameters:
+                                  new_target_objects: "{{{{ new_target_objects + [item | combine({{ 'allocation_pool_start': item['allocation_pools'][0]['start'] | default([]), 'allocation_pool_end': item['allocation_pools'][0]['end'] | default([]) }})] }}}}"
+                                extra:
+                                  with_items: "{{{{ target_objects }}}}"
+                                value: temp_value
+                                executor: ansible
+                              - source: set_fact
+                                parameters:
+                                  target_objects: "{{{{ new_target_objects }}}}"
+                                value: temp_value
+                                executor: ansible
+                            executor: ansible
+                            arguments:
+                              - allocation_pool_start
+                              - allocation_pool_end
+                              - "{self[value]}"
+                - parameter: server
+                  value: "{self[name]}_server"
       networks.*.network_name:
-        parameter: openstack.nodes.Server.requirements.nics.node_filter.properties
+        parameter: openstack.nodes.Server.properties.nics
         value:
-          - parameter: name
-            value: "{self[value]}"
+          - net-name: "{self[value]}"
       networks.*.network_id:
         parameter: openstack.nodes.Server.requirements.nics.node_filter.properties
         value:
@@ -150,12 +173,26 @@ tosca.nodes.Compute:
         parameter: openstack.nodes.Server.requirements.flavor.node_filter.properties
         value:
           - parameter: disk
-            value: "{self[value]}"
+            value:
+              source: transform_units
+              executor: python
+              parameters:
+                source_value: "{self[value]}"
+                target_unit: GiB
+                is_only_numb: true
+              value: default_tmp
       host.properties.mem_size:
         parameter: openstack.nodes.Server.requirements.flavor.node_filter.properties
         value:
           - parameter: ram
-            value: "{self[value]}"
+            value:
+              source: transform_units
+              executor: python
+              parameters:
+                source_value: "{self[value]}"
+                target_unit: MiB
+                is_only_numb: true
+              value: default_tmp
       endpoint.attributes.ip_address:
         - openstack.nodes.SecurityGroupRule.attributes.remote_ip_prefix
         - parameter: openstack.nodes.SecurityGroup.properties.name

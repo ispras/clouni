@@ -6,7 +6,7 @@ import copy
 
 from toscatranslator.common.utils import deep_update_dict
 from toscatranslator.common.tosca_reserved_keys import PROVIDERS, ANSIBLE, TYPE, \
-    IMPORTS, TOSCA_DEFINITIONS_VERSION, ATTRIBUTES, PROPERTIES, CAPABILITIES, REQUIREMENTS, TOPOLOGY_TEMPLATE, NODE_TEMPLATES
+    TOSCA_DEFINITIONS_VERSION, ATTRIBUTES, PROPERTIES, CAPABILITIES, REQUIREMENTS, TOPOLOGY_TEMPLATE, NODE_TEMPLATES
 
 
 class BaseAnsibleProvider:
@@ -14,9 +14,6 @@ class BaseAnsibleProvider:
     NODE_NAME = 'server_master'
     DEFAULT_TEMPLATE = {
         TOSCA_DEFINITIONS_VERSION: "tosca_simple_yaml_1_0",
-        IMPORTS: [
-            "toscatranslator/common/TOSCA_definition_1_0.yaml"
-        ],
         TOPOLOGY_TEMPLATE: {
             NODE_TEMPLATES: {
                 NODE_NAME: {
@@ -122,7 +119,7 @@ class TestAnsibleProvider (BaseAnsibleProvider):
     def test_meta(self):
         if hasattr(self, 'check_meta'):
             template = copy.deepcopy(self.DEFAULT_TEMPLATE)
-            testing_value = ["master=true"]
+            testing_value = "master=true"
             testing_parameter = {
                 "meta": testing_value
             }
@@ -137,7 +134,7 @@ class TestAnsibleProvider (BaseAnsibleProvider):
     def test_private_address(self):
         if hasattr(self, 'check_private_address'):
             template = copy.deepcopy(self.DEFAULT_TEMPLATE)
-            testing_value = "192.168.12.25"
+            testing_value = "192.168.12.26"
             testing_parameter = {
                 "private_address": testing_value
             }
@@ -152,7 +149,7 @@ class TestAnsibleProvider (BaseAnsibleProvider):
     def test_public_address(self):
         if hasattr(self, 'check_public_address'):
             template = copy.deepcopy(self.DEFAULT_TEMPLATE)
-            testing_value = "10.100.115.15"
+            testing_value = "10.10.18.217"
             testing_parameter = {
                 "public_address": testing_value
             }
@@ -206,7 +203,7 @@ class TestAnsibleProvider (BaseAnsibleProvider):
                 "endpoint": {
                     "properties": {
                         "protocol": "tcp",
-                        "port": 1000,
+                        "port": 22,
                         "initiator": "target"
                     },
                     "attributes": {

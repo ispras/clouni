@@ -1,29 +1,26 @@
 tosca_definitions_version: tosca_simple_yaml_1_0
 
-imports:
-  - toscatranslator/common/TOSCA_definition_1_0.yaml
-
 topology_template:
   node_templates:
     server_kube_master:
       type: tosca.nodes.Compute
       attributes:
-        meta:
-          - "cube_master=true"
-        private_address: 192.168.12.25
-        public_address: 10.100.115.15
+        meta: "cube_master=true"
+        private_address: 192.168.12.26
+        public_address: 10.10.18.217
         networks:
-        - name: test-two-routers
+          default:
+            network_name: test-two-routers
       capabilities:
         host:
           properties:
             num_cpus: 1
-            disk_size: 160 MiB
+            disk_size: 5 GiB
             mem_size: 1024 MiB
         endpoint:
           properties:
             protocol: tcp
-            port: 1000
+            port: 22
             initiator: target
           attributes:
             ip_address: 0.0.0.0

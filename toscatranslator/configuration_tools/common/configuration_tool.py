@@ -21,6 +21,7 @@ OUTPUT_ID_RANGE_END = 9999
 
 class ConfigurationTool(object):
 
+
     def __init__(self):
         self.global_operations_queue = []
         self.global_operations_info = {}
@@ -143,3 +144,6 @@ class ConfigurationTool(object):
 
     def copy_conditions_to_the_directory(self, used_conditions_set, directory):
         raise NotImplementedError()
+
+    def get_artifact_extension(self):
+        return self.ARTIFACT_EXTENSION

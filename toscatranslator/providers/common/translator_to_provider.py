@@ -1,3 +1,4 @@
+from toscatranslator.common.utils import execute_function
 from toscatranslator.common import tosca_type
 from toscatranslator.common import snake_case
 from toscaparser.common.exception import ExceptionCollector, ValidationError
@@ -21,6 +22,8 @@ INDIVISIBLE_KEYS = [GET_OPERATION_OUTPUT, INPUTS, IMPLEMENTATION]
 
 ARTIFACT_RANGE_START = 1000
 ARTIFACT_RANGE_END = 9999
+PYTHON_EXECUTOR = 'python'
+PYTHON_SOURCE_DIRECTORY = 'toscatranslator.providers.common.python_sources'
 
 
 def translate_element_from_provider(node):
@@ -59,7 +62,7 @@ def get_structure_of_mapped_param(mapped_param, value, self=None, type_list_para
                 for v in value:
                     if isinstance(v, str):
                         param, _ = get_structure_of_mapped_param(SEPARATOR.join([mapped_param, v]), self, self,
-                                                              type_list_parameters)
+                                                                 type_list_parameters)
                     else:
                         param, _ = get_structure_of_mapped_param(mapped_param, v, self, type_list_parameters)
                     r += param
@@ -69,7 +72,7 @@ def get_structure_of_mapped_param(mapped_param, value, self=None, type_list_para
                 r = []
                 for k, v in value.items():
                     param, _ = get_structure_of_mapped_param(SEPARATOR.join([mapped_param, k]), v, self,
-                                                          type_list_parameters)
+                                                             type_list_parameters)
                     r += param
                 return r, None
 
@@ -181,12 +184,12 @@ def restructure_value(mapping_value, self, if_format_str=True, if_upper=True):
                 ExceptionCollector.appendException(ToscaParametersMappingFailed(
                     what=parameter
                 ))
-            if parameter[:6] == '{self[' and parameter.index('}') == len(parameter)-1:
+            if parameter[:6] == '{self[' and parameter.index('}') == len(parameter) - 1:
                 # The case when variable is written to the parameter self!
                 params_parameter = parameter[6:-2].split('][')
                 iter_value = value
                 iter_num = len(params_parameter)
-                for i in range(iter_num-1, 0, -1):
+                for i in range(iter_num - 1, 0, -1):
                     temp_param = dict()
                     temp_param[params_parameter[i]] = iter_value
                     iter_value = temp_param
@@ -207,14 +210,17 @@ def restructure_value(mapping_value, self, if_format_str=True, if_upper=True):
         extra_parameters = flat_mapping_value.get(EXTRA)
         executor_name = flat_mapping_value.get(EXECUTOR)
         if source_name is not None and executor_name is not None:
-            if executor_name not in CONFIGURATION_TOOLS.keys():
+            if executor_name == PYTHON_EXECUTOR:
+                return execute_function(PYTHON_SOURCE_DIRECTORY, source_name, parameters_dict)
+            if not CONFIGURATION_TOOLS.get(executor_name):
                 ExceptionCollector.appendException(UnsupportedExecutorType(
                     what=executor_name
                 ))
             if self.get(ARTIFACTS) is None:
                 self[ARTIFACTS] = []
-            # TODO add managing of file extensions depending on configuration tool
-            extension = '.yaml'
+
+            tool = CONFIGURATION_TOOLS[executor_name]()
+            extension = tool.get_artifact_extension()
 
             seed(time())
             artifact_name = '_'.join([self[NAME], executor_name, source_name,
@@ -235,22 +241,20 @@ def restructure_value(mapping_value, self, if_format_str=True, if_upper=True):
     elif isinstance(mapping_value, list):
         return [restructure_value(v, self, if_upper=False) for v in mapping_value]
 
-    if isinstance(mapping_value, str):
+    if isinstance(mapping_value, str) and if_format_str:
         # NOTE: the process is needed because using only format function makes string from json
-        if if_format_str:
-            if mapping_value[:6] == '{self[' and mapping_value.index('}') == len(mapping_value) - 1:
-                mapping_value = mapping_value[6:-2]
-                params_map_val = mapping_value.split('][')
-                temp_val = self
-                for param in params_map_val:
-                    temp_val = temp_val.get(param, {})
-                return temp_val
+        if mapping_value[:6] == '{self[' and mapping_value.index('}') == len(mapping_value) - 1:
+            mapping_value = mapping_value[6:-2]
+            params_map_val = mapping_value.split('][')
+            temp_val = self
+            for param in params_map_val:
+                temp_val = temp_val.get(param, {})
+            return temp_val
 
-            try:
-                mapping_value = mapping_value.format(self=self)
-            except ValueError:
-                pass
-
+        try:
+            mapping_value = mapping_value.format(self=self)
+        except ValueError:
+            pass
     return mapping_value
 
 
@@ -269,67 +273,67 @@ def get_resulted_mapping_values(parameter, mapping_value, value):
             VALUE: "{self[value]}"
         }
     mapping_value_parameter = mapping_value.get(PARAMETER)
-    if mapping_value_parameter:
-        # NOTE at first check if parameter self[buffer] parameter
-        if not (mapping_value_parameter[:6] == '{self[' and mapping_value_parameter.index('}') == len(mapping_value_parameter) - 1):
-            splitted_mapping_value_parameter = mapping_value_parameter.split(SEPARATOR)
-            has_section = False
-            for v in splitted_mapping_value_parameter:
-                if v in NODE_TEMPLATE_KEYS:
-                    has_section = True
-                    break
-            if not has_section:
-                mapping_value_value = mapping_value.get(VALUE)
-                if isinstance(mapping_value_value, list):
-                    if len(mapping_value_value) > 1:
-                        r = []
-                        for v in mapping_value_value:
-                            mapping_value[VALUE] = v
-                            item = get_resulted_mapping_values(parameter, mapping_value, value)
-                            if isinstance(item, list):
-                                if len(item) == 1:
-                                    item = [item]
-                            else:
-                                item = [item]
-                            r.extend(item)
-                        return r
-                if isinstance(mapping_value_value, six.string_types):
-                    splitted_mapping_value_value = mapping_value_value.split(SEPARATOR)
-                    for i in range(len(splitted_mapping_value_value)):
-                        if splitted_mapping_value_value[i] in NODE_TEMPLATE_KEYS:
-                            # parameter_tag = SEPARATOR.join(splitted_mapping_value_value[:i+1])
-                            # value_new = SEPARATOR.join(splitted_mapping_value_value[i-1:])
-                            # mapping_value[PARAMETER] = mapping_value_parameter + SEPARATOR + parameter_tag
-                            # mapping_value[VALUE] = value_new
-                            mapping_value[PARAMETER] = mapping_value_parameter + SEPARATOR + mapping_value_value
-                            mapping_value[VALUE] = "{self[value]}"
-                            return dict(
-                                parameter=parameter,
-                                map=mapping_value,
-                                value=value
-                            )
-                if isinstance(mapping_value_value, dict):
-                    # NOTE the only valid case when the value is parameter-value structure
-                    mapping_value_value_parameter = mapping_value_value.get(PARAMETER)
-                    mapping_value_value_value = mapping_value_value.get(VALUE)
-                    if mapping_value_value_parameter and mapping_value_value_value:
-                        mapping_value_value_keyname = mapping_value_value.get(KEYNAME)
-                        if mapping_value_value_keyname:
-                            mapping_value[KEYNAME] = mapping_value_value_keyname
-                        mapping_value[PARAMETER] = mapping_value_parameter + SEPARATOR + mapping_value_value_parameter
-                        mapping_value[VALUE] = mapping_value_value_value
-                        r = get_resulted_mapping_values(parameter, mapping_value, value)
-                        return r
+     # NOTE at first check if parameter self[buffer] parameter
+    if mapping_value_parameter and not (
+            mapping_value_parameter[:6] == '{self[' and mapping_value_parameter.index('}') == len(
+            mapping_value_parameter) - 1):
+        splitted_mapping_value_parameter = mapping_value_parameter.split(SEPARATOR)
+        has_section = False
+        for v in splitted_mapping_value_parameter:
+            if v in NODE_TEMPLATE_KEYS:
+                has_section = True
+                break
+        if not has_section:
+            mapping_value_value = mapping_value.get(VALUE)
+            if isinstance(mapping_value_value, list) and len(mapping_value_value) > 1:
+                r = []
+                for v in mapping_value_value:
+                    mapping_value[VALUE] = v
+                    item = get_resulted_mapping_values(parameter, mapping_value, value)
+                    if isinstance(item, list):
+                        if len(item) == 1:
+                            item = [item]
+                    else:
+                        item = [item]
+                    r.extend(item)
+                return r
+            if isinstance(mapping_value_value, six.string_types):
+                splitted_mapping_value_value = mapping_value_value.split(SEPARATOR)
+                for i in range(len(splitted_mapping_value_value)):
+                    if splitted_mapping_value_value[i] in NODE_TEMPLATE_KEYS:
+                        # parameter_tag = SEPARATOR.join(splitted_mapping_value_value[:i+1])
+                        # value_new = SEPARATOR.join(splitted_mapping_value_value[i-1:])
+                        # mapping_value[PARAMETER] = mapping_value_parameter + SEPARATOR + parameter_tag
+                        # mapping_value[VALUE] = value_new
+                        mapping_value[PARAMETER] = mapping_value_parameter + SEPARATOR + mapping_value_value
+                        mapping_value[VALUE] = "{self[value]}"
+                        return dict(
+                            parameter=parameter,
+                            map=mapping_value,
+                            value=value
+                        )
+            if isinstance(mapping_value_value, dict):
+                # NOTE the only valid case when the value is parameter-value structure
+                mapping_value_value_parameter = mapping_value_value.get(PARAMETER)
+                mapping_value_value_value = mapping_value_value.get(VALUE)
+                if mapping_value_value_parameter and mapping_value_value_value:
+                    mapping_value_value_keyname = mapping_value_value.get(KEYNAME)
+                    if mapping_value_value_keyname:
+                        mapping_value[KEYNAME] = mapping_value_value_keyname
+                    mapping_value[PARAMETER] = mapping_value_parameter + SEPARATOR + mapping_value_value_parameter
+                    mapping_value[VALUE] = mapping_value_value_value
+                    r = get_resulted_mapping_values(parameter, mapping_value, value)
+                    return r
 
-                ExceptionCollector.appendException(ToscaParametersMappingFailed(
-                    what=mapping_value
-                ))
+            ExceptionCollector.appendException(ToscaParametersMappingFailed(
+                what=mapping_value
+            ))
 
     return dict(
-            parameter=parameter,
-            map=mapping_value,
-            value=value
-        )
+        parameter=parameter,
+        map=mapping_value,
+        value=value
+    )
 
 
 def is_matched_mapping_value(mapping_value):
@@ -517,7 +521,7 @@ def translate_node_from_tosca(restructured_mapping, tpl_name):
                                                         deep_update_dict(temp_v, params[j][v])
                                                     left_params[j].pop(v)
                                                     if not bool(left_params[j]):
-                                                        left_params = left_params[:j].extend(left_params[j+1:])
+                                                        left_params = left_params[:j].extend(left_params[j + 1:])
                                                         # NOTE if empty list is extended with empty list it returns None without error
                                                         if not left_params:
                                                             left_params = []
@@ -535,7 +539,8 @@ def translate_node_from_tosca(restructured_mapping, tpl_name):
     return resulted_structure, self[ARTIFACTS]
 
 
-def get_source_structure_from_facts(condition, fact_name, value, arguments, executor, target_parameter, source_parameter,
+def get_source_structure_from_facts(condition, fact_name, value, arguments, executor, target_parameter,
+                                    source_parameter,
                                     source_value):
     """
 
@@ -618,7 +623,7 @@ def get_source_structure_from_facts(condition, fact_name, value, arguments, exec
     target_total_parameter_new = SEPARATOR.join([target_relationship_type, INTERFACES, target_interface_name,
                                                  total_operation_name])
     target_choose_parameter_new = SEPARATOR.join([target_relationship_type, INTERFACES, target_interface_name,
-                                                 choose_operation_name])
+                                                  choose_operation_name])
 
     new_elements_map = {
         GET_OPERATION_OUTPUT: [
@@ -697,19 +702,19 @@ def restructure_mapping_facts(elements_map, extra_elements_map=None, target_para
 
     if isinstance(elements_map, dict):
         cur_parameter = elements_map.get(PARAMETER)
-        if cur_parameter:
-            if isinstance(cur_parameter, str):
-                if elements_map.get(MAP_KEY):
-                    source_parameter = cur_parameter
-                    source_value = elements_map.get(VALUE)
-                elif target_parameter:
-                    target_parameter += SEPARATOR + cur_parameter
-                else:
-                    target_parameter = cur_parameter
+        if cur_parameter and isinstance(cur_parameter, str):
+            if elements_map.get(MAP_KEY):
+                source_parameter = cur_parameter
+                source_value = elements_map.get(VALUE)
+            elif target_parameter:
+                target_parameter += SEPARATOR + cur_parameter
+            else:
+                target_parameter = cur_parameter
         new_elements_map = dict()
         for k, v in elements_map.items():
-            cur_elements, extra_elements_map, new_conditions = restructure_mapping_facts(v, extra_elements_map, target_parameter,
-                                                                         source_parameter, source_value)
+            cur_elements, extra_elements_map, new_conditions = restructure_mapping_facts(v, extra_elements_map,
+                                                                                         target_parameter,
+                                                                                         source_parameter, source_value)
             new_elements_map.update({k: cur_elements})
             conditions.extend(new_conditions)
 
@@ -742,7 +747,8 @@ def restructure_mapping_facts(elements_map, extra_elements_map=None, target_para
                 GET_OPERATION_OUTPUT: [relationship_name, interface_name, operation_name, value_name]
             }
 
-            cur_target_parameter = SEPARATOR.join([target_relationship_type, INTERFACES, interface_name, operation_name])
+            cur_target_parameter = SEPARATOR.join(
+                [target_relationship_type, INTERFACES, interface_name, operation_name])
             cur_extra_element = {
                 PARAMETER: source_parameter,
                 MAP_KEY: {
@@ -754,7 +760,8 @@ def restructure_mapping_facts(elements_map, extra_elements_map=None, target_para
                             VALUE: "default_value",
                             EXECUTOR: ANSIBLE,
                             PARAMETERS: {
-                                value_name: "{{{{ {{ input_parameter: input_value }} }}}}" # so many braces because format
+                                value_name: "{{{{ {{ input_parameter: input_value }} }}}}"
+                                # so many braces because format
                                 # uses braces and replace '{{' with '{'
                             }
                         },
@@ -791,7 +798,8 @@ def restructure_mapping_facts(elements_map, extra_elements_map=None, target_para
                 ExceptionCollector.appendException(UnsupportedExecutorType(
                     what=executor
                 ))
-            new_elements_map, cur_extra_elements = get_source_structure_from_facts(condition, fact_name, value, arguments,
+            new_elements_map, cur_extra_elements = get_source_structure_from_facts(condition, fact_name, value,
+                                                                                   arguments,
                                                                                    executor,
                                                                                    target_parameter, source_parameter,
                                                                                    source_value)
@@ -803,8 +811,9 @@ def restructure_mapping_facts(elements_map, extra_elements_map=None, target_para
     if isinstance(elements_map, list):
         new_elements_map = []
         for k in elements_map:
-            cur_elements, extra_elements_map, new_conditions = restructure_mapping_facts(k, extra_elements_map, target_parameter,
-                                                                         source_parameter, source_value)
+            cur_elements, extra_elements_map, new_conditions = restructure_mapping_facts(k, extra_elements_map,
+                                                                                         target_parameter,
+                                                                                         source_parameter, source_value)
             new_elements_map.append(cur_elements)
             conditions.extend(new_conditions)
         return new_elements_map, extra_elements_map, conditions
