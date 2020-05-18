@@ -65,7 +65,12 @@ class TestAnsibleOpenStackOutput (unittest.TestCase, TestAnsibleProvider):
                 self.assertIsNotNone(task[SERVER_MODULE_NAME].get('nics'))
                 server_nics = task[SERVER_MODULE_NAME]['nics']
                 self.assertIsNotNone(port_name)
-                self.assertIn(port_name, server_nics)
+                port_found = False
+                for nic_info in server_nics:
+                    if nic_info.get('port-name', '') == port_name:
+                        port_found = True
+                        break
+                self.assertTrue(port_found)
         self.assertIsNotNone(server_nics)
 
     def test_public_address(self):
@@ -101,7 +106,12 @@ class TestAnsibleOpenStackOutput (unittest.TestCase, TestAnsibleProvider):
                 server_name = task[SERVER_MODULE_NAME]['name']
                 server_nics = task[SERVER_MODULE_NAME]['nics']
                 if testing_value:
-                    self.assertIn(testing_value, server_nics)
+                    nic_found = False
+                    for nic_info in server_nics:
+                        if nic_info.get('net-name', '') == testing_value:
+                            nic_found = True
+                            break
+                    self.assertTrue(nic_found)
         self.assertIsNotNone(server_name)
 
     def test_host_capabilities(self):

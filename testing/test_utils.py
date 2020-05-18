@@ -4,6 +4,8 @@ from toscatranslator.providers.common.python_sources import transform_units
 
 KIBS = '230 KiB'
 GIBS = '230 GiB'
+
+
 class TestUtills(unittest.TestCase):
     def test_transform_units(self):
         # from bytes to bytes
@@ -37,6 +39,6 @@ class TestUtills(unittest.TestCase):
         self.assertEqual(transform_units(KIBS, 'KB', is_without_b=True), '235.52 K')
         self.assertEqual(transform_units(KIBS, is_without_b=True), '230 KI')
         self.assertEqual(transform_units(KIBS, 'KiB', is_without_b=True), '230.0 Ki')
-        self.assertEqual(transform_units(KIBS, 'KB', is_only_numb=True), '235.52 ')
-        self.assertEqual(transform_units(KIBS, 'KiB', is_only_numb=True,is_without_b=True), '230.0 ')
+        self.assertEqual(transform_units(KIBS, 'KB', is_only_numb=True), 235.52)
+        self.assertEqual(transform_units(KIBS, 'KiB', is_only_numb=True,is_without_b=True), 230.0)
 

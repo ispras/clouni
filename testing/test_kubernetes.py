@@ -1,9 +1,12 @@
 import unittest
 import copy
+import os
 
 from toscaparser.common.exception import MissingRequiredFieldError, ValidationError
-from base import BaseAnsibleProvider
+from testing.base import BaseAnsibleProvider
 from toscatranslator import shell
+
+from toscatranslator.common.utils import get_project_root_path
 
 
 class TestKubernetesOutput(unittest.TestCase, BaseAnsibleProvider):
@@ -19,11 +22,13 @@ class TestKubernetesOutput(unittest.TestCase, BaseAnsibleProvider):
     # FIXME:  bug 7606
     # @unittest.skip
     def test_validation(self):
-        shell.main(['--template-file',  r'C:\Projects\tosca-tool\examples\tosca-server-example-kubernetes.yaml', '--validate-only'])
+        example_path = os.path.join(get_project_root_path(), 'examples', 'tosca-server-example-kubernetes.yaml')
+        shell.main(['--template-file',  example_path, '--validate-only'])
 
     def test_k8s_translate(self):
+        example_path = os.path.join(get_project_root_path(), 'examples', 'tosca-server-example-kubernetes.yaml')
         shell.main(
-            ['--template-file', r'C:\Projects\tosca-tool\examples\tosca-server-example-kubernetes.yaml', '--provider',
+            ['--template-file', example_path, '--provider',
              self.PROVIDER, '--configuration-tool', 'kubernetes'])
 
     def update_port(self, template):
