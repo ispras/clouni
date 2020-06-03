@@ -33,6 +33,7 @@ class ProviderResource(object):
         self.artifact_keys = list(self.artifact_definitions_by_name().keys())
         self.capability_keys = list(self.capability_definitions_by_name().keys())
         self.relationship_templates = list()
+        self.dependency_order = 0
 
         # NOTE: Get the parameters from template using provider definition
         self.configuration_args = dict()

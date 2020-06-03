@@ -28,7 +28,7 @@ class ConfigurationTool(object):
         self.global_variables = {}
 
 
-    def to_dsl_for_create(self, provider, nodes_relationships_queue, artifacts, target_directory):
+    def to_dsl_for_create(self, provider, nodes_relationships_queue, artifacts, target_directory, extra=None):
         """
 
         :param provider: provider keyname
@@ -147,3 +147,6 @@ class ConfigurationTool(object):
 
     def get_artifact_extension(self):
         return self.ARTIFACT_EXTENSION
+
+    def get_ansible_tasks_for_async(self, element_object):
+        raise NotImplementedError()

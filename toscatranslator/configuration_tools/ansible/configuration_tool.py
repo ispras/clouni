@@ -11,6 +11,10 @@ REGISTER = 'register'
 DEFAULT_HOST = 'localhost'
 SET_FACT_MODULE = 'set_fact'
 IMPORT_TASKS_MODULE = 'include'
+ASYNC_DEFAULT_TIME = 60
+ASYNC_DEFAULT_TIME_CONFIG_PARAM = 'async_default_time'
+ASYNC_DEFAULT_RETRIES_CONFIG_PARAM = 'async_default_retries'
+ASYNC_DEFAULT_DELAY_CONFIG_PARAM = 'async_default_delay'
 
 ARTIFACTS_DIRECTORY = 'artifacts'
 
@@ -21,12 +25,17 @@ class AnsibleConfigurationTool(ConfigurationTool):
     """
     ARTIFACT_EXTENSION = '.yaml'
 
-    def to_dsl_for_create(self, provider, nodes_relationships_queue, artifacts, target_directory):
+    def to_dsl_for_create(self, provider, nodes_relationships_queue, artifacts, target_directory, extra=None):
         self.target_directory = target_directory
-        self.provider_config = ProviderConfiguration(provider)
         self.artifacts = {}
         for art in artifacts:
             self.artifacts[art[NAME]] = art
+        self.provider_config = ProviderConfiguration(provider)
+        if not extra:
+            extra = dict()
+        if extra.get('async') == True:
+            extra['async'] = int(self.provider_config.get_section('ansible').get(ASYNC_DEFAULT_TIME_CONFIG_PARAM,
+                                                                             ASYNC_DEFAULT_TIME))
 
         for v in nodes_relationships_queue:
             self.gather_global_operations(v)
@@ -46,8 +55,22 @@ class AnsibleConfigurationTool(ConfigurationTool):
         for v in self.global_operations_queue:
             ansible_task_list.extend(self.get_ansible_tasks_from_operation(v))
 
+        prev_dep_order = 0
+        check_async_tasks = []
         for v in elements_queue:
-            ansible_task_list.extend(self.get_ansible_tasks_for_create(v))
+            if extra.get('async'):
+                if prev_dep_order < v.dependency_order:
+                    ansible_task_list.extend(check_async_tasks)
+                    check_async_tasks = []
+                    prev_dep_order = v.dependency_order
+                check_async_tasks.extend(self.get_ansible_tasks_for_async(v))
+            ansible_task_list.extend(self.get_ansible_tasks_for_create(v, additional_args=extra))
+        if extra.get('async'):
+            ansible_task_list.extend(check_async_tasks)
+
+        # if extra.get('async'):
+        #     for v in elements_queue:
+        #         ansible_task_list.extend(self.get_ansible_tasks_for_async(v))
 
         ansible_playbook = [dict(
             name='Create ' + provider + ' cluster',
@@ -170,6 +193,8 @@ class AnsibleConfigurationTool(ConfigurationTool):
         ansible_task_as_dict = dict()
         ansible_task_as_dict['name'] = self.ansible_description_by_type(element_object)
         ansible_task_as_dict[self.ansible_module_by_type(element_object)] = configuration_args
+        ansible_task_as_dict[REGISTER] = element_object.name.replace('-', '_')
+        ansible_task_as_dict.update(additional_args)
         ansible_tasks_for_create.append(ansible_task_as_dict)
 
         return ansible_tasks_for_create
@@ -297,3 +322,18 @@ class AnsibleConfigurationTool(ConfigurationTool):
                 ))
             target_filename = os.path.join(target_directory, cond + '.yaml')
             copyfile(filename, target_filename)
+
+    def get_ansible_tasks_for_async(self, element_object):
+        config = self.provider_config.get_section('ansible')
+        retries = int(config.get(ASYNC_DEFAULT_RETRIES_CONFIG_PARAM, 60))
+        delay = int(config.get(ASYNC_DEFAULT_DELAY_CONFIG_PARAM, 5))
+        jid = self.rap_ansible_variable(element_object.name + '.ansible_job_id')
+        task = {
+            NAME: 'Checking ' + element_object.name + ' created',
+            'async_status': 'jid=' + jid,
+            REGISTER: 'create_result_status',
+            'until': 'create_result_status.finished',
+            'retries': retries,
+            'delay': delay
+        }
+        return [task]

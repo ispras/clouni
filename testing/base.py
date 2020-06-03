@@ -51,11 +51,11 @@ class BaseAnsibleProvider:
         assert hasattr(self, 'PROVIDER') is not None
         assert self.PROVIDER in PROVIDERS
 
-    def get_ansible_output(self, template, template_filename = None):
+    def get_ansible_output(self, template, template_filename = None, extra=None):
         if not template_filename:
             template_filename = self.TESTING_TEMPLATE_FILENAME
         self.write_template(self.prepare_yaml(template))
-        r = common_translate(template_filename, False, self.PROVIDER, ANSIBLE)
+        r = common_translate(template_filename, False, self.PROVIDER, ANSIBLE, extra=extra)
         print(r)
         self.delete_template(template_filename)
         playbook = self.parse_yaml(r)
@@ -116,7 +116,7 @@ class TestAnsibleProvider (BaseAnsibleProvider):
     def test_full_translating(self):
         shell.main(['--template-file', 'examples/tosca-server-example.yaml', '--provider', self.PROVIDER])
 
-    def test_meta(self):
+    def test_meta(self, extra=None):
         if hasattr(self, 'check_meta'):
             template = copy.deepcopy(self.DEFAULT_TEMPLATE)
             testing_value = "master=true"
@@ -124,12 +124,12 @@ class TestAnsibleProvider (BaseAnsibleProvider):
                 "meta": testing_value
             }
             template = self.update_template_attribute(template, self.NODE_NAME, testing_parameter)
-            playbook = self.get_ansible_output(template)
+            playbook = self.get_ansible_output(template, extra=extra)
 
             assert next(iter(playbook), {}).get('tasks')
             tasks = playbook[0]['tasks']
 
-            self.check_meta(tasks, testing_value)
+            self.check_meta(tasks, testing_value=testing_value, extra=extra)
 
     def test_private_address(self):
         if hasattr(self, 'check_private_address'):

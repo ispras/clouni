@@ -92,7 +92,7 @@ class ProviderToscaTemplate (object):
             provider_nodes.append(provider_node_instance)
         return provider_nodes
 
-    def to_configuration_dsl_for_create(self, configuration_tool, directory=None):
+    def to_configuration_dsl_for_create(self, configuration_tool, directory=None, extra=None):
         """
         Fulfill configuration_content with functions based on configuration tool from every node
         :return:
@@ -112,7 +112,8 @@ class ProviderToscaTemplate (object):
                 self.generate_artifacts([art], directory)
             else:
                 tool_artifacts.append(art)
-        self.configuration_content = tool.to_dsl_for_create(self.provider, self.provider_nodes_queue, tool_artifacts, directory)
+        self.configuration_content = tool.to_dsl_for_create(self.provider, self.provider_nodes_queue, tool_artifacts,
+                                                            directory, extra=extra)
         self.configuration_ready = True
         return self.configuration_content
 
@@ -171,7 +172,7 @@ class ProviderToscaTemplate (object):
 
     def sort_nodes_by_dependency(self):
         """
-        TODO Use dependency requirement between nodes of the same type, check dependency of different types
+        Use dependency requirement between nodes of the same type, check dependency of different types
         :param self.template_dependencies
         :param self.relationship_templates_by_name
         :param self.provider_node_names_by_priority
@@ -181,6 +182,8 @@ class ProviderToscaTemplate (object):
         template_names = []
         relation_names = list(self.relationship_templates_by_name.keys())
 
+        group_by_templ_name = dict()
+        group = 0
         for priority in range(0, len(self.provider_node_names_by_priority)):
             nodes_in_priority = []
             nodes_left_next = set(self.provider_node_names_by_priority[priority])
@@ -194,17 +197,18 @@ class ProviderToscaTemplate (object):
                         infinite_error = False
                         nodes_in_priority.append(templ_name)
                         nodes_left_next.remove(templ_name)
+                        group_by_templ_name[templ_name] = group
+                group += 1
+            # Here we added nodes of the same priority
             if infinite_error:
                 ExceptionCollector.appendException(TemplateDependencyError(
                     what="of priority " + str(priority)
                 ))
             for templ_name in nodes_in_priority:
+                # Add relationships for every node
                 node_dependencies = self.template_dependencies.get(templ_name, set())
 
                 for dep_name in node_dependencies:
-                    # Two cases: it's already in a list
-                    #              it's a relationship
-                    #              it's in priority
                     if dep_name in relation_names and not dep_name in template_names:
                         template_names.append(dep_name)
                     elif dep_name in template_names:
@@ -214,7 +218,6 @@ class ProviderToscaTemplate (object):
                             what=dep_name
                         ))
                 template_names.append(templ_name)
-            # Here we added nodes of the same priority
 
         templates = []
         for templ_name in template_names:
@@ -223,6 +226,8 @@ class ProviderToscaTemplate (object):
                 ExceptionCollector.appendException(TemplateDependencyError(
                     what=templ_name
                 ))
+            if group_by_templ_name.get(templ_name):
+                templ.dependency_order = group_by_templ_name[templ_name]
             templates.append(templ)
 
         return templates

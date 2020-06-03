@@ -16,10 +16,19 @@ class TranslatorShell(object):
         self.provider = args.provider
         self.output_file = args.output_file
         self.configuration_tool = args.configuration_tool
+        self.extra = {}
+        for i in args.extra:
+            i_splitted = [j.strip() for j in i.split('=', 1)]
+            if len(i_splitted) < 2:
+                raise Exception('Failed parsing parameter \'--extra\', required \'key=value\' format')
+            self.extra.update({i_splitted[0]: i_splitted[1]})
+        if args.async and not self.extra.get('async'):
+            self.extra['async'] = args.async
 
         self.working_dir = os.getcwd()
 
-        output = translate(self.template_file, self.validate_only, self.provider, self.configuration_tool)
+        output = translate(self.template_file, self.validate_only, self.provider, self.configuration_tool,
+                           extra=self.extra)
         self.output_print(output)
 
     def get_parser(self):
@@ -44,6 +53,15 @@ class TranslatorShell(object):
                             default="ansible",
                             help="Configuration tool which DSL the template would be translated to. "
                                  "Default value = \"ansible\"")
+        parser.add_argument('--async',
+                            action='store_true',
+                            default=False,
+                            help='Provider nodes should be created asynchronously')
+        parser.add_argument('--extra',
+                            default=[],
+                            metavar="KEY=VALUE",
+                            nargs='+',
+                            help='Extra arguments for configuration tool scripts')
 
         return parser
 

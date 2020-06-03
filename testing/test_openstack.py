@@ -23,6 +23,9 @@ class TestAnsibleOpenStackOutput (unittest.TestCase, TestAnsibleProvider):
     def test_full_translating(self):
         shell.main(['--template-file', 'examples/tosca-server-example.yaml', '--provider', self.PROVIDER])
 
+    def test_full_async_translating(self):
+        shell.main(['--template-file', 'examples/tosca-server-example.yaml', '--provider', self.PROVIDER, '--async'])
+
     def test_server_name(self):
         template = copy.deepcopy(self.DEFAULT_TEMPLATE)
         playbook = self.get_ansible_output(template)
@@ -35,10 +38,19 @@ class TestAnsibleOpenStackOutput (unittest.TestCase, TestAnsibleProvider):
         server = tasks[0][SERVER_MODULE_NAME]
         self.assertEqual(server['name'], self.NODE_NAME)
 
-    def test_meta(self):
-        super(TestAnsibleOpenStackOutput, self).test_meta()
+    def test_async_meta(self):
+        extra={
+            'async': True,
+            'retries': 3,
+            'delay': 1,
+            'poll': 0
+        }
+        super(TestAnsibleOpenStackOutput, self).test_meta(extra=extra)
 
-    def check_meta (self, tasks, testing_value=None):
+    def test_meta(self, extra=None):
+        super(TestAnsibleOpenStackOutput, self).test_meta(extra=extra)
+
+    def check_meta (self, tasks, testing_value=None, extra=None):
         server_name = None
         for task in tasks:
             if task.get(SERVER_MODULE_NAME):
