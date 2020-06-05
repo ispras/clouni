@@ -18,6 +18,7 @@ from toscatranslator.common.exception import ProviderFileError, TemplateDependen
     ProviderConfigurationParameterError
 
 from toscatranslator.common.tosca_reserved_keys import *
+from toscatranslator.common.utils import deep_update_dict
 from toscatranslator.providers.common.provider_resource import ProviderResource
 from toscatranslator.providers.common.provider_configuration import ProviderConfiguration
 
@@ -56,6 +57,7 @@ class ProviderToscaTemplate (object):
 
         self.artifacts = []
         self.used_conditions_set = set()
+        self.extra_configuration_tool_params = dict()
 
         self.topology_template = self.translate_to_provider()
 
@@ -99,6 +101,8 @@ class ProviderToscaTemplate (object):
         """
         if not directory:
             directory = self.DEFAULT_ARTIFACTS_DIRECTOR
+        if not extra:
+            extra = dict()
 
         self.configuration_content = ''
         self.configuration_ready = False
@@ -112,6 +116,7 @@ class ProviderToscaTemplate (object):
                 self.generate_artifacts([art], directory)
             else:
                 tool_artifacts.append(art)
+        extra = deep_update_dict(extra, self.extra_configuration_tool_params.get(configuration_tool, {}))
         self.configuration_content = tool.to_dsl_for_create(self.provider, self.provider_nodes_queue, tool_artifacts,
                                                             directory, extra=extra)
         self.configuration_ready = True
@@ -374,8 +379,8 @@ class ProviderToscaTemplate (object):
         return data_dict
 
     def translate_to_provider(self):
-        new_element_templates, new_artifacts, conditions_set = translate_to_provider(self.tosca_elements_map_to_provider(),
-                                                   self.tosca_topology_template)
+        new_element_templates, new_artifacts, conditions_set, new_extra = translate_to_provider(
+            self.tosca_elements_map_to_provider(), self.tosca_topology_template)
 
         self.used_conditions_set = conditions_set
         dict_tpl = copy.deepcopy(self.tosca_topology_template.tpl)
@@ -391,6 +396,7 @@ class ProviderToscaTemplate (object):
                 rel_types.append(v)
         topology_tpl = TopologyTemplate(dict_tpl, self.provider_defs, rel_types)
         self.artifacts.extend(new_artifacts)
+        self.extra_configuration_tool_params = deep_update_dict (self.extra_configuration_tool_params, new_extra)
 
         return topology_tpl
 

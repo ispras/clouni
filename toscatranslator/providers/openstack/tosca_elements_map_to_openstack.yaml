@@ -234,9 +234,18 @@ tosca.nodes.Compute:
                 - - name
                   - properties
                 - "{self[value]}"
-      scalable:
-        error: true
-        reason: Not described in TOSCA Profile YAML v1.0
+      scalable.properties:
+        default_instances:
+          - parameter: "{self[extra][ansible][{self[name]}_server][with_sequence]}"
+            value: "start=1 end={self[value]} format={self[name]}-%d"
+          - parameter: openstack.nodes.Server.properties.name
+            value: "{{{{ item }}}}"
+#        max_instances:
+#          error: true
+#          reason: Not described in TOSCA Profile YAML v1.0
+#        min_instances:
+#          error: true
+#          reason: Not described in TOSCA Profile YAML v1.0
     requirements.local_storage:
       error: true
       reason: Bad description in TOSCA Profile YAML v1.0

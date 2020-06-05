@@ -33,8 +33,9 @@ class AnsibleConfigurationTool(ConfigurationTool):
         self.provider_config = ProviderConfiguration(provider)
         if not extra:
             extra = dict()
-        if extra.get('async') == True:
-            extra['async'] = int(self.provider_config.get_section('ansible').get(ASYNC_DEFAULT_TIME_CONFIG_PARAM,
+        extra_async = extra.get('global', {}).get('async', False)
+        if extra_async == True:
+            extra_async = int(self.provider_config.get_section('ansible').get(ASYNC_DEFAULT_TIME_CONFIG_PARAM,
                                                                              ASYNC_DEFAULT_TIME))
 
         for v in nodes_relationships_queue:
@@ -58,19 +59,15 @@ class AnsibleConfigurationTool(ConfigurationTool):
         prev_dep_order = 0
         check_async_tasks = []
         for v in elements_queue:
-            if extra.get('async'):
+            if extra_async != False:
                 if prev_dep_order < v.dependency_order:
                     ansible_task_list.extend(check_async_tasks)
                     check_async_tasks = []
                     prev_dep_order = v.dependency_order
                 check_async_tasks.extend(self.get_ansible_tasks_for_async(v))
             ansible_task_list.extend(self.get_ansible_tasks_for_create(v, additional_args=extra))
-        if extra.get('async'):
+        if extra_async != False:
             ansible_task_list.extend(check_async_tasks)
-
-        # if extra.get('async'):
-        #     for v in elements_queue:
-        #         ansible_task_list.extend(self.get_ansible_tasks_for_async(v))
 
         ansible_playbook = [dict(
             name='Create ' + provider + ' cluster',
@@ -116,6 +113,9 @@ class AnsibleConfigurationTool(ConfigurationTool):
 
         if additional_args is None:
             additional_args = {}
+        else:
+            additional_args = utils.deep_update_dict(additional_args.get('global', {}),
+                                                     additional_args.get(element_object.name, {}))
 
         ansible_tasks_for_create = []
 

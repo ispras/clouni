@@ -204,3 +204,19 @@ class TestAnsibleOpenStackOutput (unittest.TestCase, TestAnsibleProvider):
         tasks = playbook[0]['tasks']
         self.check_public_address(tasks, "10.100.115.15")
         self.check_private_address(tasks, "192.168.12.25")
+
+    def test_scalable_capabilities(self):
+        super(TestAnsibleOpenStackOutput, self).test_scalable_capabilities()
+
+    def check_scalable_capabilities(self, tasks, testing_value=None):
+        server_name = None
+        default_instances = 2
+        if testing_value:
+            default_instances = testing_value.get('default_instances', default_instances)
+        for task in tasks:
+            if task.get(SERVER_MODULE_NAME):
+                self.assertIsNotNone(task.get('with_sequence'))
+                self.assertIsNotNone(task[SERVER_MODULE_NAME].get('name'))
+                self.assertTrue(task['with_sequence'], 'start=1 end=' + str(default_instances) + ' format=')
+                server_name = task[SERVER_MODULE_NAME]['name']
+        self.assertIsNotNone(server_name)

@@ -234,3 +234,18 @@ class TestAnsibleProvider (BaseAnsibleProvider):
             tasks = playbook[0]['tasks']
             self.check_os_capabilities(tasks)
 
+    def test_scalable_capabilities(self):
+        if hasattr(self, 'check_scalable_capabilities'):
+            template = copy.deepcopy(self.DEFAULT_TEMPLATE)
+            testing_parameter = {
+                "min_instances": 1,
+                "default_instances": 2,
+                "max_instances": 2
+            }
+            template = self.update_template_capability_properties(template, self.NODE_NAME, "scalable", testing_parameter)
+            playbook = self.get_ansible_output(template)
+            assert next(iter(playbook), {}).get('tasks')
+
+            tasks = playbook[0]['tasks']
+            self.check_scalable_capabilities(tasks)
+

@@ -184,9 +184,11 @@ def restructure_value(mapping_value, self, if_format_str=True, if_upper=True):
                 ExceptionCollector.appendException(ToscaParametersMappingFailed(
                     what=parameter
                 ))
-            if parameter[:6] == '{self[' and parameter.index('}') == len(parameter) - 1:
+            if parameter[:6] == '{self[' and parameter[-1] == '}':
                 # The case when variable is written to the parameter self!
-                params_parameter = parameter[6:-2].split('][')
+                # Inside string can be more self parameters
+                format_parameter = parameter[6:-2].format(self=self)
+                params_parameter = format_parameter.split('][')
                 iter_value = value
                 iter_num = len(params_parameter)
                 for i in range(iter_num - 1, 0, -1):
@@ -274,9 +276,15 @@ def get_resulted_mapping_values(parameter, mapping_value, value):
         }
     mapping_value_parameter = mapping_value.get(PARAMETER)
      # NOTE at first check if parameter self[buffer] parameter
-    if mapping_value_parameter and not (
-            mapping_value_parameter[:6] == '{self[' and mapping_value_parameter.index('}') == len(
-            mapping_value_parameter) - 1):
+    if mapping_value_parameter and mapping_value_parameter[:6] == '{self[' and \
+            mapping_value_parameter[-1] == '}':
+            # mapping_value_parameter.index('}') == len(mapping_value_parameter) - 1:
+        return dict(
+            parameter=parameter,
+            map=mapping_value,
+            value=value
+        )
+    elif mapping_value_parameter:
         splitted_mapping_value_parameter = mapping_value_parameter.split(SEPARATOR)
         has_section = False
         for v in splitted_mapping_value_parameter:
@@ -464,6 +472,7 @@ def translate_node_from_tosca(restructured_mapping, tpl_name):
     self = dict()
     self[NAME] = tpl_name
     self[ARTIFACTS] = []
+    self[EXTRA] = dict()
 
     for item in restructured_mapping:
         ExceptionCollector.start()
@@ -536,7 +545,7 @@ def translate_node_from_tosca(restructured_mapping, tpl_name):
                                         resulted_structure[keyname][node_type][section] = \
                                             deep_update_dict(temp_params, params)
 
-    return resulted_structure, self[ARTIFACTS]
+    return resulted_structure, self[ARTIFACTS], self[EXTRA]
 
 
 def get_source_structure_from_facts(condition, fact_name, value, arguments, executor, target_parameter,
@@ -837,6 +846,7 @@ def translate(tosca_elements_map_to_provider, topology_template):
     new_element_templates = {}
     artifacts = []
     conditions = []
+    extra = dict()
 
     for element in element_templates:
         (namespace, _, _) = tosca_type.parse(element.type)
@@ -846,7 +856,9 @@ def translate(tosca_elements_map_to_provider, topology_template):
             restructured_mapping, extra_mappings, conditions = restructure_mapping_facts(restructured_mapping)
             restructured_mapping.extend(extra_mappings)
 
-            tpl_structure, artifacts = translate_node_from_tosca(restructured_mapping, element.name)
+            tpl_structure, new_artifacts, new_extra = translate_node_from_tosca(restructured_mapping, element.name)
+            extra = deep_update_dict(extra, new_extra)
+            artifacts.extend(new_artifacts)
             for tpl_name, temp_tpl in tpl_structure.items():
                 for node_type, tpl in temp_tpl.items():
                     (_, element_type, _) = tosca_type.parse(node_type)
@@ -859,4 +871,4 @@ def translate(tosca_elements_map_to_provider, topology_template):
 
         conditions = set(conditions)
 
-    return new_element_templates, artifacts, conditions
+    return new_element_templates, artifacts, conditions, extra

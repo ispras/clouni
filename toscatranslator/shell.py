@@ -28,7 +28,7 @@ class TranslatorShell(object):
         self.working_dir = os.getcwd()
 
         output = translate(self.template_file, self.validate_only, self.provider, self.configuration_tool,
-                           extra=self.extra)
+                           extra={'global': self.extra})
         self.output_print(output)
 
     def get_parser(self):
