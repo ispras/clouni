@@ -15,7 +15,7 @@
         "private_address":
         {
           "parameter": "amazon.nodes.Instance.attributes",
-          "value": [
+          "value":
             {
               "parameter": "network.interface.properties",
               "value": {
@@ -23,7 +23,7 @@
                 "private_ip_address": "{self[value]}"
               }
             }
-          ]
+
         },
         "public_address": {
           "error": true,

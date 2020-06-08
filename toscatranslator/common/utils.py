@@ -11,6 +11,7 @@ def execute_function(module_name, function_name, params):
 
 def deep_update_dict(source, overrides):
     assert isinstance(source, dict)
+    assert isinstance(overrides, dict)
 
     for k, v in overrides.items():
         if isinstance(v, dict):

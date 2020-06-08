@@ -69,6 +69,9 @@ class TestAnsibleAmazonOutput (unittest.TestCase, TestAnsibleProvider):
                     self.assertEqual(server_flavor, testing_value)
         self.assertIsNotNone(server_name)
 
+    def test_endpoint_capabilities(self):
+        super(TestAnsibleAmazonOutput, self).test_endpoint_capabilities()
+
     def check_endpoint_capabilities(self, tasks, testing_value=None):
         sec_group_name = None
         server_name = None

@@ -394,6 +394,7 @@ class ProviderToscaTemplate (object):
             (_, element_type, _) = tosca_type.parse(k)
             if element_type == RELATIONSHIP_TYPES:
                 rel_types.append(v)
+
         topology_tpl = TopologyTemplate(dict_tpl, self.provider_defs, rel_types)
         self.artifacts.extend(new_artifacts)
         self.extra_configuration_tool_params = deep_update_dict (self.extra_configuration_tool_params, new_extra)

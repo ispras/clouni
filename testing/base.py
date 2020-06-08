@@ -129,7 +129,10 @@ class TestAnsibleProvider (BaseAnsibleProvider):
             assert next(iter(playbook), {}).get('tasks')
             tasks = playbook[0]['tasks']
 
-            self.check_meta(tasks, testing_value=testing_value, extra=extra)
+            if extra:
+                self.check_meta(tasks, testing_value=testing_value, extra=extra)
+            else:
+                self.check_meta(tasks, testing_value=testing_value)
 
     def test_private_address(self):
         if hasattr(self, 'check_private_address'):
