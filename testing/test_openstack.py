@@ -1,6 +1,7 @@
 import unittest
 from testing.base import TestAnsibleProvider
 import copy
+import os
 
 from toscatranslator import shell
 
@@ -15,16 +16,20 @@ class TestAnsibleOpenStackOutput (unittest.TestCase, TestAnsibleProvider):
     PROVIDER = 'openstack'
 
     def test_validation(self):
-        shell.main(['--template-file', 'examples/tosca-server-example-openstack.yaml', '--validate-only'])
+        file_path = os.path.join('examples', 'tosca-server-example-openstack.yaml')
+        shell.main(['--template-file', file_path, '--validate-only'])
 
     def test_translating_to_ansible(self):
-        shell.main(['--template-file', 'examples/tosca-server-example-openstack.yaml', '--provider', self.PROVIDER])
+        file_path = os.path.join('examples', 'tosca-server-example-openstack.yaml')
+        shell.main(['--template-file', file_path, '--provider', self.PROVIDER])
 
     def test_full_translating(self):
-        shell.main(['--template-file', 'examples/tosca-server-example.yaml', '--provider', self.PROVIDER])
+        file_path = os.path.join('examples', 'tosca-server-example.yaml')
+        shell.main(['--template-file', file_path, '--provider', self.PROVIDER])
 
     def test_full_async_translating(self):
-        shell.main(['--template-file', 'examples/tosca-server-example.yaml', '--provider', self.PROVIDER, '--async'])
+        file_path = os.path.join('examples', 'tosca-server-example.yaml')
+        shell.main(['--template-file', file_path, '--provider', self.PROVIDER, '--async'])
 
     def test_server_name(self):
         template = copy.deepcopy(self.DEFAULT_TEMPLATE)

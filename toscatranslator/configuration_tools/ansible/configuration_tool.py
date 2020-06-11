@@ -114,8 +114,10 @@ class AnsibleConfigurationTool(ConfigurationTool):
         if additional_args is None:
             additional_args = {}
         else:
-            additional_args = utils.deep_update_dict(additional_args.get('global', {}),
-                                                     additional_args.get(element_object.name, {}))
+            additional_args_global = copy.deepcopy(additional_args.get('global', {}))
+            additional_args_element = copy.deepcopy(additional_args.get(element_object.name, {}))
+            additional_args = utils.deep_update_dict(additional_args_global,
+                                                     additional_args_element)
 
         ansible_tasks_for_create = []
 
@@ -188,6 +190,11 @@ class AnsibleConfigurationTool(ConfigurationTool):
                     arg = self.rap_ansible_variable(node_filter_value_with_id)
             configuration_args[arg_key] = arg
 
+        for i in element_object.nodetemplate.interfaces:
+            if i.name == 'preconfigure':
+                op_name = '_'.join([element_object.name, 'standard', 'preconfigure'])
+                if not self.global_operations_info.get(op_name, {}).get(OUTPUT_IDS):
+                    ansible_tasks_for_create.extend(self.get_ansible_tasks_from_operation(op_name, True))
         ansible_args = copy.copy(element_object.configuration_args)
         ansible_args['state'] = 'present'
         ansible_task_as_dict = dict()
@@ -217,11 +224,11 @@ class AnsibleConfigurationTool(ConfigurationTool):
                 module_prefix = new_module_prefix
         return module_prefix + snake_case.convert(provider_source_obj.type_name)
 
-    def get_ansible_tasks_from_operation(self, op_name):
+    def get_ansible_tasks_from_operation(self, op_name, if_required=False):
         tasks = []
 
         op_info = self.global_operations_info[op_name]
-        if not op_info.get(OUTPUT_IDS) or not op_info.get(IMPLEMENTATION):
+        if not if_required and not op_info.get(OUTPUT_IDS) or not op_info.get(IMPLEMENTATION):
             return []
 
         import_task_arg = op_info[IMPLEMENTATION]
@@ -260,13 +267,14 @@ class AnsibleConfigurationTool(ConfigurationTool):
                     IMPORT_TASKS_MODULE: abs_path_file
                 }
                 tasks.append(new_task)
-        for k, v in op_info[OUTPUT_IDS].items():
-            new_task = {
-                SET_FACT_MODULE: {
-                    v: self.rap_ansible_variable(k)
+        if op_info.get(OUTPUT_IDS):
+            for k, v in op_info[OUTPUT_IDS].items():
+                new_task = {
+                    SET_FACT_MODULE: {
+                        v: self.rap_ansible_variable(k)
+                    }
                 }
-            }
-            tasks.append(new_task)
+                tasks.append(new_task)
         return tasks
 
     def rap_ansible_variable(self, s):
