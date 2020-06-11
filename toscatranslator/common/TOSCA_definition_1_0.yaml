@@ -161,6 +161,9 @@ node_types:
       keypair:
         type: string
         required: false
+      boot_from_volume:
+        type: string
+        required: false
     attributes:
       private_address:
         type: string
@@ -817,8 +820,8 @@ capability_types:
     derived_from: tosca.capabilities.Root
     properties:
       min_instances:
-        type: integer
-        required: true
+        type: string
+        required: false
         default: 1
         description: >
           This property is used to indicate the minimum number of instances
@@ -826,7 +829,7 @@ capability_types:
           a TOSCA orchestrator.
       max_instances:
         type: integer
-        required: true
+        required: false
         default: 1
         description: >
           This property is used to indicate the maximum number of instances

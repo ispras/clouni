@@ -2,14 +2,14 @@ tosca_definitions_version: tosca_simple_yaml_1_0
 
 topology_template:
   node_templates:
-    node_master:
+    node_storage:
       type: tosca.nodes.Compute
       properties:
         keypair: "{{ os_key_name }}"
-        meta: "hostname={{ cluster_name }}-master,group={{ cluster_name }}_master"
+        meta: "hostname={{ cluster_name }}-storage,group={{ cluster_name }}_storage"
         boot_from_volume: "{{ boot_from_volume }}"
       attributes:
-        tosca_name: "{{ cluster_name }}-master"
+        tosca_name: "{{ cluster_name }}-storage"
         networks:
           default:
             network_name: "{{ virtual_network }}"
@@ -18,7 +18,7 @@ topology_template:
       capabilities:
         host:
           properties:
-            tosca_id: "{{ master_flavor }}"
+            tosca_id: "{{ storage_flavor }}"
         endpoint:
           properties:
             protocol: tcp

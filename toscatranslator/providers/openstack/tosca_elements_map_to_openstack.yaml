@@ -10,6 +10,7 @@ tosca.nodes.Compute:
         parameter: openstack.nodes.Server.requirements.key_name.node_filter.properties
         value:
           - name: "{self[value]}"
+      boot_from_volume: openstack.nodes.Server.attributes.boot_from_volume
   - attributes:
       tosca_name:
         parameter: "{self[name]}"
@@ -320,14 +321,24 @@ tosca.nodes.Compute:
         default_instances:
           - parameter: "{self[extra][ansible][{self[keyname]}_server][with_sequence]}"
             value: "start=1 end={self[value]} format={self[name]}-%d"
+          - parameter: "{self[extra][ansible][{self[keyname]}_floating_ip][with_sequence]}"
+            value: "start=1 end={self[value]} format={self[name]}-%d"
           - parameter: openstack.nodes.Server.properties.name
             value: "{{{{ item }}}}"
-#        max_instances:
-#          error: true
-#          reason: Not described in TOSCA Profile YAML v1.0
-#        min_instances:
-#          error: true
-#          reason: Not described in TOSCA Profile YAML v1.0
+        max_instances:
+          - parameter: "{self[extra][ansible][{self[keyname]}_server][with_sequence]}"
+            value: "start=1 end={self[value]} format={self[name]}-%d"
+          - parameter: "{self[extra][ansible][{self[keyname]}_floating_ip][with_sequence]}"
+            value: "start=1 end={self[value]} format={self[name]}-%d"
+          - parameter: openstack.nodes.Server.properties.name
+            value: "{{{{ item }}}}"
+        min_instances:
+          - parameter: "{self[extra][ansible][{self[keyname]}_server][with_sequence]}"
+            value: "start=1 end={self[value]} format={self[name]}-%d"
+          - parameter: "{self[extra][ansible][{self[keyname]}_floating_ip][with_sequence]}"
+            value: "start=1 end={self[value]} format={self[name]}-%d"
+          - parameter: openstack.nodes.Server.properties.name
+            value: "{{{{ item }}}}"
     requirements.local_storage:
       error: true
       reason: Bad description in TOSCA Profile YAML v1.0

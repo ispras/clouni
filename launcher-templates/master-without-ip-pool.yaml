@@ -13,8 +13,6 @@ topology_template:
         networks:
           default:
             network_name: "{{ virtual_network }}"
-          floating_ip_pool:
-            network_name: "{{ floating_ip_pool }}"
       capabilities:
         host:
           properties:
