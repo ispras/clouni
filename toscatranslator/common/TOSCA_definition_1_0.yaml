@@ -78,7 +78,8 @@ data_types:
           type: string
 
   tosca.datatypes.network.PortDef:
-    derived_from: integer
+    derived_from: tosca.datatypes.Root
+    type: integer
     constraints:
       - in_range: [ 1, 65535 ]
 
@@ -90,7 +91,7 @@ data_types:
         required: true
         default: tcp
         constraints:
-          - valid_values: [ udp, tcp, igmp ]
+          - valid_values: [ udp, tcp, igmp, icmp ]
       target:
         type: tosca.datatypes.network.PortDef
         required: false
@@ -117,19 +118,19 @@ node_types:
   tosca.nodes.Root:
     description: >
       The TOSCA root node all other TOSCA base node types derive from.
-    attributes:
+    properties:
       tosca_id:
         description: >
           A unique identifier of the realized instance of a Node Template
           that derives from any TOSCA normative type.
         type: string
-        required: true
+        required: false
       tosca_name:
         description: >
           This attribute reflects the name of the Node Template as
           defined in the TOSCA service template.
         type: string
-        required: true
+        required: false
       state:
         description: >
           The state of the node instance. See section “Node States” for
@@ -154,10 +155,11 @@ node_types:
       The TOSCA Compute node represents one or more real or virtual processors of software applications or services
       along with other essential local resources.
     derived_from: tosca.nodes.Root
-    attributes:
+    properties:
       meta:
         type: string
         required: false
+    attributes:
       private_address:
         type: string
         required: false
@@ -849,6 +851,8 @@ interface_types:
   tosca.interfaces.node.lifecycle.Standard:
     description: This lifecycle interface defines the essential, normative operations that TOSCA nodes may support.
     derived_from: tosca.interfaces.Root
+    preconfigure:
+      description: Standard lifecycle preconfigure operation.
     create:
       description: Standard lifecycle create operation.
     configure:
