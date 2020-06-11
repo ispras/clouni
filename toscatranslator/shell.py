@@ -1,6 +1,7 @@
 import sys
 import argparse
 import os
+import six
 
 from toscatranslator.common.translator_to_configuration_dsl import translate
 
@@ -24,6 +25,14 @@ class TranslatorShell(object):
             self.extra.update({i_splitted[0]: i_splitted[1]})
         if args.async and not self.extra.get('async'):
             self.extra['async'] = args.async
+
+        for k, v in self.extra.items():
+            if isinstance(v, six.string_types):
+                if v.isnumeric():
+                    if int(v) == float(v):
+                        self.extra[k] = int(v)
+                    else:
+                        self.extra[k] = float(v)
 
         self.working_dir = os.getcwd()
 
