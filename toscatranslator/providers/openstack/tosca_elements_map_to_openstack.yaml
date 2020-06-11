@@ -2,8 +2,14 @@
 tosca.nodes.Compute:
   - parameter: openstack.nodes.Server.properties.name
     value: "{self[name]}"
+  - parameter: openstack.nodes.Server.attributes.auto_ip
+    value: no
   - properties:
       meta: openstack.nodes.Server.properties.meta
+      keypair:
+        parameter: openstack.nodes.Server.requirements.key_name.node_filter.properties
+        value:
+          - name: "{self[value]}"
   - attributes:
       tosca_name:
         parameter: "{self[name]}"
@@ -110,10 +116,20 @@ tosca.nodes.Compute:
                               - "{self[value]}"
                 - parameter: server
                   value: "{self[keyname]}_server"
-      networks.*.network_name:
-        parameter: openstack.nodes.Server.properties.nics
+      networks.floating_ip_pool.network_name:
+        - parameter: openstack.nodes.FloatingIp.requirements.network.node_filter.properties
+        - parameter: openstack.nodes.FloatingIp.requirements.network.node_filter.properties
+          value:
+            - name: "{self[value]}"
+        - parameter: openstack.nodes.FloatingIp.requirements.server
+          value: "{self[keyname]}_server"
+      networks.default.network_name:
+        parameter: openstack.nodes.Server.requirements.network.node_filter.properties
         value:
-          - net-name: "{self[value]}"
+          - name: "{self[value]}"
+#        parameter: openstack.nodes.Server.properties.nics
+#        value:
+#          - net-name: "{self[value]}"
       networks.*.network_id:
         parameter: openstack.nodes.Server.requirements.nics.node_filter.properties
         value:
@@ -165,6 +181,14 @@ tosca.nodes.Compute:
                 - allocation_pool_end
                 - "{self[value]}"
     capabilities:
+      host.properties.tosca_id:
+        parameter: openstack.nodes.Server.requirements.flavor.node_filter.properties
+        value:
+          - id: "{self[value]}"
+      host.properties.tosca_name:
+        parameter: openstack.nodes.Server.requirements.flavor.node_filter.properties
+        value:
+          - name: "{self[value]}"
       host.properties.num_cpus:
         parameter: openstack.nodes.Server.requirements.flavor.node_filter.properties
         value:
@@ -284,6 +308,14 @@ tosca.nodes.Compute:
                   - "{self[buffer][os]}"
       os.properties.distribution: "{self[buffer][os][distribution]}"
       os.properties.version: "{self[buffer][os][version]}"
+      os.properties.tosca_id:
+        parameter: openstack.nodes.Server.requirements.image.node_filter.properties
+        value:
+          - id: "{self[value]}"
+      os.properties.tosca_name:
+        parameter: openstack.nodes.Server.requirements.image.node_filter.properties
+        value:
+          - name: "{self[value]}"
       scalable.properties:
         default_instances:
           - parameter: "{self[extra][ansible][{self[keyname]}_server][with_sequence]}"

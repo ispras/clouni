@@ -4,6 +4,28 @@ Cloud Unifier Tool for Service Orchestration
 Clouni is a cloud application management tool based on OASIS standard 
 [TOSCA](http://docs.oasis-open.org/tosca/TOSCA-Simple-Profile-YAML/v1.0/TOSCA-Simple-Profile-YAML-v1.0.html)
 
+This branch is specified for integration with Michman project.
+
+## Michman 
+[Michman](https://github.com/ispras/michman) is an orchestration self-hosted service intended to simplify process of 
+creating distributed clusters and management of services in cloud environments. At now it provides capabilities for 
+deployment a part of Apache big data stack respecting user ability to choose needed versions with additional tools and 
+services:
+
+* Apache Spark
+* Apache Hadoop
+* Apache Ignite
+* Apache Cassandra
+* ElasticSearch with OpenDistro tools
+* Jupyter
+* Jupyterhub
+* Nextcloud
+
+Clusters are created and managed via REST API (see swagger docs) with collaborative group-based access to computational 
+resources.
+
+This project follows up spark-openstack project (ISP RAS).
+
 ## Installation
 Clouni requires Python 3 to be used.
 

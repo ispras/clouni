@@ -78,8 +78,7 @@ data_types:
           type: string
 
   tosca.datatypes.network.PortDef:
-    derived_from: tosca.datatypes.Root
-    type: integer
+    derived_from: integer
     constraints:
       - in_range: [ 1, 65535 ]
 
@@ -157,6 +156,9 @@ node_types:
     derived_from: tosca.nodes.Root
     properties:
       meta:
+        type: string
+        required: false
+      keypair:
         type: string
         required: false
     attributes:
@@ -641,6 +643,25 @@ capability_types:
     description: >
       The TOSCA root Capability Type all other TOSCA base Capability Types
       derive from.
+    properties:
+      tosca_id:
+        description: >
+          A unique identifier of the realized instance of a Node Template
+          that derives from any TOSCA normative type.
+        type: string
+        required: true
+      tosca_name:
+        description: >
+          This attribute reflects the name of the Node Template as
+          defined in the TOSCA service template.
+        type: string
+        required: true
+      state:
+        description: >
+          The state of the node instance. See section “Node States” for
+          allowed values.
+        type: string
+        default: initial
 
   tosca.capabilities.Node:
     description: The Node capability indicates the base capabilities of a TOSCA Node Type.

@@ -1,0 +1,34 @@
+tosca_definitions_version: tosca_simple_yaml_1_0
+
+topology_template:
+  node_templates:
+    node_master:
+      type: tosca.nodes.Compute
+      properties:
+        keypair: "{{ os_key_name }}"
+        meta: "hostname={{ cluster_name }}-master,group={{ cluster_name }}_master"
+      attributes:
+        tosca_name: "{{ cluster_name }}-master"
+        networks:
+          default:
+            network_name: "{{ virtual_network }}"
+          floating_ip_pool:
+            network_name: "{{ floating_ip_pool }}"
+      capabilities:
+        host:
+          properties:
+            tosca_id: "{{ master_flavor }}"
+        endpoint:
+          properties:
+            protocol: tcp
+            initiator: target
+            ports:
+              icmp:
+                protocol: icmp
+              udp:
+                protocol: udp
+          attributes:
+            ip_address: 0.0.0.0
+        os:
+          properties:
+            tosca_id: "{{ os_image }}"

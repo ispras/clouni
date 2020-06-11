@@ -171,7 +171,7 @@ node_types:
 
   openstack.nodes.Keypair: # os_keypair
     derived_from: openstack.nodes.Root
-    attributes:
+    properties:
       name:
         type: string
         required: true
