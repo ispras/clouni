@@ -123,7 +123,7 @@ class TestAnsibleProvider (BaseAnsibleProvider):
             testing_parameter = {
                 "meta": testing_value
             }
-            template = self.update_template_attribute(template, self.NODE_NAME, testing_parameter)
+            template = self.update_template_property(template, self.NODE_NAME, testing_parameter)
             playbook = self.get_ansible_output(template, extra=extra)
 
             assert next(iter(playbook), {}).get('tasks')

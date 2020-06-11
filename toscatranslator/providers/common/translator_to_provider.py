@@ -264,13 +264,18 @@ def get_resulted_mapping_values(parameter, mapping_value, value, self):
         # Inside string can be more self parameters
         format_parameter = mapping_value_parameter[6:-2].format(self=self)
         params_parameter = format_parameter.split('][')
+        if isinstance(mapping_value_value, dict):
+            if mapping_value_value.get(VALUE) and mapping_value_value.get(EXECUTOR) == PYTHON_EXECUTOR and \
+                    mapping_value_value.get(SOURCE):
+                mapping_value_value = execute_function(PYTHON_SOURCE_DIRECTORY, mapping_value_value[SOURCE],
+                                                       {'self' : self})
         iter_value = format_value(mapping_value_value, self)
         iter_num = len(params_parameter)
         for i in range(iter_num - 1, 0, -1):
             temp_param = dict()
             temp_param[params_parameter[i]] = iter_value
             iter_value = temp_param
-        self[params_parameter[0]] = deep_update_dict(self.get(params_parameter[0], {}), iter_value)
+        self = deep_update_dict(self, {params_parameter[0]: iter_value})
         return []
     elif mapping_value_parameter:
         splitted_mapping_value_parameter = mapping_value_parameter.split(SEPARATOR)
@@ -468,7 +473,6 @@ def translate_node_from_tosca(restructured_mapping, tpl_name, self):
     :return: entity_tpl as dict
     """
     resulted_structure = {}
-    self[NAME] = tpl_name
 
     for item in restructured_mapping:
         ExceptionCollector.start()
@@ -493,7 +497,7 @@ def translate_node_from_tosca(restructured_mapping, tpl_name, self):
                     (_, _, type_name) = tosca_type.parse(node_type)
                     if not type_name:
                         ExceptionCollector.appendException()
-                    keyname = self[NAME] + "_" + snake_case.convert(type_name)
+                    keyname = self[KEYNAME] + "_" + snake_case.convert(type_name)
                 node_tpl_with_name = {keyname: {node_type: tpl}}
                 resulted_structure = deep_update_dict(resulted_structure, node_tpl_with_name)
 
@@ -814,6 +818,9 @@ def translate(tosca_elements_map_to_provider, topology_template):
 
     for element in element_templates:
         (namespace, _, _) = tosca_type.parse(element.type)
+        self[NAME] = element.name
+        self[KEYNAME] = element.name
+
         if namespace == TOSCA:
             restructured_mapping = restructure_mapping(tosca_elements_map_to_provider, element, self)
 
