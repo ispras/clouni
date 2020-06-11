@@ -335,13 +335,26 @@ class AnsibleConfigurationTool(ConfigurationTool):
         config = self.provider_config.get_section('ansible')
         retries = int(config.get(ASYNC_DEFAULT_RETRIES_CONFIG_PARAM, 60))
         delay = int(config.get(ASYNC_DEFAULT_DELAY_CONFIG_PARAM, 5))
-        jid = self.rap_ansible_variable(element_object.name + '.ansible_job_id')
-        task = {
-            NAME: 'Checking ' + element_object.name + ' created',
-            'async_status': 'jid=' + jid,
-            REGISTER: 'create_result_status',
-            'until': 'create_result_status.finished',
-            'retries': retries,
-            'delay': delay
-        }
-        return [task]
+        jid = element_object.name + '.ansible_job_id'
+        tasks = [
+            {
+                NAME: 'Checking ' + element_object.name + ' created',
+                'async_status': 'jid=' + self.rap_ansible_variable(jid),
+                REGISTER: 'create_result_status',
+                'until': 'create_result_status.finished',
+                'retries': retries,
+                'delay': delay,
+                'when': jid + ' is defined'
+            },
+            {
+                NAME: 'Checking ' + element_object.name + ' created',
+                'async_status': 'jid=' + self.rap_ansible_variable('item.ansible_job_id'),
+                REGISTER: 'create_result_status',
+                'until': 'create_result_status.finished',
+                'retries': retries,
+                'delay': delay,
+                'with_items': self.rap_ansible_variable(element_object.name + '.results | default([])'),
+                'when': jid + ' is undefined'
+            }
+        ]
+        return tasks
