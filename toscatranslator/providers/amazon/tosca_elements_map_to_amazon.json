@@ -5,13 +5,17 @@
       "value": "{self[name]}"
     },
     {
-      "attributes": {
+      "properties": {
         "meta": {
           "parameter": "amazon.nodes.Instance.properties.tags",
           "value": {
             "metadata": "{self[value]}"
           }
-        },
+        }
+      }
+    },
+    {
+      "attributes": {
         "private_address":
         {
           "parameter": "amazon.nodes.Instance.attributes",
