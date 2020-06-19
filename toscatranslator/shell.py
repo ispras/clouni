@@ -17,6 +17,7 @@ class TranslatorShell(object):
         self.provider = args.provider
         self.output_file = args.output_file
         self.configuration_tool = args.configuration_tool
+        self.cluster_name = args.cluster_name
         self.extra = {}
         for i in args.extra:
             i_splitted = [j.strip() for j in i.split('=', 1)]
@@ -36,7 +37,7 @@ class TranslatorShell(object):
 
         self.working_dir = os.getcwd()
 
-        output = translate(self.template_file, self.validate_only, self.provider, self.configuration_tool,
+        output = translate(self.template_file, self.validate_only, self.provider, self.configuration_tool, self.cluster_name,
                            extra={'global': self.extra})
         self.output_print(output)
 
@@ -47,6 +48,9 @@ class TranslatorShell(object):
                             metavar='<filename>',
                             required=True,
                             help='YAML template to parse.')
+        parser.add_argument('--cluster-name',
+                            required=True,
+                            help='Cluster name')
         parser.add_argument('--validate-only',
                             action='store_true',
                             default=False,

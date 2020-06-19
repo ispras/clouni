@@ -8,7 +8,7 @@ TYPE = 'type'
 
 
 class KubernetesConfigurationTool(ConfigurationTool):
-    def to_dsl_for_create(self, provider, nodes_queue, artifacts, target_directory, extra=None):
+    def to_dsl_for_create(self, provider, nodes_queue, artifacts, target_directory, cluster_name, extra=None):
         k8s_list = []
         for node in nodes_queue:
             k8s_list.append(self.get_k8s_kind_for_create(node))

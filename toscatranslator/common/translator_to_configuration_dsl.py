@@ -14,7 +14,7 @@ from toscatranslator.common import utils
 TOSCA_DEFINITION_FILE = 'toscatranslator/common/TOSCA_definition_1_0.yaml'
 
 
-def translate(template_file, validate_only, provider, configuration_tool, a_file=True, extra=None):
+def translate(template_file, validate_only, provider, configuration_tool, cluster_name = '', a_file=True, extra=None):
     if a_file:
         template_file = os.path.join(os.getcwd(), template_file)
         with open(template_file, 'r') as f:
@@ -45,5 +45,5 @@ def translate(template_file, validate_only, provider, configuration_tool, a_file
             what=('validate-only', 'provider')
         ))
 
-    tosca = ProviderToscaTemplate(tosca_parser_template_object, provider)
+    tosca = ProviderToscaTemplate(tosca_parser_template_object, provider, cluster_name)
     return tosca.to_configuration_dsl_for_create(configuration_tool, extra=extra)

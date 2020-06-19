@@ -17,19 +17,19 @@ class TestAnsibleOpenStackOutput (unittest.TestCase, TestAnsibleProvider):
 
     def test_validation(self):
         file_path = os.path.join('examples', 'tosca-server-example-openstack.yaml')
-        shell.main(['--template-file', file_path, '--validate-only'])
+        shell.main(['--template-file', file_path, '--cluster-name', 'test', '--validate-only'])
 
     def test_translating_to_ansible(self):
         file_path = os.path.join('examples', 'tosca-server-example-openstack.yaml')
-        shell.main(['--template-file', file_path, '--provider', self.PROVIDER])
+        shell.main(['--template-file', file_path, '--cluster-name', 'test', '--provider', self.PROVIDER])
 
     def test_full_translating(self):
         file_path = os.path.join('examples', 'tosca-server-example.yaml')
-        shell.main(['--template-file', file_path, '--provider', self.PROVIDER])
+        shell.main(['--template-file', file_path, '--cluster-name', 'test', '--provider', self.PROVIDER])
 
     def test_full_async_translating(self):
         file_path = os.path.join('examples', 'tosca-server-example.yaml')
-        shell.main(['--template-file', file_path, '--provider', self.PROVIDER, '--async'])
+        shell.main(['--template-file', file_path, '--cluster-name', 'test', '--provider', self.PROVIDER, '--async'])
 
     def test_server_name(self):
         template = copy.deepcopy(self.DEFAULT_TEMPLATE)
@@ -38,9 +38,9 @@ class TestAnsibleOpenStackOutput (unittest.TestCase, TestAnsibleProvider):
         self.assertIsInstance(playbook[0], dict)
         self.assertIsNotNone(playbook[0]['tasks'])
         tasks = playbook[0]['tasks']
-        self.assertEqual(len(tasks), 1)
-        self.assertIsNotNone(tasks[0][SERVER_MODULE_NAME])
-        server = tasks[0][SERVER_MODULE_NAME]
+        self.assertEqual(len(tasks), 4)
+        self.assertIsNotNone(tasks[2][SERVER_MODULE_NAME])
+        server = tasks[2][SERVER_MODULE_NAME]
         self.assertEqual(server['name'], self.NODE_NAME)
 
     def test_async_meta(self):

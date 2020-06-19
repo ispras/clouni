@@ -28,7 +28,7 @@ class ConfigurationTool(object):
         self.global_variables = {}
 
 
-    def to_dsl_for_create(self, provider, nodes_relationships_queue, artifacts, target_directory, extra=None):
+    def to_dsl_for_create(self, provider, nodes_relationships_queue, artifacts, target_directory, cluster_name, extra=None, is_create=True):
         """
 
         :param provider: provider keyname
@@ -101,8 +101,6 @@ class ConfigurationTool(object):
             ExceptionCollector.appendException(TemplateDependencyError(
                 what=element_template_name
             ))
-
-        return
 
     def get_interfaces_from_node(self, node):
         # TODO
