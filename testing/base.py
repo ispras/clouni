@@ -10,7 +10,7 @@ from toscatranslator.common.tosca_reserved_keys import PROVIDERS, ANSIBLE, TYPE,
 
 
 class BaseAnsibleProvider:
-    TESTING_TEMPLATE_FILENAME = 'examples/testing-example.yaml'
+    TESTING_TEMPLATE_FILENAME_TO_JOIN = ['examples', 'testing-example.yaml']
     NODE_NAME = 'server-master'
     DEFAULT_TEMPLATE = {
         TOSCA_DEFINITIONS_VERSION: "tosca_simple_yaml_1_0",
@@ -23,15 +23,24 @@ class BaseAnsibleProvider:
         }
     }
 
+    def testing_template_filename(self):
+        r = None
+        for i in self.TESTING_TEMPLATE_FILENAME_TO_JOIN:
+            if r == None:
+                r = i
+            else:
+                r = os.path.join(r, i)
+        return r
+
     def write_template(self, template, filename=None):
         if not filename:
-            filename = self.TESTING_TEMPLATE_FILENAME
+            filename = self.testing_template_filename()
         with open(filename, 'w') as f:
             f.write(template)
 
     def delete_template(self, filename=None):
         if not filename:
-            filename = self.TESTING_TEMPLATE_FILENAME
+            filename = self.testing_template_filename()
         if os.path.exists(filename):
             os.remove(filename)
 
@@ -53,7 +62,7 @@ class BaseAnsibleProvider:
 
     def get_ansible_output(self, template, template_filename = None, extra=None):
         if not template_filename:
-            template_filename = self.TESTING_TEMPLATE_FILENAME
+            template_filename = self.testing_template_filename()
         self.write_template(self.prepare_yaml(template))
         r = common_translate(template_filename, False, self.PROVIDER, ANSIBLE, extra=extra)
         print(r)
@@ -63,7 +72,7 @@ class BaseAnsibleProvider:
 
     def get_k8s_output(self, template, template_filename = None):
         if not template_filename:
-            template_filename = self.TESTING_TEMPLATE_FILENAME
+            template_filename = self.testing_template_filename()
         self.write_template(self.prepare_yaml(template))
         r = common_translate(template_filename, False, self.PROVIDER, 'kubernetes')
         print(r)
