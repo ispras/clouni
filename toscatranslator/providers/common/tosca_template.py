@@ -53,7 +53,9 @@ class ProviderToscaTemplate (object):
 
         import_definition_file = ImportsLoader([self.definition_file()], None, list(SERVICE_TEMPLATE_KEYS),
                                                self.tosca_topology_template.tpl)
+        self.full_provider_defs = copy.copy(self.tosca_topology_template.custom_defs)
         self.provider_defs = import_definition_file.get_custom_defs()
+        self.full_provider_defs.update(self.provider_defs)
 
         self.artifacts = []
         self.used_conditions_set = set()
@@ -395,7 +397,7 @@ class ProviderToscaTemplate (object):
             if element_type == RELATIONSHIP_TYPES:
                 rel_types.append(v)
 
-        topology_tpl = TopologyTemplate(dict_tpl, self.provider_defs, rel_types)
+        topology_tpl = TopologyTemplate(dict_tpl, self.full_provider_defs, rel_types)
         self.artifacts.extend(new_artifacts)
         self.extra_configuration_tool_params = deep_update_dict (self.extra_configuration_tool_params, new_extra)
 

@@ -192,7 +192,7 @@ class AnsibleConfigurationTool(ConfigurationTool):
 
         for i in element_object.nodetemplate.interfaces:
             if i.name == 'preconfigure':
-                op_name = '_'.join([element_object.name, 'standard', 'preconfigure'])
+                op_name = '_'.join([element_object.name, 'prepare', 'preconfigure'])
                 if not self.global_operations_info.get(op_name, {}).get(OUTPUT_IDS):
                     ansible_tasks_for_create.extend(self.get_ansible_tasks_from_operation(op_name, True))
         ansible_args = copy.copy(element_object.configuration_args)
