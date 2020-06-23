@@ -85,7 +85,7 @@ class BaseAnsibleProvider:
         if not template_filename:
             template_filename = self.testing_template_filename()
         self.write_template(self.prepare_yaml(template))
-        r = common_translate(template_filename, False, self.PROVIDER, TEST, 'kubernetes')
+        r = common_translate(template_filename, False, self.PROVIDER, 'kubernetes', TEST, False)
         print(r)
         manifest = list(self.parse_all_yaml(r))
         return manifest
@@ -133,7 +133,8 @@ class BaseAnsibleProvider:
 
 class TestAnsibleProvider(BaseAnsibleProvider):
     def test_full_translating(self):
-        shell.main(['--template-file', 'examples/tosca-server-example.yaml', '--provider', self.PROVIDER])
+        shell.main(['--template-file', 'examples/tosca-server-example.yaml', '--provider', self.PROVIDER,
+                    '--cluster-name', 'test'])
 
     def test_meta(self, extra=None):
         if hasattr(self, 'check_meta'):

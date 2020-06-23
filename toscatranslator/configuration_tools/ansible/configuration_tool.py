@@ -112,7 +112,7 @@ class AnsibleConfigurationTool(ConfigurationTool):
         for v in self.elements_queue:
             self.get_async_task(v, v.dependency_order)
             ansible_config = self.provider_config.get_section('ansible')
-            if self.ansible_module_by_type(v) not in ansible_config.get('modules_skipping_delete'):
+            if self.ansible_module_by_type(v) not in ansible_config.get('modules_skipping_delete', []):
                 self.ansible_task_list.extend(self.get_ansible_tasks_for_delete(v))
         if self.extra_async:
             self.ansible_task_list.extend(self.check_async_tasks)

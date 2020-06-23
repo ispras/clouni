@@ -13,6 +13,6 @@ class TestShellCommand(unittest.TestCase):
         working_directory = os.getcwd()
         os.chdir('examples')
         try:
-            shell.main(['--template-file', 'tosca-server-example.yaml', '--validate-only', '--cluster-name', '--test'])
+            shell.main(['--template-file', 'tosca-server-example.yaml', '--validate-only', '--cluster-name', 'test'])
         finally:
             os.chdir(working_directory)
