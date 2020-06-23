@@ -19,7 +19,7 @@ class TestAnsibleAmazonOutput (unittest.TestCase, TestAnsibleProvider):
 
     def test_server_name(self):
         template = copy.deepcopy(self.DEFAULT_TEMPLATE)
-        playbook = self.get_ansible_output(template)
+        playbook = self.get_ansible_create_output(template)
         self.assertEqual(len(playbook), 1)
         self.assertIsInstance(playbook[0], dict)
         self.assertIsNotNone(playbook[0]['tasks'])

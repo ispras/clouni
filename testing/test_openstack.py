@@ -31,13 +31,21 @@ class TestAnsibleOpenStackOutput (unittest.TestCase, TestAnsibleProvider):
         file_path = os.path.join('examples', 'tosca-server-example.yaml')
         shell.main(['--template-file', file_path, '--cluster-name', 'test', '--provider', self.PROVIDER])
 
+    def test_delete_full_translating(self):
+        file_path = os.path.join('examples', 'tosca-server-example.yaml')
+        shell.main(['--template-file', file_path, '--cluster-name', 'test', '--provider', self.PROVIDER, '--delete'])
+
     def test_full_async_translating(self):
         file_path = os.path.join('examples', 'tosca-server-example.yaml')
         shell.main(['--template-file', file_path, '--cluster-name', 'test', '--provider', self.PROVIDER, '--async'])
 
+    def test_delete_full_async_translating(self):
+        file_path = os.path.join('examples', 'tosca-server-example.yaml')
+        shell.main(['--template-file', file_path, '--cluster-name', 'test', '--provider', self.PROVIDER, '--async', '--delete'])
+
     def test_server_name(self):
         template = copy.deepcopy(self.DEFAULT_TEMPLATE)
-        playbook = self.get_ansible_output(template)
+        playbook = self.get_ansible_create_output(template)
         self.assertEqual(len(playbook), 1)
         self.assertIsInstance(playbook[0], dict)
         self.assertIsNotNone(playbook[0]['tasks'])
@@ -49,10 +57,12 @@ class TestAnsibleOpenStackOutput (unittest.TestCase, TestAnsibleProvider):
 
     def test_async_meta(self):
         extra={
-            'async': True,
-            'retries': 3,
-            'delay': 1,
-            'poll': 0
+            'global': {
+                'async': True,
+                'retries': 3,
+                'delay': 1,
+                'poll': 0
+            }
         }
         super(TestAnsibleOpenStackOutput, self).test_meta(extra=extra)
 
@@ -206,7 +216,7 @@ class TestAnsibleOpenStackOutput (unittest.TestCase, TestAnsibleProvider):
             "private_address": "192.168.12.25"
         }
         template = self.update_template_attribute(template, self.NODE_NAME, testing_parameter)
-        playbook = self.get_ansible_output(template)
+        playbook = self.get_ansible_create_output(template)
 
         self.assertIsNotNone(next(iter(playbook), {}).get('tasks'))
 

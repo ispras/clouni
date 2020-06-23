@@ -136,7 +136,7 @@ node_types:
           The state of the node instance. See section “Node States” for
           allowed values.
         type: string
-        default: initial
+        required: false
     capabilities:
       feature:
         type: tosca.capabilities.Node
@@ -574,7 +574,7 @@ relationship_types:
         required: true
       state: 
         type: string
-        default: initial
+        required: false
     interfaces:
       Configure:
         type: tosca.interfaces.relationship.Configure

@@ -255,9 +255,20 @@ class AnsibleConfigurationTool(ConfigurationTool):
         ansible_task_as_dict[REGISTER] = task_name
         ansible_task_as_dict.update(additional_args)
         ansible_tasks_for_create.append(ansible_task_as_dict)
-        ansible_tasks_for_create.append({'lineinfile': {
-            PATH: self.path,
-            'line': '' + task_name + ': ' + self.rap_ansible_variable(task_name + '.id')}})
+        ansible_tasks_for_create.append({
+            'lineinfile': {
+                PATH: self.path,
+                'line': '' + task_name + ': ' + self.rap_ansible_variable(task_name + '.id')
+            },
+            'when': task_name + '.id' + ' is defined'
+        })
+        ansible_tasks_for_create.append({
+            'fail': {
+                'msg': 'Variable ' + task_name + '.id is undefined! So it will not be deleted'
+            },
+            'when': task_name + '.id' + ' is undefined',
+            'ignore_errors': True
+        })
         return ansible_tasks_for_create
 
     def get_ansible_tasks_for_delete(self, element_object):
@@ -273,6 +284,7 @@ class AnsibleConfigurationTool(ConfigurationTool):
         ansible_task_as_dict[NAME] = self.ansible_description_by_type(element_object)
         ansible_task_as_dict[self.ansible_module_by_type(element_object)] = {
             NAME: self.rap_ansible_variable(task_name), 'state': 'absent'}
+        ansible_task_as_dict['when'] = task_name + ' is defined'
         ansible_tasks_for_delete.append(ansible_task_as_dict)
         return ansible_tasks_for_delete
 
