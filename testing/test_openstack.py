@@ -23,6 +23,10 @@ class TestAnsibleOpenStackOutput (unittest.TestCase, TestAnsibleProvider):
         file_path = os.path.join('examples', 'tosca-server-example-openstack.yaml')
         shell.main(['--template-file', file_path, '--cluster-name', 'test', '--provider', self.PROVIDER])
 
+    def test_translating_to_ansible_delete(self):
+        file_path = os.path.join('examples', 'tosca-server-example-openstack.yaml')
+        shell.main(['--template-file', file_path, '--cluster-name', 'test', '--delete','false','--provider', self.PROVIDER])
+
     def test_full_translating(self):
         file_path = os.path.join('examples', 'tosca-server-example.yaml')
         shell.main(['--template-file', file_path, '--cluster-name', 'test', '--provider', self.PROVIDER])

@@ -8,6 +8,7 @@ from toscatranslator.common.utils import deep_update_dict
 from toscatranslator.common.tosca_reserved_keys import PROVIDERS, ANSIBLE, TYPE, \
     TOSCA_DEFINITIONS_VERSION, ATTRIBUTES, PROPERTIES, CAPABILITIES, REQUIREMENTS, TOPOLOGY_TEMPLATE, NODE_TEMPLATES
 
+TEST = 'test'
 
 class BaseAnsibleProvider:
     TESTING_TEMPLATE_FILENAME = 'examples/testing-example.yaml'
@@ -51,21 +52,21 @@ class BaseAnsibleProvider:
         assert hasattr(self, 'PROVIDER') is not None
         assert self.PROVIDER in PROVIDERS
 
-    def get_ansible_output(self, template, template_filename = None, extra=None):
+    def get_ansible_output(self, template, template_filename=None, extra=None):
         if not template_filename:
             template_filename = self.TESTING_TEMPLATE_FILENAME
         self.write_template(self.prepare_yaml(template))
-        r = common_translate(template_filename, False, self.PROVIDER, ANSIBLE, extra=extra)
+        r = common_translate(template_filename, False, self.PROVIDER, ANSIBLE, TEST, False, extra=extra)
         print(r)
         self.delete_template(template_filename)
         playbook = self.parse_yaml(r)
         return playbook
 
-    def get_k8s_output(self, template, template_filename = None):
+    def get_k8s_output(self, template, template_filename=None):
         if not template_filename:
             template_filename = self.TESTING_TEMPLATE_FILENAME
         self.write_template(self.prepare_yaml(template))
-        r = common_translate(template_filename, False, self.PROVIDER, 'kubernetes')
+        r = common_translate(template_filename, False, self.PROVIDER, TEST, 'kubernetes')
         print(r)
         manifest = list(self.parse_all_yaml(r))
         return manifest
@@ -81,7 +82,6 @@ class BaseAnsibleProvider:
             }
         }
         return deep_update_dict(template, update_value)
-
 
     def update_template_property(self, template, node_name, update_value):
         return self.update_node_template(template, node_name, update_value, PROPERTIES)
@@ -112,7 +112,7 @@ class BaseAnsibleProvider:
         return self.update_node_template(template, node_name, update_value, REQUIREMENTS)
 
 
-class TestAnsibleProvider (BaseAnsibleProvider):
+class TestAnsibleProvider(BaseAnsibleProvider):
     def test_full_translating(self):
         shell.main(['--template-file', 'examples/tosca-server-example.yaml', '--provider', self.PROVIDER])
 
@@ -245,10 +245,10 @@ class TestAnsibleProvider (BaseAnsibleProvider):
                 "default_instances": 2,
                 "max_instances": 2
             }
-            template = self.update_template_capability_properties(template, self.NODE_NAME, "scalable", testing_parameter)
+            template = self.update_template_capability_properties(template, self.NODE_NAME, "scalable",
+                                                                  testing_parameter)
             playbook = self.get_ansible_output(template)
             assert next(iter(playbook), {}).get('tasks')
 
             tasks = playbook[0]['tasks']
             self.check_scalable_capabilities(tasks)
-

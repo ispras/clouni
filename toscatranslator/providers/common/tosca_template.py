@@ -14,7 +14,7 @@ from toscaparser.imports import ImportsLoader
 from toscaparser.topology_template import TopologyTemplate
 
 from toscatranslator.configuration_tools.combined.combine_configuration_tools import CONFIGURATION_TOOLS
-from toscatranslator.common.exception import ProviderFileError, TemplateDependencyError, UnsupportedExecutorType,\
+from toscatranslator.common.exception import ProviderFileError, TemplateDependencyError, UnsupportedExecutorType, \
     ProviderConfigurationParameterError
 
 from toscatranslator.common.tosca_reserved_keys import *
@@ -23,7 +23,7 @@ from toscatranslator.providers.common.provider_resource import ProviderResource
 from toscatranslator.providers.common.provider_configuration import ProviderConfiguration
 
 
-class ProviderToscaTemplate (object):
+class ProviderToscaTemplate(object):
     REQUIRED_CONFIG_PARAMS = (TOSCA_ELEMENTS_MAP_FILE, TOSCA_ELEMENTS_DEFINITION_FILE) = \
         ('tosca_elements_map_file', 'tosca_elements_definition_file')
     DEPENDENCY_FUNCTIONS = (GET_PROPERTY, GET_ATTRIBUTE, GET_OPERATION_OUTPUT)
@@ -95,7 +95,7 @@ class ProviderToscaTemplate (object):
             provider_nodes.append(provider_node_instance)
         return provider_nodes
 
-    def to_configuration_dsl_for_create(self, configuration_tool, directory=None, extra=None):
+    def to_configuration_dsl(self, configuration_tool, is_delete, directory=None, extra=None):
         """
         Fulfill configuration_content with functions based on configuration tool from every node
         :return:
@@ -118,8 +118,8 @@ class ProviderToscaTemplate (object):
             else:
                 tool_artifacts.append(art)
         extra = deep_update_dict(extra, self.extra_configuration_tool_params.get(configuration_tool, {}))
-        self.configuration_content = tool.to_dsl_for_create(self.provider, self.provider_nodes_queue, tool_artifacts,
-                                                            directory, self.cluster_name, extra=extra)
+        self.configuration_content = tool.to_dsl_for_delete(self.provider, self.provider_nodes_queue, tool_artifacts, directory, self.cluster_name, extra=extra) \
+                if is_delete else tool.to_dsl_for_create(self.provider, self.provider_nodes_queue, tool_artifacts, directory, self.cluster_name, extra=extra)
         self.configuration_ready = True
         return self.configuration_content
 
@@ -141,7 +141,6 @@ class ProviderToscaTemplate (object):
                 ))
             configuration_class.create_artifact(filename, art)
             self.artifacts.append(filename)
-        return
 
     def _sort_nodes_by_priority(self):
         """
@@ -327,7 +326,6 @@ class ProviderToscaTemplate (object):
         elif isinstance(data, (str, int, float)):
             return
 
-        return
 
     def resolve_in_template_get_functions(self):
         """
@@ -365,7 +363,7 @@ class ProviderToscaTemplate (object):
 
         with open(tosca_elements_map_file, 'r') as file_obj:
             data = file_obj.read()
-            data_dict ={}
+            data_dict = {}
             try:
                 data_dict = json.loads(data)
             except:
@@ -398,7 +396,6 @@ class ProviderToscaTemplate (object):
 
         topology_tpl = TopologyTemplate(dict_tpl, self.provider_defs, rel_types)
         self.artifacts.extend(new_artifacts)
-        self.extra_configuration_tool_params = deep_update_dict (self.extra_configuration_tool_params, new_extra)
+        self.extra_configuration_tool_params = deep_update_dict(self.extra_configuration_tool_params, new_extra)
 
         return topology_tpl
-

@@ -14,6 +14,7 @@ class TranslatorShell(object):
 
         self.template_file = args.template_file
         self.validate_only = args.validate_only
+        self.is_delete = args.delete
         self.provider = args.provider
         self.output_file = args.output_file
         self.configuration_tool = args.configuration_tool
@@ -37,7 +38,7 @@ class TranslatorShell(object):
 
         self.working_dir = os.getcwd()
 
-        output = translate(self.template_file, self.validate_only, self.provider, self.configuration_tool, self.cluster_name,
+        output = translate(self.template_file, self.validate_only, self.provider, self.configuration_tool, self.cluster_name, self.is_delete,
                            extra={'global': self.extra})
         self.output_print(output)
 
@@ -55,6 +56,10 @@ class TranslatorShell(object):
                             action='store_true',
                             default=False,
                             help='Only validate input template, do not perform translation.')
+        parser.add_argument('--delete',
+                            action='store_true',
+                            default=False,
+                            help='Delete cluster')
         parser.add_argument('--provider',
                             required=False,
                             help='Cloud provider name to execute ansible playbook in.')

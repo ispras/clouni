@@ -28,7 +28,16 @@ class ConfigurationTool(object):
         self.global_variables = {}
 
 
-    def to_dsl_for_create(self, provider, nodes_relationships_queue, artifacts, target_directory, cluster_name, extra=None, is_create=True):
+    def to_dsl_for_create(self, provider, nodes_relationships_queue, artifacts, target_directory, cluster_name, extra=None):
+        """
+
+        :param provider: provider keyname
+        :param nodes_relationships_queue: can be of class ProviderResource or RelationshipTemplate
+        :return:
+        """
+        raise NotImplementedError()
+
+    def to_dsl_for_delete(self, provider, nodes_relationships_queue, artifacts, target_directory, cluster_name, extra=None):
         """
 
         :param provider: provider keyname
