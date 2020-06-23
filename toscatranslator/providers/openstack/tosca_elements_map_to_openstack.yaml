@@ -218,7 +218,7 @@ tosca.nodes.Compute:
             value: "{{{{ {self[keyname]}_ports[item | int] | default(omit) }}}}"
           - parameter: openstack.nodes.SecurityGroupRule.attributes.port_range_max
             value: "{{{{ {self[keyname]}_ports[item | int] | default(omit) }}}}"
-          - parameter: openstack.nodes.SecurityGroupRule.interfaces.Standard.preconfigure.implementation
+          - parameter: openstack.nodes.SecurityGroupRule.interfaces.Prepare.preconfigure.implementation
             value:
               - value: "tmp"
                 source: set_fact

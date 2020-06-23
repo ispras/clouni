@@ -12,5 +12,7 @@ class TestShellCommand(unittest.TestCase):
     def test_validate_change_wd(self):
         working_directory = os.getcwd()
         os.chdir('examples')
-        shell.main(['--template-file', 'tosca-server-example.yaml', '--validate-only'])
-        os.chdir(working_directory)
+        try:
+            shell.main(['--template-file', 'tosca-server-example.yaml', '--validate-only'])
+        finally:
+            os.chdir(working_directory)

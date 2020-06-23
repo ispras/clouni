@@ -119,8 +119,8 @@ class ProviderResource(object):
         ProviderResource.MAX_NUM_PRIORITIES = 1
         node_priorities_by_type = {}
         for node_type_name, node_type_def in node_type_definitions.items():
-            (_, element_type, type_short) = tosca_type.parse(node_type_name)
-            if type_short != ROOT and element_type == NODES:
+            (namespace, element_type, type_short) = tosca_type.parse(node_type_name)
+            if type_short != ROOT and element_type == NODES and namespace == self.provider:
                 node_priorities_by_type[node_type_name] = self.get_node_type_priority(node_type_definitions,
                                                                                       node_type_name)
         return node_priorities_by_type
