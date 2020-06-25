@@ -81,13 +81,6 @@ Templates can be of different types.
 The only type supported by Clouni is `Compute` as in the example. 
 Other type are planned to be supported in the future.
 
-##### Creating
-
-~~~shell
-clouni --template-file examples/tosca-server-example.yaml --cluster-name example --provider openstack
-~~~
-
-
 Clouni output is Ansible playbook. 
 ~~~
 - hosts: localhost
