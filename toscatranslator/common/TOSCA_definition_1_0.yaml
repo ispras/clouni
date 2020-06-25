@@ -78,7 +78,8 @@ data_types:
           type: string
 
   tosca.datatypes.network.PortDef:
-    derived_from: integer
+    derived_from: tosca.datatypes.Root
+    type: integer
     constraints:
       - in_range: [ 1, 65535 ]
 
@@ -135,7 +136,7 @@ node_types:
           The state of the node instance. See section “Node States” for
           allowed values.
         type: string
-        default: initial
+        required: false
     capabilities:
       feature:
         type: tosca.capabilities.Node
@@ -148,6 +149,8 @@ node_types:
     interfaces:
       Standard:
         type: tosca.interfaces.node.lifecycle.Standard
+      Prepare:
+        type: tosca.interfaces.node.Prepare
 
   tosca.nodes.Compute:
     description: >
@@ -577,7 +580,7 @@ relationship_types:
         required: true
       state: 
         type: string
-        default: initial
+        required: false
     interfaces:
       Configure:
         type: tosca.interfaces.relationship.Configure
@@ -913,6 +916,14 @@ interface_types:
       description: >
         Operation to notify source some property or attribute of the
         target changed
+
+  tosca.interfaces.node.Prepare:
+    description: >
+      The lifecycle interfaces define the essential, normative operations that must be executed before Node is created
+    derived_from: tosca.interfaces.Root
+    preconfigure:
+      description: Operation to pre-configure the node.
+
 
 ##########################################################################
  # Artifact Type.

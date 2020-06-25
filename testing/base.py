@@ -8,9 +8,10 @@ from toscatranslator.common.utils import deep_update_dict
 from toscatranslator.common.tosca_reserved_keys import PROVIDERS, ANSIBLE, TYPE, \
     TOSCA_DEFINITIONS_VERSION, ATTRIBUTES, PROPERTIES, CAPABILITIES, REQUIREMENTS, TOPOLOGY_TEMPLATE, NODE_TEMPLATES
 
+TEST = 'test'
 
 class BaseAnsibleProvider:
-    TESTING_TEMPLATE_FILENAME = 'examples/testing-example.yaml'
+    TESTING_TEMPLATE_FILENAME_TO_JOIN = ['examples', 'testing-example.yaml']
     NODE_NAME = 'server-master'
     DEFAULT_TEMPLATE = {
         TOSCA_DEFINITIONS_VERSION: "tosca_simple_yaml_1_0",
@@ -23,15 +24,24 @@ class BaseAnsibleProvider:
         }
     }
 
+    def testing_template_filename(self):
+        r = None
+        for i in self.TESTING_TEMPLATE_FILENAME_TO_JOIN:
+            if r == None:
+                r = i
+            else:
+                r = os.path.join(r, i)
+        return r
+
     def write_template(self, template, filename=None):
         if not filename:
-            filename = self.TESTING_TEMPLATE_FILENAME
+            filename = self.testing_template_filename()
         with open(filename, 'w') as f:
             f.write(template)
 
     def delete_template(self, filename=None):
         if not filename:
-            filename = self.TESTING_TEMPLATE_FILENAME
+            filename = self.testing_template_filename()
         if os.path.exists(filename):
             os.remove(filename)
 
@@ -51,21 +61,31 @@ class BaseAnsibleProvider:
         assert hasattr(self, 'PROVIDER') is not None
         assert self.PROVIDER in PROVIDERS
 
-    def get_ansible_output(self, template, template_filename = None, extra=None):
+    def get_ansible_create_output(self, template, template_filename=None, extra=None):
         if not template_filename:
-            template_filename = self.TESTING_TEMPLATE_FILENAME
+            template_filename = self.testing_template_filename()
         self.write_template(self.prepare_yaml(template))
-        r = common_translate(template_filename, False, self.PROVIDER, ANSIBLE, extra=extra)
+        r = common_translate(template_filename, False, self.PROVIDER, ANSIBLE, TEST, False, extra=extra)
         print(r)
         self.delete_template(template_filename)
         playbook = self.parse_yaml(r)
         return playbook
 
-    def get_k8s_output(self, template, template_filename = None):
+    def get_ansible_delete_output(self, template, template_filename=None, extra=None):
         if not template_filename:
-            template_filename = self.TESTING_TEMPLATE_FILENAME
+            template_filename = self.testing_template_filename()
         self.write_template(self.prepare_yaml(template))
-        r = common_translate(template_filename, False, self.PROVIDER, 'kubernetes')
+        r = common_translate(template_filename, False, self.PROVIDER, ANSIBLE, TEST, True, extra=extra)
+        print(r)
+        self.delete_template(template_filename)
+        playbook = self.parse_yaml(r)
+        return playbook
+
+    def get_k8s_output(self, template, template_filename=None):
+        if not template_filename:
+            template_filename = self.testing_template_filename()
+        self.write_template(self.prepare_yaml(template))
+        r = common_translate(template_filename, False, self.PROVIDER, 'kubernetes', TEST, False)
         print(r)
         manifest = list(self.parse_all_yaml(r))
         return manifest
@@ -81,7 +101,6 @@ class BaseAnsibleProvider:
             }
         }
         return deep_update_dict(template, update_value)
-
 
     def update_template_property(self, template, node_name, update_value):
         return self.update_node_template(template, node_name, update_value, PROPERTIES)
@@ -112,9 +131,10 @@ class BaseAnsibleProvider:
         return self.update_node_template(template, node_name, update_value, REQUIREMENTS)
 
 
-class TestAnsibleProvider (BaseAnsibleProvider):
+class TestAnsibleProvider(BaseAnsibleProvider):
     def test_full_translating(self):
-        shell.main(['--template-file', 'examples/tosca-server-example.yaml', '--provider', self.PROVIDER])
+        shell.main(['--template-file', 'examples/tosca-server-example.yaml', '--provider', self.PROVIDER,
+                    '--cluster-name', 'test'])
 
     def test_meta(self, extra=None):
         if hasattr(self, 'check_meta'):
@@ -124,7 +144,7 @@ class TestAnsibleProvider (BaseAnsibleProvider):
                 "meta": testing_value
             }
             template = self.update_template_property(template, self.NODE_NAME, testing_parameter)
-            playbook = self.get_ansible_output(template, extra=extra)
+            playbook = self.get_ansible_create_output(template, extra=extra)
 
             assert next(iter(playbook), {}).get('tasks')
             tasks = playbook[0]['tasks']
@@ -134,6 +154,8 @@ class TestAnsibleProvider (BaseAnsibleProvider):
             else:
                 self.check_meta(tasks, testing_value=testing_value)
 
+            playbook = self.get_ansible_delete_output(template, extra=extra)
+
     def test_private_address(self):
         if hasattr(self, 'check_private_address'):
             template = copy.deepcopy(self.DEFAULT_TEMPLATE)
@@ -142,7 +164,7 @@ class TestAnsibleProvider (BaseAnsibleProvider):
                 "private_address": testing_value
             }
             template = self.update_template_attribute(template, self.NODE_NAME, testing_parameter)
-            playbook = self.get_ansible_output(template)
+            playbook = self.get_ansible_create_output(template)
 
             assert next(iter(playbook), {}).get('tasks')
             tasks = playbook[0]['tasks']
@@ -157,7 +179,7 @@ class TestAnsibleProvider (BaseAnsibleProvider):
                 "public_address": testing_value
             }
             template = self.update_template_attribute(template, self.NODE_NAME, testing_parameter)
-            playbook = self.get_ansible_output(template)
+            playbook = self.get_ansible_create_output(template)
 
             assert next(iter(playbook), {}).get('tasks')
 
@@ -176,7 +198,7 @@ class TestAnsibleProvider (BaseAnsibleProvider):
                 }
             }
             template = self.update_template_attribute(template, self.NODE_NAME, testing_parameter)
-            playbook = self.get_ansible_output(template)
+            playbook = self.get_ansible_create_output(template)
 
             assert next(iter(playbook), {}).get('tasks')
 
@@ -192,7 +214,7 @@ class TestAnsibleProvider (BaseAnsibleProvider):
                 "mem_size": "1024 MiB"
             }
             template = self.update_template_capability_properties(template, self.NODE_NAME, "host", testing_parameter)
-            playbook = self.get_ansible_output(template)
+            playbook = self.get_ansible_create_output(template)
 
             assert next(iter(playbook), {}).get('tasks')
 
@@ -215,7 +237,7 @@ class TestAnsibleProvider (BaseAnsibleProvider):
                 }
             }
             template = self.update_template_capability(template, self.NODE_NAME, testing_parameter)
-            playbook = self.get_ansible_output(template)
+            playbook = self.get_ansible_create_output(template)
             assert next(iter(playbook), {}).get('tasks')
 
             tasks = playbook[0]['tasks']
@@ -231,7 +253,7 @@ class TestAnsibleProvider (BaseAnsibleProvider):
                 "version": 16.04
             }
             template = self.update_template_capability_properties(template, self.NODE_NAME, "os", testing_parameter)
-            playbook = self.get_ansible_output(template)
+            playbook = self.get_ansible_create_output(template)
             assert next(iter(playbook), {}).get('tasks')
 
             tasks = playbook[0]['tasks']
@@ -245,10 +267,10 @@ class TestAnsibleProvider (BaseAnsibleProvider):
                 "default_instances": 2,
                 "max_instances": 2
             }
-            template = self.update_template_capability_properties(template, self.NODE_NAME, "scalable", testing_parameter)
-            playbook = self.get_ansible_output(template)
+            template = self.update_template_capability_properties(template, self.NODE_NAME, "scalable",
+                                                                  testing_parameter)
+            playbook = self.get_ansible_create_output(template)
             assert next(iter(playbook), {}).get('tasks')
 
             tasks = playbook[0]['tasks']
             self.check_scalable_capabilities(tasks)
-

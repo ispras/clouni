@@ -28,7 +28,16 @@ class ConfigurationTool(object):
         self.global_variables = {}
 
 
-    def to_dsl_for_create(self, provider, nodes_relationships_queue, artifacts, target_directory, extra=None):
+    def to_dsl_for_create(self, provider, nodes_relationships_queue, artifacts, target_directory, cluster_name, extra=None):
+        """
+
+        :param provider: provider keyname
+        :param nodes_relationships_queue: can be of class ProviderResource or RelationshipTemplate
+        :return:
+        """
+        raise NotImplementedError()
+
+    def to_dsl_for_delete(self, provider, nodes_relationships_queue, artifacts, target_directory, cluster_name, extra=None):
         """
 
         :param provider: provider keyname
@@ -101,8 +110,6 @@ class ConfigurationTool(object):
             ExceptionCollector.appendException(TemplateDependencyError(
                 what=element_template_name
             ))
-
-        return
 
     def get_interfaces_from_node(self, node):
         # TODO

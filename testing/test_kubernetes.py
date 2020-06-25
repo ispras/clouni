@@ -17,19 +17,19 @@ class TestKubernetesOutput(unittest.TestCase, BaseAnsibleProvider):
 
     def tearDown(self):
         self.template = None
-        self.delete_template(self.TESTING_TEMPLATE_FILENAME)
+        self.delete_template(self.testing_template_filename())
 
     # FIXME:  bug 7606
     # @unittest.skip
     def test_validation(self):
         example_path = os.path.join(get_project_root_path(), 'examples', 'tosca-server-example-kubernetes.yaml')
-        shell.main(['--template-file',  example_path, '--validate-only'])
+        shell.main(['--template-file',  example_path, '--validate-only', '--cluster-name', 'test'])
 
     def test_k8s_translate(self):
         example_path = os.path.join(get_project_root_path(), 'examples', 'tosca-server-example-kubernetes.yaml')
         shell.main(
             ['--template-file', example_path, '--provider',
-             self.PROVIDER, '--configuration-tool', 'kubernetes'])
+             self.PROVIDER, '--configuration-tool', 'kubernetes', '--cluster-name', 'test'])
 
     def update_port(self, template):
         testing_parameter = {'endpoint': {'properties': {'port': 888}}}

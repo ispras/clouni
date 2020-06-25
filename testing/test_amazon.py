@@ -12,21 +12,23 @@ class TestAnsibleAmazonOutput (unittest.TestCase, TestAnsibleProvider):
 
     def test_validation(self):
         # Public address is not supported in AWS
-        shell.main(['--template-file', 'examples/tosca-server-example-amazon.yaml', '--validate-only'])
+        shell.main(['--template-file', 'examples/tosca-server-example-amazon.yaml', '--validate-only',
+                    '--cluster-name', 'test'])
 
     def test_translating_to_ansible(self):
-        shell.main(['--template-file', 'examples/tosca-server-example-amazon.yaml', '--provider', self.PROVIDER])
+        shell.main(['--template-file', 'examples/tosca-server-example-amazon.yaml', '--provider', self.PROVIDER,
+                    '--cluster-name', 'test'])
 
     def test_server_name(self):
         template = copy.deepcopy(self.DEFAULT_TEMPLATE)
-        playbook = self.get_ansible_output(template)
+        playbook = self.get_ansible_create_output(template)
         self.assertEqual(len(playbook), 1)
         self.assertIsInstance(playbook[0], dict)
         self.assertIsNotNone(playbook[0]['tasks'])
         tasks = playbook[0]['tasks']
-        self.assertEqual(len(tasks), 1)
-        self.assertIsNotNone(tasks[0][INSTANCE_MODULE_NAME])
-        server = tasks[0][INSTANCE_MODULE_NAME]
+        self.assertEqual(len(tasks), 5)
+        self.assertIsNotNone(tasks[2][INSTANCE_MODULE_NAME])
+        server = tasks[2][INSTANCE_MODULE_NAME]
         self.assertEqual(server['name'], self.NODE_NAME)
 
     def check_meta (self, tasks, testing_value=None):
