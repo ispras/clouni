@@ -46,19 +46,19 @@ optional arguments:
                         YAML template to parse.
   --validate-only       Only validate input template, do not perform
                         translation.
+  --delete              Delete cluster
   --provider PROVIDER   Cloud provider name to execute ansible playbook in.
   --output-file <filename>
                         Output file
   --configuration-tool CONFIGURATION_TOOL
                         Configuration tool which DSL the template would be
                         translated to. Default value = "ansible"
+  --async               Provider nodes should be created asynchronously
+  --extra KEY=VALUE [KEY=VALUE ...]
+                        Extra arguments for configuration tool scripts
 ~~~
 
-Check full example of Clouni possibilities for OpenStack provider 
-~~~shell
-clouni --template-file examples/tosca-server-example.yaml --provider openstack
-~~~
-
+####Check full example of Clouni possibilities for OpenStack provider 
 Small example of input: 
 ~~~
 tosca_definitions_version: tosca_simple_yaml_1_0
@@ -81,6 +81,13 @@ Templates can be of different types.
 The only type supported by Clouni is `Compute` as in the example. 
 Other type are planned to be supported in the future.
 
+#####Creating
+
+~~~shell
+clouni --template-file examples/tosca-server-example.yaml --cluster-name example --provider openstack
+~~~
+
+
 Clouni output is Ansible playbook. 
 ~~~
 - hosts: localhost
@@ -92,11 +99,11 @@ Clouni output is Ansible playbook.
     set_fact:
       target_objects: '{{ facts_result["ansible_facts"]["openstack_image"] }}'
   - set_fact:
-      target_objects_6791: '{{ target_objects }}'
+      target_objects_8838: '{{ target_objects }}'
   - set_fact:
-      input_facts: '{{ target_objects_6791 }}'
+      input_facts: '{{ target_objects_8838 }}'
   - set_fact:
-      input_args_7688:
+      input_args_5697:
       - - name
         - properties
       - architecture: x86_64
@@ -104,24 +111,59 @@ Clouni output is Ansible playbook.
         type: ubuntu
         version: 16.04
   - set_fact:
-      input_args: '{{ input_args_7688 }}'
+      input_args: '{{ input_args_5697 }}'
   - include: contains.yaml
   - register: tmp_value
     set_fact:
       name: '{{ matched_object["name"] }}'
   - set_fact:
-      name_1463: '{{ name }}'
+      name_1511: '{{ name }}'
+  - file:
+      path: '{{ playbook_dir }}/id_vars_example.yaml'
+      state: absent
+  - file:
+      path: '{{ playbook_dir }}/id_vars_example.yaml'
+      state: touch
   - name: Create OpenStack component server
     os_server:
       config_drive: false
-      image: '{{ name_1463 }}'
-      name: server_master
+      image: '{{ name_1511 }}'
+      name: server_kube_master
+    register: server_kube_master_server
+  - lineinfile:
+      line: 'server_kube_master_server: {{ server_kube_master_server.id }}'
+      path: '{{ playbook_dir }}/id_vars_example.yaml'
+    when: server_kube_master_server.id is defined
+  - fail:
+      msg: Variable server_kube_master_server.id is undefined! So it will not be deleted
+    ignore_errors: true
+    when: server_kube_master_server.id is undefined
 ~~~
-
-Ansible playbook can be executed to create an instance
+#####Deleting
+To generate playbook with the same input template, just add a --delete command
+~~~
+clouni --template-file examples/tosca-server-example.yaml --cluster-name example --provider openstack --delete
+~~~
+Clouni output
+~~~
+- hosts: localhost
+  name: Delete openstack cluster
+  tasks:
+  - include_vars: '{{ playbook_dir }}/id_vars_example.yaml'
+  - name: Delete OpenStack component server
+    os_server:
+      name: '{{ server_kube_master_server }}'
+      state: absent
+    when: server_kube_master_server is defined
+  - file:
+      path: '{{ playbook_dir }}/id_vars_example.yaml'
+      state: absent
+~~~
+Ansible playbook can be executed to create or delete an instance
 ~~~
 ansible-playbook <playbook_name>.yaml
 ~~~
+After the execution of creating playbook, the file **id_vars_<cluster-name>.yaml** will be created. This file contains all resources ids. Deleting playbook uses ids from this file and after successful deleting removes file too.
 
 **ATTENTION** Most of providers require authentication for using there resources. 
 Authentication is users responsibility. For example, to use OpenStack
@@ -276,6 +318,13 @@ another supported executor (ex. ansible, python). Example:
     parameters:
       new_var: 1
     value: tmp_value
+  # example with python script 
+    - source: transform_units
+      parameters:
+        source_value: "{self[value]}"
+        is_without_b: True
+      executor: python
+      value: default
   ~~~
   
 * keys are `value`, `condition`, `facts`, `arguments`, `executor`: used if the value must 
