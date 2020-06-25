@@ -655,13 +655,13 @@ capability_types:
           A unique identifier of the realized instance of a Node Template
           that derives from any TOSCA normative type.
         type: string
-        required: true
+        required: false
       tosca_name:
         description: >
           This attribute reflects the name of the Node Template as
           defined in the TOSCA service template.
         type: string
-        required: true
+        required: false
       state:
         description: >
           The state of the node instance. See section “Node States” for

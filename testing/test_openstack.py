@@ -133,16 +133,11 @@ class TestAnsibleOpenStackOutput (unittest.TestCase, TestAnsibleProvider):
         for task in tasks:
             if task.get(SERVER_MODULE_NAME):
                 self.assertIsNotNone(task[SERVER_MODULE_NAME].get('name'))
-                self.assertIsNotNone(task[SERVER_MODULE_NAME].get('nics'))
+                self.assertIsNotNone(task[SERVER_MODULE_NAME].get('network'))
                 server_name = task[SERVER_MODULE_NAME]['name']
-                server_nics = task[SERVER_MODULE_NAME]['nics']
+                server_network = task[SERVER_MODULE_NAME]['network']
                 if testing_value:
-                    nic_found = False
-                    for nic_info in server_nics:
-                        if nic_info.get('net-name', '') == testing_value:
-                            nic_found = True
-                            break
-                    self.assertTrue(nic_found)
+                    self.assertEqual(testing_value, server_network)
         self.assertIsNotNone(server_name)
 
     def test_host_capabilities(self):
