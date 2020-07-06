@@ -1,3 +1,4 @@
+
 from toscatranslator.configuration_tools.common.configuration_tool import *
 from toscatranslator.common.tosca_reserved_keys import PARAMETERS, VALUE, EXTRA, SOURCE, GET_OPERATION_OUTPUT, INPUTS, \
     NODE_FILTER, NAME
@@ -95,8 +96,10 @@ class AnsibleConfigurationTool(ConfigurationTool):
         for v in self.elements_queue:
             self.get_async_task(v, v.dependency_order)
             self.ansible_task_list.extend(self.get_ansible_tasks_for_create(v, additional_args=extra))
-        if self.extra_async:
-            self.ansible_task_list.extend(self.check_async_tasks)
+            if self.extra_async:
+                self.ansible_task_list.extend(self.check_async_tasks)
+            self.ansible_task_list.extend(self.get_extra_tasks_for_delete(v.name.replace('-', '_')))
+
         ansible_playbook = [dict(
             name=self.suffix + ' ' + provider + ' cluster',
             hosts=DEFAULT_HOST,
@@ -260,7 +263,6 @@ class AnsibleConfigurationTool(ConfigurationTool):
         ansible_task_as_dict[REGISTER] = task_name
         ansible_task_as_dict.update(additional_args)
         ansible_tasks_for_create.append(ansible_task_as_dict)
-        ansible_tasks_for_create = self.get_extra_tasks_for_delete(ansible_tasks_for_create, task_name)
         return ansible_tasks_for_create
 
     def get_ansible_tasks_for_delete(self, element_object):
@@ -437,7 +439,8 @@ class AnsibleConfigurationTool(ConfigurationTool):
         ]
         return tasks
 
-    def get_extra_tasks_for_delete(self, ansible_tasks_for_create, task_name):
+    def get_extra_tasks_for_delete(self, task_name):
+        ansible_tasks_for_create = []
         ansible_tasks_for_create.append({
             'set_fact': {
                 task_name + '_list': self.rap_ansible_variable(
@@ -447,9 +450,9 @@ class AnsibleConfigurationTool(ConfigurationTool):
         })
         ansible_tasks_for_create.append({
             'set_fact': {
-                task_name + '_list': {task_name + '_ids': self.rap_ansible_variable(task_name + '_list')},
+                task_name + '_list': {task_name + '_ids': self.rap_ansible_variable(task_name + '_list')}},
                 'when': task_name + '_list' + IS_DEFINED
-            }})
+            })
         ansible_tasks_for_create.append({
             LINEINFILE: {
                 PATH: self.path,
