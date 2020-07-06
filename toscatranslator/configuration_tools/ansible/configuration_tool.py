@@ -444,7 +444,7 @@ class AnsibleConfigurationTool(ConfigurationTool):
         ansible_tasks_for_create.append({
             'set_fact': {
                 task_name + '_list': self.rap_ansible_variable(
-                    task_name + '_list' + " | default([]) + [ '{{ item.id }}' ]")},
+                    task_name + '_list' + " | default([])") + " + [ \"{{ item.id }}\" ]"},
             'loop': self.rap_ansible_variable(task_name + '.results | flatten(levels=1) '),
             'when': task_name + '.results' + IS_DEFINED
         })
@@ -462,7 +462,7 @@ class AnsibleConfigurationTool(ConfigurationTool):
         ansible_tasks_for_create.append({
             LINEINFILE: {
                 PATH: self.path,
-                'line': self.rap_ansible_variable(task_name + ' | to_nice_yaml')},
+                'line': self.rap_ansible_variable(task_name + '_list' + ' | to_nice_yaml')},
             'when': task_name + '_list' + IS_DEFINED
         })
         ansible_tasks_for_create.append({
