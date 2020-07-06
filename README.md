@@ -80,7 +80,7 @@ Topology template contains several node or relationship templates to create in a
 Templates can be of different types. 
 The only type supported by Clouni is `Compute` as in the example. 
 Other type are planned to be supported in the future.
-#####Creating
+##### Creating
 
 ~~~shell
 clouni --template-file examples/tosca-server-example.yaml --cluster-name example --provider openstack
