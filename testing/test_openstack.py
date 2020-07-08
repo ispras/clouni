@@ -37,11 +37,13 @@ class TestAnsibleOpenStackOutput (unittest.TestCase, TestAnsibleProvider):
 
     def test_full_async_translating(self):
         file_path = os.path.join('examples', 'tosca-server-example.yaml')
-        shell.main(['--template-file', file_path, '--cluster-name', 'test', '--provider', self.PROVIDER, '--async'])
+        shell.main(['--template-file', file_path, '--cluster-name', 'test', '--provider', self.PROVIDER, '--async',
+                    '--extra', 'retries=3', 'async=60', 'poll=0', 'delay=1'])
 
     def test_delete_full_async_translating(self):
         file_path = os.path.join('examples', 'tosca-server-example.yaml')
-        shell.main(['--template-file', file_path, '--cluster-name', 'test', '--provider', self.PROVIDER, '--async', '--delete'])
+        shell.main(['--template-file', file_path, '--cluster-name', 'test', '--provider', self.PROVIDER, '--async',
+                    '--delete', '--extra', 'retries=3', 'async=60', 'poll=0', 'delay=1'])
 
     def test_server_name(self):
         template = copy.deepcopy(self.DEFAULT_TEMPLATE)
