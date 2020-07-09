@@ -37,7 +37,7 @@ class ConfigurationTool(object):
         """
         raise NotImplementedError()
 
-    def to_dsl_for_delete(self, provider, nodes_relationships_queue, artifacts, target_directory, cluster_name, extra=None):
+    def to_dsl_for_delete(self, provider, nodes_relationships_queue, cluster_name, extra=None):
         """
 
         :param provider: provider keyname
