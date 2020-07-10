@@ -436,12 +436,13 @@ class AnsibleConfigurationTool(ConfigurationTool):
             },
             {
                 NAME: 'Checking ' + element_object.name + ' created',
-                'async_status': 'jid=' + self.rap_ansible_variable('item.ansible_job_id'),
+                'async_status': 'jid=' + self.rap_ansible_variable(results_var + '[item|int].ansible_job_id'),
                 REGISTER: 'create_result_status_list',
-                'until': 'create_result_status_list.finished',
+                'until': 'create_result_status_list.finished or create_result_status_list.results[item].finished | default(0)',
                 'retries': retries,
                 'delay': delay,
-                'with_items': self.rap_ansible_variable(element_object.name + '.results | default([])'),
+                # 'with_items': self.rap_ansible_variable(element_object.name + '.results | default([])'),
+                'with_sequence': 'start=0 end=' + self.rap_ansible_variable(results_var + '|length - 1'),
                 'when': results_var + IS_DEFINED
             },
             {
