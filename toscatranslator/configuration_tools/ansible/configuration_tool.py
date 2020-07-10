@@ -422,45 +422,41 @@ class AnsibleConfigurationTool(ConfigurationTool):
         config = self.__provider_config.get_section('ansible')
         retries = int(config.get(ASYNC_DEFAULT_RETRIES_CONFIG_PARAM, 60))
         delay = int(config.get(ASYNC_DEFAULT_DELAY_CONFIG_PARAM, 5))
-        object_name_async = element_object.name + '_async'
-        jid = object_name_async + '.ansible_job_id'
+        jid = '.'.join([element_object.name, 'ansible_job_id'])
+        results_var = '.'.join([element_object.name, 'results'])
         tasks = [
             {
+                NAME: 'Checking ' + element_object.name + ' created',
+                'async_status': 'jid=' + self.rap_ansible_variable(jid),
+                REGISTER: 'create_result_status',
+                'until': 'create_result_status.finished',
+                'retries': retries,
+                'delay': delay,
+                'when': jid + IS_DEFINED
+            },
+            {
+                NAME: 'Checking ' + element_object.name + ' created',
+                'async_status': 'jid=' + self.rap_ansible_variable('item.ansible_job_id'),
+                REGISTER: 'create_result_status_list',
+                'until': 'create_result_status_list.finished',
+                'retries': retries,
+                'delay': delay,
+                'with_items': self.rap_ansible_variable(element_object.name + '.results | default([])'),
+                'when': results_var + IS_DEFINED
+            },
+            {
+                NAME: 'Saving ' + element_object.name + ' result',
                 SET_FACT_MODULE: {
-                    object_name_async: self.rap_ansible_variable(element_object.name)
-                }
-            },
-            {
-                NAME: 'Checking ' + element_object.name + ' created',
-                'async_status': 'jid=' + self.rap_ansible_variable(jid),
-                REGISTER: 'create_result_status',
-                'until': 'create_result_status.finished',
-                'retries': retries,
-                'delay': delay,
+                    element_object.name: self.rap_ansible_variable('create_result_status')
+                },
                 'when': jid + IS_DEFINED
             },
             {
                 NAME: 'Saving ' + element_object.name + ' result',
-                'async_status': 'jid=' + self.rap_ansible_variable(jid),
-                REGISTER: element_object.name,
-                'when': jid + IS_DEFINED
-            },
-            {
-                NAME: 'Checking ' + element_object.name + ' created',
-                'async_status': 'jid=' + self.rap_ansible_variable('item.ansible_job_id'),
-                REGISTER: 'create_result_status',
-                'until': 'create_result_status.finished',
-                'retries': retries,
-                'delay': delay,
-                'with_items': self.rap_ansible_variable(object_name_async + '.results | default([])'),
-                'when': jid + ' is undefined'
-            },
-            {
-                NAME: 'Saving ' + element_object.name + ' result',
-                'async_status': 'jid=' + self.rap_ansible_variable('item.ansible_job_id'),
-                REGISTER: element_object.name,
-                'with_items': self.rap_ansible_variable(object_name_async + '.results | default([])'),
-                'when': jid + ' is undefined'
+                SET_FACT_MODULE: {
+                    element_object.name: self.rap_ansible_variable('create_result_status_list')
+                },
+                'when': results_var + IS_DEFINED
             }
         ]
         return tasks
