@@ -478,7 +478,7 @@ class AnsibleConfigurationTool(ConfigurationTool):
         ansible_tasks_for_create.append({
             LINEINFILE: {
                 PATH: self.__path,
-                'line': '' + task_name + ': ' + self.rap_ansible_variable(task_name + '.id')},
+                'line': '' + task_name + '_delete' + ': ' + self.rap_ansible_variable(task_name + '.id')},
             'when': task_name + '.id' + IS_DEFINED
         })
         ansible_tasks_for_create.append({
