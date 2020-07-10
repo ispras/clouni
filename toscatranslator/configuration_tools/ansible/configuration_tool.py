@@ -51,7 +51,7 @@ class AnsibleConfigurationTool(ConfigurationTool):
 
     def add_async_task(self, v, dependency_order):
         if self.__extra_async != False:
-            if self.__prev_dep_order < dependency_order:
+            if self.__prev_dep_order != dependency_order:
                 self.__ansible_task_list.extend(self.__check_async_tasks)
                 self.__check_async_tasks = []
                 self.__prev_dep_order = dependency_order
@@ -252,7 +252,8 @@ class AnsibleConfigurationTool(ConfigurationTool):
             if i.name == 'preconfigure':
                 op_name = '_'.join([element_object.name, 'prepare', 'preconfigure'])
                 if not self.global_operations_info.get(op_name, {}).get(OUTPUT_IDS):
-                    ansible_tasks_for_create.extend( self.get_ansible_tasks_from_operation(op_name, target_directory, True))
+                    ansible_tasks_for_create.extend(
+                        self.get_ansible_tasks_from_operation(op_name, target_directory, True))
         ansible_args = copy.copy(element_object.configuration_args)
         ansible_args[STATE] = 'present'
         task_name = element_object.name.replace('-', '_')
@@ -283,16 +284,19 @@ class AnsibleConfigurationTool(ConfigurationTool):
         ansible_task_list = [dict(), dict()]
         for task in ansible_task_list: task[NAME] = self.ansible_description_by_type(element_object)
         ansible_task_list[0][self.ansible_module_by_type(element_object)] = {
-            NAME: task_name + '_delete', 'state': 'absent'}
+            NAME: self.rap_ansible_variable(task_name + '_delete'), 'state': 'absent'}
         ansible_task_list[1][self.ansible_module_by_type(element_object)] = {
             NAME: self.rap_ansible_variable('item'), 'state': 'absent'}
         ansible_task_list[0]['when'] = task_name + '_delete' + IS_DEFINED
         ansible_task_list[1]['when'] = task_name + '_ids is defined'
         ansible_task_list[1]['loop'] = self.rap_ansible_variable(task_name + '_ids | flatten(levels=1)')
         for task in ansible_task_list:
-            task[REGISTER] = task_name
+            task[REGISTER] = task_name + '_var'
             task.update(additional_args)
             ansible_tasks_for_delete.append(task)
+            ansible_tasks_for_delete.append(
+                {SET_FACT_MODULE: task_name + '=\'' + self.rap_ansible_variable(task_name + '_var') + '\'',
+                 'when': task_name + '_var' + '.changed'})
         return ansible_tasks_for_delete
 
     def ansible_description_by_type(self, provider_source_obj):
@@ -426,19 +430,19 @@ class AnsibleConfigurationTool(ConfigurationTool):
         results_var = '.'.join([element_object.name, 'results'])
         tasks = [
             {
-                NAME: 'Checking ' + element_object.name + ' created',
+                NAME: 'Checking ' + element_object.name + ' ' + self.__description.lower() + 'd',
                 'async_status': 'jid=' + self.rap_ansible_variable(jid),
-                REGISTER: 'create_result_status',
-                'until': 'create_result_status.finished',
+                REGISTER: 'async_result_status',
+                'until': 'async_result_status.finished',
                 'retries': retries,
                 'delay': delay,
                 'when': jid + IS_DEFINED
             },
             {
-                NAME: 'Checking ' + element_object.name + ' created',
+                NAME: 'Checking ' + element_object.name + ' ' + self.__description.lower() + 'd',
                 'async_status': 'jid=' + self.rap_ansible_variable(results_var + '[item|int].ansible_job_id'),
-                REGISTER: 'create_result_status_list',
-                'until': 'create_result_status_list.finished or create_result_status_list.results[item].finished | default(0)',
+                REGISTER: 'async_result_status_list',
+                'until': 'async_result_status_list.finished or async_result_status_list.results[item].finished | default(0)',
                 'retries': retries,
                 'delay': delay,
                 # 'with_items': self.rap_ansible_variable(element_object.name + '.results | default([])'),
@@ -448,14 +452,14 @@ class AnsibleConfigurationTool(ConfigurationTool):
             {
                 NAME: 'Saving ' + element_object.name + ' result',
                 SET_FACT_MODULE: {
-                    element_object.name: self.rap_ansible_variable('create_result_status')
+                    element_object.name: self.rap_ansible_variable('async_result_status')
                 },
                 'when': jid + IS_DEFINED
             },
             {
                 NAME: 'Saving ' + element_object.name + ' result',
                 SET_FACT_MODULE: {
-                    element_object.name: self.rap_ansible_variable('create_result_status_list')
+                    element_object.name: self.rap_ansible_variable('async_result_status_list')
                 },
                 'when': results_var + IS_DEFINED
             }
