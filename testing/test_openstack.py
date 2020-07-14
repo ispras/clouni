@@ -165,6 +165,43 @@ class TestAnsibleOpenStackOutput (unittest.TestCase, TestAnsibleProvider):
     def test_endpoint_capabilities(self):
         super(TestAnsibleOpenStackOutput, self).test_endpoint_capabilities()
 
+    def test_delete_full_modules(self):
+        playbook = self.get_ansible_delete_output_from_file(copy.deepcopy(self.DEFAULT_TEMPLATE),
+                                                  template_filename='examples/tosca-server-example-scalable.yaml')
+        self.assertIsNotNone(playbook[0]['tasks'][0]['include_vars'])
+        self.assertIsNotNone(playbook[0]['tasks'][len(playbook[0]['tasks'])-1]['file'])
+        module_names= ['os_floating_ip','os_server','os_port','os_security_group',]
+        for task in playbook[0]['tasks']:
+            if task.get('name') is not None:
+                modules = [task.get(name)['state'] for name in module_names if task.get(name) is not None]
+                self.assertEqual(modules[0], 'absent')
+
+    def test_delete_full_modules_async(self):
+        extra = {
+            'global': {
+                'async': True,
+                'retries': 3,
+                'delay': 1,
+                'poll': 0
+            }
+        }
+        playbook = self.get_ansible_delete_output_from_file(copy.deepcopy(self.DEFAULT_TEMPLATE),
+                                                  template_filename='examples/tosca-server-example-scalable.yaml', extra=extra)
+        self.assertIsNotNone(playbook[0]['tasks'][0]['include_vars'])
+        self.assertIsNotNone(playbook[0]['tasks'][len(playbook[0]['tasks'])-1]['file'])
+        module_names = ['os_floating_ip','os_server','os_port','os_security_group']
+        delete_task_counter = 0
+        async_task_counter = 0
+        for task in playbook[0]['tasks']:
+            if task.get('name') is not None:
+                modules = [task.get(name)['state'] for name in module_names if task.get(name) is not None]
+                if modules:
+                    delete_task_counter+=1
+                    self.assertEqual(modules[0], 'absent')
+                else:
+                    async_task_counter+=1
+        self.assertEqual(async_task_counter, delete_task_counter*2)
+
     def check_endpoint_capabilities(self, tasks, testing_value=None):
         sec_group_name = None
         if_sec_rule = False
