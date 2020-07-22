@@ -81,6 +81,14 @@ class BaseAnsibleProvider:
         playbook = self.parse_yaml(r)
         return playbook
 
+    def get_ansible_delete_output_from_file(self, template, template_filename=None, extra=None):
+        if not template_filename:
+            template_filename = self.testing_template_filename()
+        r = common_translate(template_filename, False, self.PROVIDER, ANSIBLE, TEST, True, extra=extra)
+        print(r)
+        playbook = self.parse_yaml(r)
+        return playbook
+
     def get_k8s_output(self, template, template_filename=None):
         if not template_filename:
             template_filename = self.testing_template_filename()
@@ -155,6 +163,7 @@ class TestAnsibleProvider(BaseAnsibleProvider):
                 self.check_meta(tasks, testing_value=testing_value)
 
             playbook = self.get_ansible_delete_output(template, extra=extra)
+
 
     def test_private_address(self):
         if hasattr(self, 'check_private_address'):
