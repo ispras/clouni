@@ -120,7 +120,7 @@ class ProviderToscaTemplate(object):
             else:
                 tool_artifacts.append(art)
         extra = deep_update_dict(extra, self.extra_configuration_tool_params.get(configuration_tool, {}))
-        self.configuration_content = tool.to_dsl_for_delete(self.provider, self.provider_nodes_queue, tool_artifacts, directory, self.cluster_name, extra=extra) \
+        self.configuration_content = tool.to_dsl_for_delete(self.provider, self.provider_nodes_queue, self.cluster_name, extra=extra) \
                 if is_delete else tool.to_dsl_for_create(self.provider, self.provider_nodes_queue, tool_artifacts, directory, self.cluster_name, extra=extra)
         self.configuration_ready = True
         return self.configuration_content
