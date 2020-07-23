@@ -4,6 +4,14 @@ Cloud Unifier Tool for Service Orchestration
 Clouni is a cloud application management tool based on OASIS standard 
 [TOSCA](http://docs.oasis-open.org/tosca/TOSCA-Simple-Profile-YAML/v1.0/TOSCA-Simple-Profile-YAML-v1.0.html)
 
+## Michman
+
+Use `michman-integration` branch to see Michman specific templates.
+
+~~~shell
+git checkout michman-integration
+~~~
+
 ## Installation
 Clouni requires Python 3 to be used.
 
