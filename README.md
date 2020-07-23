@@ -56,14 +56,18 @@ clouni --help
 ~~~
 Output
 ~~~
-usage: clouni [-h] --template-file <filename> [--validate-only]
-              [--provider PROVIDER] [--output-file <filename>]
-              [--configuration-tool CONFIGURATION_TOOL]
+usage: clouni [-h] --template-file <filename> --cluster-name CLUSTER_NAME
+              [--validate-only] [--delete] [--provider PROVIDER]
+              [--output-file <filename>]
+              [--configuration-tool CONFIGURATION_TOOL] [--async]
+              [--extra KEY=VALUE [KEY=VALUE ...]]
 
 optional arguments:
   -h, --help            show this help message and exit
   --template-file <filename>
                         YAML template to parse.
+  --cluster-name CLUSTER_NAME
+                        Cluster name
   --validate-only       Only validate input template, do not perform
                         translation.
   --delete              Delete cluster
