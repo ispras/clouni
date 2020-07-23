@@ -17,50 +17,66 @@ class TestAnsibleMichmanTemplatesOutput (unittest.TestCase, TestAnsibleProvider)
     def get_tpl_path(self, file_name):
         return os.path.join('launcher-templates', file_name)
 
+    def execute_shell(self, input_args):
+        shell.main(input_args)
+        shell.main(input_args + ['--delete'])
+
     def test_master_with_ip_pool(self):
         file_path = self.get_tpl_path('master-with-ip-pool.yaml')
-        shell.main(['--template-file', file_path, '--provider', self.PROVIDER, '--extra', 'retries=3', '--cluster-name', 'test'])
+        common_args = ['--template-file', file_path, '--provider', self.PROVIDER, '--extra', 'retries=3', '--cluster-name', 'test']
+        self.execute_shell(common_args)
 
     def test_master_without_ip_pool(self):
         file_path = self.get_tpl_path('master-without-ip-pool.yaml')
-        shell.main(['--template-file', file_path, '--provider', self.PROVIDER, '--extra', 'retries=3', '--cluster-name', 'test'])
+        common_args = ['--template-file', file_path, '--provider', self.PROVIDER, '--extra', 'retries=3', '--cluster-name', 'test']
+        self.execute_shell(common_args)
 
     def test_master_with_ip_pool_async(self):
         file_path = self.get_tpl_path('master-with-ip-pool.yaml')
-        shell.main(['--template-file', file_path, '--provider', self.PROVIDER, '--extra', 'retries=3', 'async=60', 'poll=0', 'delay=1', '--cluster-name', 'test'])
+        common_args = ['--template-file', file_path, '--provider', self.PROVIDER, '--extra', 'retries=3', 'async=60', 'poll=0', 'delay=1', '--cluster-name', 'test']
+        self.execute_shell(common_args)
 
     def test_master_without_ip_pool_async(self):
         file_path = self.get_tpl_path('master-without-ip-pool.yaml')
-        shell.main(['--template-file', file_path, '--provider', self.PROVIDER, '--extra', 'retries=3', 'async=60', 'poll=0', 'delay=1', '--cluster-name', 'test'])
+        common_args = ['--template-file', file_path, '--provider', self.PROVIDER, '--extra', 'retries=3', 'async=60', 'poll=0', 'delay=1', '--cluster-name', 'test']
+        self.execute_shell(common_args)
 
     def test_slaves_with_ip_pool(self):
         file_path = self.get_tpl_path('slaves-with-ip-pool.yaml')
-        shell.main(['--template-file', file_path, '--provider', self.PROVIDER, '--extra', 'retries=3', '--cluster-name', 'test'])
+        common_args = ['--template-file', file_path, '--provider', self.PROVIDER, '--extra', 'retries=3', '--cluster-name', 'test']
+        self.execute_shell(common_args)
 
     def test_slaves_without_ip_pool(self):
         file_path = self.get_tpl_path('slaves-without-ip-pool.yaml')
-        shell.main(['--template-file', file_path, '--provider', self.PROVIDER, '--extra', 'retries=3', '--cluster-name', 'test'])
+        common_args = ['--template-file', file_path, '--provider', self.PROVIDER, '--extra', 'retries=3', '--cluster-name', 'test']
+        self.execute_shell(common_args)
 
     def test_slaves_with_ip_pool_async(self):
         file_path = self.get_tpl_path('slaves-with-ip-pool.yaml')
-        shell.main(['--template-file', file_path, '--provider', self.PROVIDER, '--extra', 'retries=3', 'async=60', 'poll=0', 'delay=1', '--cluster-name', 'test'])
+        common_args = ['--template-file', file_path, '--provider', self.PROVIDER, '--extra', 'retries=3', 'async=60', 'poll=0', 'delay=1', '--cluster-name', 'test']
+        self.execute_shell(common_args)
 
     def test_slaves_without_ip_pool_async(self):
         file_path = self.get_tpl_path('slaves-without-ip-pool.yaml')
-        shell.main(['--template-file', file_path, '--provider', self.PROVIDER, '--extra', 'retries=3', 'async=60', 'poll=0', 'delay=1', '--cluster-name', 'test'])
+        common_args = ['--template-file', file_path, '--provider', self.PROVIDER, '--extra', 'retries=3', 'async=60', 'poll=0', 'delay=1', '--cluster-name', 'test']
+        self.execute_shell(common_args)
 
     def test_storage_with_ip_pool(self):
         file_path = self.get_tpl_path('storage-with-ip-pool.yaml')
-        shell.main(['--template-file', file_path, '--provider', self.PROVIDER, '--extra', 'retries=3', '--cluster-name', 'test'])
+        common_args = ['--template-file', file_path, '--provider', self.PROVIDER, '--extra', 'retries=3', '--cluster-name', 'test']
+        self.execute_shell(common_args)
 
     def test_storage_without_ip_pool(self):
         file_path = self.get_tpl_path('storage-without-ip-pool.yaml')
-        shell.main(['--template-file', file_path, '--provider', self.PROVIDER, '--extra', 'retries=3', '--cluster-name', 'test'])
+        common_args = ['--template-file', file_path, '--provider', self.PROVIDER, '--extra', 'retries=3', '--cluster-name', 'test']
+        self.execute_shell(common_args)
 
     def test_storage_with_ip_pool_async(self):
         file_path = self.get_tpl_path('storage-with-ip-pool.yaml')
-        shell.main(['--template-file', file_path, '--provider', self.PROVIDER, '--extra', 'retries=3', 'async=60', 'poll=0', 'delay=1', '--cluster-name', 'test'])
+        common_args = ['--template-file', file_path, '--provider', self.PROVIDER, '--extra', 'retries=3', 'async=60', 'poll=0', 'delay=1', '--cluster-name', 'test']
+        self.execute_shell(common_args)
 
     def test_storage_without_ip_pool_async(self):
         file_path = self.get_tpl_path('storage-without-ip-pool.yaml')
-        shell.main(['--template-file', file_path, '--provider', self.PROVIDER, '--extra', 'retries=3', 'async=60', 'poll=0', 'delay=1', '--cluster-name', 'test'])
+        common_args = ['--template-file', file_path, '--provider', self.PROVIDER, '--extra', 'retries=3', 'async=60', 'poll=0', 'delay=1', '--cluster-name', 'test']
+        self.execute_shell(common_args)
