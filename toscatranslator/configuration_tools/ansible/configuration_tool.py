@@ -473,7 +473,8 @@ class AnsibleConfigurationTool(ConfigurationTool):
                 task_name + '_list': self.rap_ansible_variable(
                     task_name + '_list' + " | default([])") + " + [ \"{{ item.id }}\" ]"},
             'loop': self.rap_ansible_variable(task_name + '.results | flatten(levels=1) '),
-            'when': task_name + '.results' + IS_DEFINED
+            # 'when': task_name + '.results' + IS_DEFINED
+            'when': 'item.id ' + IS_DEFINED
         })
         ansible_tasks_for_create.append({
             'set_fact': {
