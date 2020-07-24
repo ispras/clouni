@@ -55,6 +55,7 @@ cd $CLOUNI_HOME/../
 git clone https://github.com/bura2017/tosca-parser.git
 cd tosca-parser
 git checkout develop
+pip install -r requirements.txt
 python setup.py install
 ~~~
 
