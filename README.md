@@ -26,6 +26,8 @@ resources.
 
 This project follows up spark-openstack project (ISP RAS).
 
+Michman specific templates are located in `launcher-templates` directory. 
+
 ## Installation
 Clouni requires Python 3 to be used.
 
