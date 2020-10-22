@@ -4,6 +4,14 @@ Cloud Unifier Tool for Service Orchestration
 Clouni is a cloud application management tool based on OASIS standard 
 [TOSCA](http://docs.oasis-open.org/tosca/TOSCA-Simple-Profile-YAML/v1.0/TOSCA-Simple-Profile-YAML-v1.0.html)
 
+## Michman
+
+Use `michman-integration` branch to see Michman specific templates.
+
+~~~shell
+git checkout michman-integration
+~~~
+
 ## Installation
 Clouni requires Python 3 to be used.
 
@@ -14,12 +22,25 @@ virtualenv -p /usr/bin/python3 $VIRTUALENV_HOME/clouni
 ~~~
 It's recommended not to use `$ClOUNI_HOME` as your `$VIRTUALENV_HOME`
 
-Install Clouni requirements in you virtual environment
+Install Clouni requirements in you virtual environment if you will use this virtual
+environment to execute playbooks. 
 
 ~~~shell
 source $VIRTUALENV_HOME/clouni/bin/activate
 cd $CLOUNI_HOME
 pip install -r requirements.txt
+~~~
+
+Install required OpenStack TOSCA Parser in your virtual environment. Current version
+of TOSCA Parser doesn't have required changes. Use temporary [fork repository](https://github.com/bura2017/tosca-parser.git).
+
+~~~
+cd $CLOUNI_HOME/../
+git clone https://github.com/bura2017/tosca-parser.git
+cd tosca-parser
+git checkout develop
+pip install -r requirements.txt
+python setup.py install
 ~~~
 
 Installation command
@@ -36,14 +57,18 @@ clouni --help
 ~~~
 Output
 ~~~
-usage: clouni [-h] --template-file <filename> [--validate-only]
-              [--provider PROVIDER] [--output-file <filename>]
-              [--configuration-tool CONFIGURATION_TOOL]
+usage: clouni [-h] --template-file <filename> --cluster-name CLUSTER_NAME
+              [--validate-only] [--delete] [--provider PROVIDER]
+              [--output-file <filename>]
+              [--configuration-tool CONFIGURATION_TOOL] [--async]
+              [--extra KEY=VALUE [KEY=VALUE ...]]
 
 optional arguments:
   -h, --help            show this help message and exit
   --template-file <filename>
                         YAML template to parse.
+  --cluster-name CLUSTER_NAME
+                        Cluster name
   --validate-only       Only validate input template, do not perform
                         translation.
   --delete              Delete cluster
