@@ -12,7 +12,7 @@ TEST = 'test'
 
 class BaseAnsibleProvider:
     TESTING_TEMPLATE_FILENAME_TO_JOIN = ['examples', 'testing-example.yaml']
-    NODE_NAME = 'server-master'
+    NODE_NAME = 'server_kube_master'
     DEFAULT_TEMPLATE = {
         TOSCA_DEFINITIONS_VERSION: "tosca_simple_yaml_1_0",
         TOPOLOGY_TEMPLATE: {
@@ -32,6 +32,12 @@ class BaseAnsibleProvider:
             else:
                 r = os.path.join(r, i)
         return r
+
+    def read_template(self, filename=None):
+        if not filename:
+            filename = self.testing_template_filename()
+        with open(filename, 'r') as f:
+            return f.read()
 
     def write_template(self, template, filename=None):
         if not filename:
@@ -141,8 +147,8 @@ class BaseAnsibleProvider:
 
 class TestAnsibleProvider(BaseAnsibleProvider):
     def test_full_translating(self):
-        shell.main(['--template-file', 'examples/tosca-server-example.yaml', '--provider', self.PROVIDER,
-                    '--cluster-name', 'test'])
+        file_path = os.path.join('examples', 'tosca-server-example.yaml')
+        shell.main(['--template-file', file_path, '--provider', self.PROVIDER, '--cluster-name', 'test'])
 
     def test_meta(self, extra=None):
         if hasattr(self, 'check_meta'):
