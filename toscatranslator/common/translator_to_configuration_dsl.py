@@ -13,6 +13,18 @@ from toscatranslator.common.configuration import Configuration
 
 
 def translate(template_file, validate_only, provider, configuration_tool, cluster_name, is_delete=False, a_file=True, extra=None):
+    """
+    Main function, is called by different shells, i.e. bash, Ansible module, grpc
+    :param template_file: filename of TOSCA template or TOSCA template data if a_file is False
+    :param validate_only: boolean, if template should be only validated
+    :param provider: key of cloud provider
+    :param configuration_tool: key of configuration tool
+    :param cluster_name: name to point to desired infrastructure as one component
+    :param is_delete: generate dsl scripts for infrastructure deletion
+    :param a_file: if template_file is filename
+    :param extra: extra for template
+    :return: string that is a script to deploy or delete infrastructure
+    """
     if a_file:
         template_file = os.path.join(os.getcwd(), template_file)
         with open(template_file, 'r') as f:
