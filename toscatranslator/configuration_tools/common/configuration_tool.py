@@ -1,6 +1,6 @@
 import six
 
-from toscatranslator.common import tosca_type, utils
+from toscatranslator.common import utils
 from toscatranslator.common.tosca_reserved_keys import NODES, RELATIONSHIPS, INTERFACES, GET_OPERATION_OUTPUT, SELF, \
     IMPLEMENTATION
 
@@ -53,7 +53,7 @@ class ConfigurationTool(object):
 
         interfaces = []
         element_template_name = None
-        (_, element_type, _) = tosca_type.parse(element_object.type)
+        (_, element_type, _) = utils.tosca_type_parse(element_object.type)
         if element_type == NODES:
             interfaces = self.get_interfaces_from_node(element_object)
             element_template_name = element_object.name

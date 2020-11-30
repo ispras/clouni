@@ -1,5 +1,5 @@
 import copy
-from toscatranslator.common import tosca_type
+from toscatranslator.common import utils
 from toscatranslator.common.tosca_reserved_keys import ATTRIBUTES, PROPERTIES, ARTIFACTS, NAME, CAPABILITIES, \
     REQUIREMENTS, INTERFACES, NODE, NODES, ROOT
 
@@ -20,7 +20,7 @@ class ProviderResource(object):
         self.nodetemplate = node
         self.name = node.name
         self.type = node.type
-        (_, _, type_name) = tosca_type.parse(self.type)
+        (_, _, type_name) = utils.tosca_type_parse(self.type)
         self.type_name = type_name
         # NOTE: filling the parameters from openstack definition to parse from input template
         node_type = node.type_definition  # toscaparser.elements.nodetype.NodeType
@@ -77,7 +77,7 @@ class ProviderResource(object):
             for v in temp_req:
                 relation = v.relationship
                 if relation is not None:
-                    _, _, type_name = tosca_type.parse(relation)
+                    _, _, type_name = utils.tosca_type_parse(relation)
                     if type_name is None:
                         relationship_template_names.add(relation)
 
@@ -94,7 +94,7 @@ class ProviderResource(object):
         :param node_type_name:
         :return:
         """
-        (_, _, type_short) = tosca_type.parse(node_type_name)
+        (_, _, type_short) = utils.tosca_type_parse(node_type_name)
         if type_short == ROOT:
             return 0
         requirement_definitions = node_type_definitions.get(node_type_name, {}).get(REQUIREMENTS, [])
@@ -119,7 +119,7 @@ class ProviderResource(object):
         ProviderResource.MAX_NUM_PRIORITIES = 1
         node_priorities_by_type = {}
         for node_type_name, node_type_def in node_type_definitions.items():
-            (namespace, element_type, type_short) = tosca_type.parse(node_type_name)
+            (namespace, element_type, type_short) = utils.tosca_type_parse(node_type_name)
             if type_short != ROOT and element_type == NODES and namespace == self.provider:
                 node_priorities_by_type[node_type_name] = self.get_node_type_priority(node_type_definitions,
                                                                                       node_type_name)

@@ -1,7 +1,6 @@
 from toscatranslator.configuration_tools.common.configuration_tool import *
 from toscatranslator.common.tosca_reserved_keys import PARAMETERS, VALUE, EXTRA, SOURCE, GET_OPERATION_OUTPUT, INPUTS, \
     NODE_FILTER, NAME
-from toscatranslator.common import snake_case
 from toscatranslator.providers.common.provider_configuration import ProviderConfiguration
 from toscatranslator.common.exception import ProviderConfigurationParameterError
 
@@ -63,7 +62,7 @@ class AnsibleConfigurationTool(ConfigurationTool):
         for op_name, op in self.global_operations_info.items():
             self.global_operations_info[op_name] = self.replace_all_get_functions(op)
         for v in nodes_relationships_queue:
-            (_, element_type, _) = tosca_type.parse(v.type)
+            (_, element_type, _) = utils.tosca_type_parse(v.type)
             if element_type == NODES:
                 new_conf_args = self.replace_all_get_functions(v.configuration_args)
                 v.configuration_args = new_conf_args
@@ -306,7 +305,7 @@ class AnsibleConfigurationTool(ConfigurationTool):
             new_module_desc = ansible_config.get('module_description' + '_' + self.__description.lower())
             if new_module_desc:
                 module_desc = new_module_desc
-        return module_desc + ' ' + snake_case.convert(provider_source_obj.type_name).replace('_', ' ')
+        return module_desc + ' ' + utils.snake_case(provider_source_obj.type_name).replace('_', ' ')
 
     def ansible_module_by_type(self, provider_source_obj):
         module_prefix = ''
@@ -315,7 +314,7 @@ class AnsibleConfigurationTool(ConfigurationTool):
             new_module_prefix = self.__provider_config.config['ansible'].get('module_prefix')
             if new_module_prefix:
                 module_prefix = new_module_prefix
-        return module_prefix + snake_case.convert(provider_source_obj.type_name)
+        return module_prefix + utils.snake_case(provider_source_obj.type_name)
 
     def get_ansible_tasks_from_operation(self, op_name, target_directory, if_required=False):
         tasks = []

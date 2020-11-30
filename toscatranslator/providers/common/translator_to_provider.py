@@ -1,6 +1,4 @@
-from toscatranslator.common.utils import execute_function
-from toscatranslator.common import tosca_type
-from toscatranslator.common import snake_case
+from toscatranslator.common import utils
 from toscaparser.common.exception import ExceptionCollector, ValidationError
 from toscatranslator.common.exception import UnsupportedToscaParameterUsage, ToscaParametersMappingFailed, \
     UnsupportedExecutorType
@@ -27,7 +25,7 @@ PYTHON_SOURCE_DIRECTORY = 'toscatranslator.providers.common.python_sources'
 
 
 def translate_element_from_provider(node):
-    (_, element_type, _) = tosca_type.parse(node.type)
+    (_, element_type, _) = utils.tosca_type_parse(node.type)
     node_templates = {
         element_type: {
             node.name: copy.deepcopy(node.entity_tpl)
@@ -177,7 +175,7 @@ def restructure_value(mapping_value, self, if_format_str=True, if_upper=True):
         executor_name = flat_mapping_value.get(EXECUTOR)
         if source_name is not None and executor_name is not None:
             if executor_name == PYTHON_EXECUTOR:
-                return execute_function(PYTHON_SOURCE_DIRECTORY, source_name, parameters_dict)
+                return utils.execute_function(PYTHON_SOURCE_DIRECTORY, source_name, parameters_dict)
             if not CONFIGURATION_TOOLS.get(executor_name):
                 ExceptionCollector.appendException(UnsupportedExecutorType(
                     what=executor_name
@@ -267,7 +265,7 @@ def get_resulted_mapping_values(parameter, mapping_value, value, self):
         if isinstance(mapping_value_value, dict):
             if mapping_value_value.get(VALUE) and mapping_value_value.get(EXECUTOR) == PYTHON_EXECUTOR and \
                     mapping_value_value.get(SOURCE):
-                mapping_value_value = execute_function(PYTHON_SOURCE_DIRECTORY, mapping_value_value[SOURCE],
+                mapping_value_value = utils.execute_function(PYTHON_SOURCE_DIRECTORY, mapping_value_value[SOURCE],
                                                        {'self' : self})
         iter_value = format_value(mapping_value_value, self)
         iter_num = len(params_parameter)
@@ -494,10 +492,10 @@ def translate_node_from_tosca(restructured_mapping, tpl_name, self):
             r = retrieve_node_templates(structure)
             for node_type, tpl in r.items():
                 if not keyname:
-                    (_, _, type_name) = tosca_type.parse(node_type)
+                    (_, _, type_name) = utils.tosca_type_parse(node_type)
                     if not type_name:
                         ExceptionCollector.appendException()
-                    keyname = self[KEYNAME] + "_" + snake_case.convert(type_name)
+                    keyname = self[KEYNAME] + "_" + utils.snake_case(type_name)
                 node_tpl_with_name = {keyname: {node_type: tpl}}
                 resulted_structure = deep_update_dict(resulted_structure, node_tpl_with_name)
 
@@ -556,7 +554,7 @@ def get_source_structure_from_facts(condition, fact_name, value, arguments, exec
         new_global_elements_map_total_implementation = fact_name
 
     target_parameter_splitted = target_parameter.split(SEPARATOR)
-    relationship_name = "{self[name]}_server_" + snake_case.convert(target_parameter_splitted[-1])
+    relationship_name = "{self[name]}_server_" + utils.snake_case(target_parameter_splitted[-1])
 
     provider = target_parameter_splitted[0]
     target_interface_name = "Target"
@@ -712,7 +710,7 @@ def restructure_mapping_facts(elements_map, extra_elements_map=None, target_para
 
             provider = separated_target_parameter[0]
             target_relationship_type = SEPARATOR.join([provider, RELATIONSHIPS, "DependsOn"])
-            relationship_name = "{self[name]}_server_" + snake_case.convert(separated_target_parameter[-1])
+            relationship_name = "{self[name]}_server_" + utils.snake_case(separated_target_parameter[-1])
 
             operation_name = 'modify_' + target_short_parameter
             value_name = 'modified_' + target_short_parameter
@@ -817,7 +815,7 @@ def translate(tosca_elements_map_to_provider, topology_template):
     self[EXTRA] = dict()
 
     for element in element_templates:
-        (namespace, _, _) = tosca_type.parse(element.type)
+        (namespace, _, _) = utils.tosca_type_parse(element.type)
         self[NAME] = element.name
         self[KEYNAME] = element.name
 
@@ -830,7 +828,7 @@ def translate(tosca_elements_map_to_provider, topology_template):
             tpl_structure = translate_node_from_tosca(restructured_mapping, element.name, self)
             for tpl_name, temp_tpl in tpl_structure.items():
                 for node_type, tpl in temp_tpl.items():
-                    (_, element_type, _) = tosca_type.parse(node_type)
+                    (_, element_type, _) = utils.tosca_type_parse(node_type)
                     tpl[TYPE] = node_type
                     new_element_templates[element_type] = new_element_templates.get(element_type, {})
                     new_element_templates[element_type].update({tpl_name: copy.deepcopy(tpl)})

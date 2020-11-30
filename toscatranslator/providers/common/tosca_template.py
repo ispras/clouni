@@ -7,8 +7,6 @@ from toscaparser.common.exception import ExceptionCollector, ValidationError
 
 from toscatranslator.providers.common.translator_to_provider import translate as translate_to_provider
 
-from toscatranslator.common import tosca_type
-
 from toscaparser.imports import ImportsLoader
 
 from toscaparser.topology_template import TopologyTemplate
@@ -18,7 +16,7 @@ from toscatranslator.common.exception import ProviderFileError, TemplateDependen
     ProviderConfigurationParameterError
 
 from toscatranslator.common.tosca_reserved_keys import *
-from toscatranslator.common.utils import deep_update_dict
+from toscatranslator.common import utils
 from toscatranslator.providers.common.provider_resource import ProviderResource
 from toscatranslator.providers.common.provider_configuration import ProviderConfiguration
 
@@ -90,7 +88,7 @@ class ProviderToscaTemplate(object):
         """
         provider_nodes = list()
         for node in self.node_templates:
-            (namespace, category, type_name) = tosca_type.parse(node.type)
+            (namespace, category, type_name) = utils.tosca_type_parse(node.type)
             if namespace != self.provider or category != NODES:
                 ExceptionCollector.appendException(Exception('Unexpected values'))
             provider_node_instance = ProviderResource(self.provider, node, self.relationship_templates)
@@ -119,7 +117,7 @@ class ProviderToscaTemplate(object):
                 self.generate_artifacts([art], directory)
             else:
                 tool_artifacts.append(art)
-        extra = deep_update_dict(extra, self.extra_configuration_tool_params.get(configuration_tool, {}))
+        extra = utils.deep_update_dict(extra, self.extra_configuration_tool_params.get(configuration_tool, {}))
         self.configuration_content = tool.to_dsl_for_delete(self.provider, self.provider_nodes_queue, self.cluster_name, extra=extra) \
                 if is_delete else tool.to_dsl_for_create(self.provider, self.provider_nodes_queue, tool_artifacts, directory, self.cluster_name, extra=extra)
         self.configuration_ready = True
@@ -293,12 +291,12 @@ class ProviderToscaTemplate(object):
                         req_node = req[k].get(NODE)
 
                         if req_relationship is not None:
-                            _, _, type_name = tosca_type.parse(req_relationship)
+                            _, _, type_name = utils.tosca_type_parse(req_relationship)
                             if type_name is None:
                                 self.add_template_dependency(node.name, req_relationship)
 
                         if req_node is not None:
-                            _, _, type_name = tosca_type.parse(req_node)
+                            _, _, type_name = utils.tosca_type_parse(req_node)
                             if type_name is None:
                                 self.add_template_dependency(node.name, req_node)
 
@@ -392,12 +390,12 @@ class ProviderToscaTemplate(object):
 
         rel_types = []
         for k, v in self.provider_defs.items():
-            (_, element_type, _) = tosca_type.parse(k)
+            (_, element_type, _) = utils.tosca_type_parse(k)
             if element_type == RELATIONSHIP_TYPES:
                 rel_types.append(v)
 
         topology_tpl = TopologyTemplate(dict_tpl, self.full_provider_defs, rel_types)
         self.artifacts.extend(new_artifacts)
-        self.extra_configuration_tool_params = deep_update_dict(self.extra_configuration_tool_params, new_extra)
+        self.extra_configuration_tool_params = utils.deep_update_dict(self.extra_configuration_tool_params, new_extra)
 
         return topology_tpl
