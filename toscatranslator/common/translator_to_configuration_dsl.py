@@ -1,4 +1,3 @@
-import json
 import os
 
 from toscaparser.common.exception import ExceptionCollector
@@ -8,13 +7,12 @@ from toscaparser.tosca_template import ToscaTemplate
 from toscatranslator.common.exception import UnspecifiedParameter
 from toscatranslator.providers.common.tosca_template import ProviderToscaTemplate
 
-from toscatranslator.common.tosca_reserved_keys import IMPORTS
+from toscatranslator.common.tosca_reserved_keys import IMPORTS, TOSCA_DEFINITION_FILE
 from toscatranslator.common import utils
+from toscatranslator.common.configuration import Configuration
 
-TOSCA_DEFINITION_FILE = 'toscatranslator/common/TOSCA_definition_1_0.yaml'
 
-
-def translate(template_file, validate_only, provider, configuration_tool, cluster_name='', is_delete=False, a_file=True, extra=None):
+def translate(template_file, validate_only, provider, configuration_tool, cluster_name, is_delete=False, a_file=True, extra=None):
     if a_file:
         template_file = os.path.join(os.getcwd(), template_file)
         with open(template_file, 'r') as f:
@@ -23,7 +21,10 @@ def translate(template_file, validate_only, provider, configuration_tool, cluste
         template_content = template_file
     template = yaml_parse(template_content)
 
-    default_import_file = os.path.join(utils.get_project_root_path(), TOSCA_DEFINITION_FILE)
+    config = Configuration()
+    def_file = config.get_section(config.MAIN_SECTION).get(TOSCA_DEFINITION_FILE)
+
+    default_import_file = os.path.join(utils.get_project_root_path(), def_file)
 
     if not template.get(IMPORTS):
         template[IMPORTS] = [
