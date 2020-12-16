@@ -1,104 +1,308 @@
----
-
-- hosts: all
-  name: Create openstack cluster
+- name: Create openstack cluster
+  hosts: localhost
   tasks:
-    - name: Create SecurityGroup
-      os_security_group:
-        cloud: ispras
-        name: server_kube_master_security_group
+  - os_subnets_facts: {}
+    register: target_objects
+  - set_fact:
+      target_objects: '{{ target_objects[''ansible_facts''][''openstack_subnets'']
+        }}'
+    register: temp_value
+  - set_fact:
+      new_target_objects: '{{ [] }}'
+    register: tmp_value
+  - set_fact:
+      new_target_objects: '{{ new_target_objects + [item | combine({ ''allocation_pool_start'':
+        item[''allocation_pools''][0][''start''] | default([]), ''allocation_pool_end'':
+        item[''allocation_pools''][0][''end''] | default([]) })] }}'
+    register: temp_value
+    with_items: '{{ target_objects }}'
+  - set_fact:
+      target_objects: '{{ new_target_objects }}'
+    register: temp_value
+  - set_fact:
+      target_objects_7911: '{{ target_objects }}'
+  - set_fact:
+      input_facts: '{{ target_objects_7911 }}'
+  - set_fact:
+      input_args_7961:
+      - allocation_pool_start
+      - allocation_pool_end
+      - 192.168.12.26
+  - set_fact:
+      input_args: '{{ input_args_7961 }}'
+  - include: /home/user/git/clouni/artifacts/ip_contains.yaml
+  - set_fact:
+      network_id: '{{ matched_object["network_id"] }}'
+    register: tmp_value
+  - set_fact:
+      network_id_6096: '{{ network_id }}'
+  - os_subnets_facts: {}
+    register: target_objects
+  - set_fact:
+      target_objects: '{{ target_objects[''ansible_facts''][''openstack_subnets'']
+        }}'
+    register: temp_value
+  - set_fact:
+      new_target_objects: '{{ [] }}'
+    register: tmp_value
+  - set_fact:
+      new_target_objects: '{{ new_target_objects + [item | combine({ ''allocation_pool_start'':
+        item[''allocation_pools''][0][''start''] | default([]), ''allocation_pool_end'':
+        item[''allocation_pools''][0][''end''] | default([]) })] }}'
+    register: temp_value
+    with_items: '{{ target_objects }}'
+  - set_fact:
+      target_objects: '{{ new_target_objects }}'
+    register: temp_value
+  - set_fact:
+      target_objects_3200: '{{ target_objects }}'
+  - os_networks_facts: {}
+    register: facts_result
+  - set_fact:
+      target_objects: '{{ facts_result["ansible_facts"]["openstack_networks"] }}'
+    register: tmp_value
+  - set_fact:
+      target_objects_6696: '{{ target_objects }}'
+  - os_image_facts: {}
+    register: facts_result
+  - set_fact:
+      target_objects: '{{ facts_result["ansible_facts"]["openstack_image"] }}'
+    register: tmp_value
+  - set_fact:
+      target_objects_7324: '{{ target_objects }}'
+  - set_fact:
+      input_facts: '{{ target_objects_3200 }}'
+  - set_fact:
+      input_args_4895:
+      - allocation_pool_start
+      - allocation_pool_end
+      - 10.10.18.217
+  - set_fact:
+      input_args: '{{ input_args_4895 }}'
+  - include: /home/user/git/clouni/artifacts/ip_contains.yaml
+  - set_fact:
+      network_id: '{{ matched_object["network_id"] }}'
+    register: tmp_value
+  - set_fact:
+      network_id_8438: '{{ network_id }}'
+  - set_fact:
+      input_facts: '{{ target_objects_6696 }}'
+  - set_fact:
+      input_args_2219:
+      - id
+      - '{{ network_id_8438 }}'
+  - set_fact:
+      input_args: '{{ input_args_2219 }}'
+  - include: /home/user/git/clouni/artifacts/equals.yaml
+  - set_fact:
+      name: '{{ matched_object["name"] }}'
+    register: tmp_value
+  - set_fact:
+      name_8328: '{{ name }}'
+  - set_fact:
+      input_facts: '{{ target_objects_7324 }}'
+  - set_fact:
+      input_args_6280:
+      - - name
+        - properties
+      - architecture: x86_64
+        type: ubuntu
+        distribution: xenial
+        version: 16.04
+  - set_fact:
+      input_args: '{{ input_args_6280 }}'
+  - include: /home/user/git/clouni/artifacts/contains.yaml
+  - set_fact:
+      name: '{{ matched_object["name"] }}'
+    register: tmp_value
+  - set_fact:
+      name_3770: '{{ name }}'
+  - file:
+      path: '{{ playbook_dir }}/id_vars_test.yaml'
+      state: absent
+  - file:
+      path: '{{ playbook_dir }}/id_vars_test.yaml'
+      state: touch
+  - name: Create OpenStack component security group
+    os_security_group:
+      name: server_kube_master_security_group
+    register: server_kube_master_security_group
+  - set_fact:
+      server_kube_master_security_group_list: '{{ server_kube_master_security_group_list
+        | default([]) }} + [ "{{ item.id }}" ]'
+    loop: '{{ server_kube_master_security_group.results | flatten(levels=1)  }}'
+    when: item.id  is defined
+  - set_fact:
+      server_kube_master_security_group_list:
+        server_kube_master_security_group_ids: '{{ server_kube_master_security_group_list
+          }}'
+    when: server_kube_master_security_group_list is defined
+  - lineinfile:
+      path: '{{ playbook_dir }}/id_vars_test.yaml'
+      line: 'server_kube_master_security_group_delete: {{ server_kube_master_security_group.id
+        }}'
+    when: server_kube_master_security_group.id is defined
+  - lineinfile:
+      path: '{{ playbook_dir }}/id_vars_test.yaml'
+      line: '{{ server_kube_master_security_group_list | to_nice_yaml }}'
+    when: server_kube_master_security_group_list is defined
+  - fail:
+      msg: Variable server_kube_master_security_group is undefined! So it will not
+        be deleted
+    when: server_kube_master_security_group_list is undefined and server_kube_master_security_group.id
+      is undefined
+    ignore_errors: true
+  - set_fact:
+      server_kube_master_protocols:
+      - tcp
+    register: tmp
+  - set_fact:
+      server_kube_master_ports:
+      - 22
+    register: tmp
+  - name: Create OpenStack component security group rule
+    os_security_group_rule:
+      direction: ingress
+      port_range_max: '{{ server_kube_master_ports[item | int] | default(omit) }}'
+      port_range_min: '{{ server_kube_master_ports[item | int] | default(omit) }}'
+      protocol: '{{ server_kube_master_protocols[item | int] | default(omit) }}'
+      remote_ip_prefix: 0.0.0.0
+      security_group: server_kube_master_security_group
+    register: server_kube_master_security_group_rule
+    with_sequence: start=0 end={{ [server_kube_master_protocols | length, server_kube_master_ports
+      | length] | max - 1 }} format=%d
+  - set_fact:
+      server_kube_master_security_group_rule_list: '{{ server_kube_master_security_group_rule_list
+        | default([]) }} + [ "{{ item.id }}" ]'
+    loop: '{{ server_kube_master_security_group_rule.results | flatten(levels=1)  }}'
+    when: item.id  is defined
+  - set_fact:
+      server_kube_master_security_group_rule_list:
+        server_kube_master_security_group_rule_ids: '{{ server_kube_master_security_group_rule_list
+          }}'
+    when: server_kube_master_security_group_rule_list is defined
+  - lineinfile:
+      path: '{{ playbook_dir }}/id_vars_test.yaml'
+      line: 'server_kube_master_security_group_rule_delete: {{ server_kube_master_security_group_rule.id
+        }}'
+    when: server_kube_master_security_group_rule.id is defined
+  - lineinfile:
+      path: '{{ playbook_dir }}/id_vars_test.yaml'
+      line: '{{ server_kube_master_security_group_rule_list | to_nice_yaml }}'
+    when: server_kube_master_security_group_rule_list is defined
+  - fail:
+      msg: Variable server_kube_master_security_group_rule is undefined! So it will
+        not be deleted
+    when: server_kube_master_security_group_rule_list is undefined and server_kube_master_security_group_rule.id
+      is undefined
+    ignore_errors: true
+  - name: Create OpenStack component port
+    os_port:
+      fixed_ips:
+      - ip_address: 192.168.12.26
+      name: server_kube_master_port_0
+      vnic_type: normal
+      network: '{{ network_id_6096 }}'
+    register: server_kube_master_port
+  - set_fact:
+      server_kube_master_port_list: '{{ server_kube_master_port_list | default([])
+        }} + [ "{{ item.id }}" ]'
+    loop: '{{ server_kube_master_port.results | flatten(levels=1)  }}'
+    when: item.id  is defined
+  - set_fact:
+      server_kube_master_port_list:
+        server_kube_master_port_ids: '{{ server_kube_master_port_list }}'
+    when: server_kube_master_port_list is defined
+  - lineinfile:
+      path: '{{ playbook_dir }}/id_vars_test.yaml'
+      line: 'server_kube_master_port_delete: {{ server_kube_master_port.id }}'
+    when: server_kube_master_port.id is defined
+  - lineinfile:
+      path: '{{ playbook_dir }}/id_vars_test.yaml'
+      line: '{{ server_kube_master_port_list | to_nice_yaml }}'
+    when: server_kube_master_port_list is defined
+  - fail:
+      msg: Variable server_kube_master_port is undefined! So it will not be deleted
+    when: server_kube_master_port_list is undefined and server_kube_master_port.id
+      is undefined
+    ignore_errors: true
+  - os_flavor_facts: {}
+    register: node_filter_facts_raw
+  - set_fact:
+      input_facts: '{{ node_filter_facts_raw["ansible_facts"]["openstack_flavors"]
+        }}'
+  - set_fact:
+      input_args:
+        vcpus: 1
+        disk: 5.0
+        ram: 1024.0
+  - include: /home/user/git/clouni/artifacts/equals.yaml
+  - set_fact:
+      id_5151: '{{ matched_object["id"] }}'
+  - name: Create OpenStack component server
+    os_server:
+      config_drive: false
+      name: server_kube_master
+      nics:
+      - port-name: server_kube_master_port_0
+      - net-name: test-two-routers
+      auto_ip: false
+      flavor: '{{ id_5151 }}'
+      security_groups:
+      - server_kube_master_security_group
+      image: '{{ name_3770 }}'
+    register: server_kube_master_server
+  - set_fact:
+      server_kube_master_server_list: '{{ server_kube_master_server_list | default([])
+        }} + [ "{{ item.id }}" ]'
+    loop: '{{ server_kube_master_server.results | flatten(levels=1)  }}'
+    when: item.id  is defined
+  - set_fact:
+      server_kube_master_server_list:
+        server_kube_master_server_ids: '{{ server_kube_master_server_list }}'
+    when: server_kube_master_server_list is defined
+  - lineinfile:
+      path: '{{ playbook_dir }}/id_vars_test.yaml'
+      line: 'server_kube_master_server_delete: {{ server_kube_master_server.id }}'
+    when: server_kube_master_server.id is defined
+  - lineinfile:
+      path: '{{ playbook_dir }}/id_vars_test.yaml'
+      line: '{{ server_kube_master_server_list | to_nice_yaml }}'
+    when: server_kube_master_server_list is defined
+  - fail:
+      msg: Variable server_kube_master_server is undefined! So it will not be deleted
+    when: server_kube_master_server_list is undefined and server_kube_master_server.id
+      is undefined
+    ignore_errors: true
+  - name: Create OpenStack component floating ip
+    os_floating_ip:
+      floating_ip_address: 10.10.18.217
+      network: '{{ name_8328 }}'
+      server: server_kube_master
+    register: server_kube_master_floating_ip
+  - set_fact:
+      server_kube_master_floating_ip_list: '{{ server_kube_master_floating_ip_list
+        | default([]) }} + [ "{{ item.id }}" ]'
+    loop: '{{ server_kube_master_floating_ip.results | flatten(levels=1)  }}'
+    when: item.id  is defined
+  - set_fact:
+      server_kube_master_floating_ip_list:
+        server_kube_master_floating_ip_ids: '{{ server_kube_master_floating_ip_list
+          }}'
+    when: server_kube_master_floating_ip_list is defined
+  - lineinfile:
+      path: '{{ playbook_dir }}/id_vars_test.yaml'
+      line: 'server_kube_master_floating_ip_delete: {{ server_kube_master_floating_ip.id
+        }}'
+    when: server_kube_master_floating_ip.id is defined
+  - lineinfile:
+      path: '{{ playbook_dir }}/id_vars_test.yaml'
+      line: '{{ server_kube_master_floating_ip_list | to_nice_yaml }}'
+    when: server_kube_master_floating_ip_list is defined
+  - fail:
+      msg: Variable server_kube_master_floating_ip is undefined! So it will not be
+        deleted
+    when: server_kube_master_floating_ip_list is undefined and server_kube_master_floating_ip.id
+      is undefined
+    ignore_errors: true
 
-    - import: server_kube_master_port_network_total.yaml
-
-    - set_fact:
-        target_objects_0003: {{ target_objects }}
-
-    - import: server_kube_master_port_subnet_total.yaml
-
-    - set_fact:
-        target_objects_0005: {{ target_objects }}
-
-    - import: ip_contains.yaml facts={{ target_objects_0005 }} ip=192.168.12.25
-
-    - set_fact:
-        name_0004: {{ name }}
-
-    - import: equals.yaml facts={{ target_objects_0003 }} name={{ name_0004 }}
-
-    - set_fact:
-        name_0002: {{ name }}
-
-    - import: server_kube_master_port_configure.yaml network_name={{ name_0002 }} ip=192.168.12.25
-
-    - set_fact:
-        network_ip_struct_0001: {{ network_ip_struct }}
-
-    - name: Create Port
-      os_port:
-        cloud: ispras
-        network: test-two-routers
-        fixed_ips:
-        - {{ network_ip_struct_0001 }}
-        name: server_kube_master_port_0
-        vnic_type: normal
-
-
-    - name: Create SecurityGroupRule
-      os_security_group_rule:
-        cloud: ispras
-        direction: ingress
-        port_range_max: 1000
-        port_range_min: 1000
-        protocol: tcp
-        remote_ip_prefix: 0.0.0.0
-        security_group: server_kube_master_security_group
-
-    - import: server_kube_master_server_image_total.yaml
-
-    - set_fact:
-        target_objects_0007: {{ target_objects}}
-
-    - import: contains.yaml facts={{ target_objects_0007 }} args=["ubuntu", "xenial", "16.04"]
-
-    - set_fact:
-        name_0006: {{ name }}
-
-    - name: Create Server
-      os_server:
-        cloud: ispras
-        availability_zone: nova
-        config_drive: false
-        flavor: ispras.medium
-        image: {{ name_0006 }}
-        meta:
-          - "cube_master=true"
-        name: server-kube-master
-        network: test-two-routers
-        security_groups:
-          - server_kube_master_security_group
-
-    - import: server_kube_master_floatingip_network_total.yaml
-
-    - set_fact:
-        target_objects_0009: {{ target_objects }}
-
-    - import: server_kube_master_floatingip_subnet_total.yaml
-
-    - set_fact:
-        target_objects_0011: {{ target_objects }}
-
-    - import: ip_contains.yaml facts={{ target_objects_0011 }} ip=10.100.115.15
-
-    - set_fact:
-        name_0010: {{ name }}
-
-    - import: equals.yaml facts={{ target_objects_0009 }} name={{ name_0010 }}
-
-    - set_fact:
-        name_0008: {{ name }}
-
-    - name: Create Floating IP
-      os_floating_ip:
-        floating_ip_address:  10.100.115.15
-        network: {{ name_0008 }}
-        server: server_kube_master_server
