@@ -1,0 +1,80 @@
+- name: Delete openstack cluster
+  hosts: localhost
+  tasks:
+  - include_vars: '{{ playbook_dir }}/id_vars_test.yaml'
+  - name: Delete OpenStack component floating ip
+    os_floating_ip:
+      name: '{{ server_kube_master_floating_ip_delete }}'
+      state: absent
+    when: server_kube_master_floating_ip_delete is defined
+    register: server_kube_master_floating_ip_var
+  - set_fact: server_kube_master_floating_ip='{{ server_kube_master_floating_ip_var
+      }}'
+    when: server_kube_master_floating_ip_var.changed
+  - name: Delete OpenStack component floating ip
+    os_floating_ip:
+      name: '{{ item }}'
+      state: absent
+    when: server_kube_master_floating_ip_ids is defined
+    loop: '{{ server_kube_master_floating_ip_ids | flatten(levels=1) }}'
+    register: server_kube_master_floating_ip_var
+  - set_fact: server_kube_master_floating_ip='{{ server_kube_master_floating_ip_var
+      }}'
+    when: server_kube_master_floating_ip_var.changed
+  - name: Delete OpenStack component server
+    os_server:
+      name: '{{ server_kube_master_server_delete }}'
+      state: absent
+    when: server_kube_master_server_delete is defined
+    register: server_kube_master_server_var
+  - set_fact: server_kube_master_server='{{ server_kube_master_server_var }}'
+    when: server_kube_master_server_var.changed
+  - name: Delete OpenStack component server
+    os_server:
+      name: '{{ item }}'
+      state: absent
+    when: server_kube_master_server_ids is defined
+    loop: '{{ server_kube_master_server_ids | flatten(levels=1) }}'
+    register: server_kube_master_server_var
+  - set_fact: server_kube_master_server='{{ server_kube_master_server_var }}'
+    when: server_kube_master_server_var.changed
+  - name: Delete OpenStack component port
+    os_port:
+      name: '{{ server_kube_master_port_delete }}'
+      state: absent
+    when: server_kube_master_port_delete is defined
+    register: server_kube_master_port_var
+  - set_fact: server_kube_master_port='{{ server_kube_master_port_var }}'
+    when: server_kube_master_port_var.changed
+  - name: Delete OpenStack component port
+    os_port:
+      name: '{{ item }}'
+      state: absent
+    when: server_kube_master_port_ids is defined
+    loop: '{{ server_kube_master_port_ids | flatten(levels=1) }}'
+    register: server_kube_master_port_var
+  - set_fact: server_kube_master_port='{{ server_kube_master_port_var }}'
+    when: server_kube_master_port_var.changed
+  - name: Delete OpenStack component security group
+    os_security_group:
+      name: '{{ server_kube_master_security_group_delete }}'
+      state: absent
+    when: server_kube_master_security_group_delete is defined
+    register: server_kube_master_security_group_var
+  - set_fact: server_kube_master_security_group='{{ server_kube_master_security_group_var
+      }}'
+    when: server_kube_master_security_group_var.changed
+  - name: Delete OpenStack component security group
+    os_security_group:
+      name: '{{ item }}'
+      state: absent
+    when: server_kube_master_security_group_ids is defined
+    loop: '{{ server_kube_master_security_group_ids | flatten(levels=1) }}'
+    register: server_kube_master_security_group_var
+  - set_fact: server_kube_master_security_group='{{ server_kube_master_security_group_var
+      }}'
+    when: server_kube_master_security_group_var.changed
+  - file:
+      path: '{{ playbook_dir }}/id_vars_test.yaml'
+      state: absent
+

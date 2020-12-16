@@ -3,6 +3,7 @@ from toscatranslator import shell
 import os
 import yaml
 import copy
+import difflib
 
 from toscatranslator.common.utils import deep_update_dict
 from toscatranslator.common.tosca_reserved_keys import PROVIDERS, ANSIBLE, TYPE, \
@@ -143,6 +144,13 @@ class BaseAnsibleProvider:
 
     def update_template_requirement(self, template, node_name, update_value):
         return self.update_node_template(template, node_name, update_value, REQUIREMENTS)
+
+    def diff_files(self, file_name1, file_name2):
+        with open(file_name1, 'r') as file1, open(file_name2, 'r') as file2:
+            text1 = file1.readlines()
+            text2 = file2.readlines()
+            for line in difflib.unified_diff(text1, text2):
+                print(line)
 
 
 class TestAnsibleProvider(BaseAnsibleProvider):
