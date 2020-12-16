@@ -19,6 +19,7 @@ SEPARATOR = '.'
 MAP_KEY = "map"
 SET_FACT_SOURCE = "set_fact"
 INDIVISIBLE_KEYS = [GET_OPERATION_OUTPUT, INPUTS, IMPLEMENTATION]
+BUFFER = 'buffer'
 
 ARTIFACT_RANGE_START = 1000
 ARTIFACT_RANGE_END = 9999
@@ -820,6 +821,7 @@ def translate(tosca_elements_map_to_provider, topology_template):
         (namespace, _, _) = tosca_type.parse(element.type)
         self[NAME] = element.name
         self[KEYNAME] = element.name
+        self[BUFFER] = {}
 
         if namespace == TOSCA:
             restructured_mapping = restructure_mapping(tosca_elements_map_to_provider, element, self)
