@@ -4,11 +4,7 @@ import json
 import yaml
 
 from toscaparser.common.exception import ExceptionCollector, ValidationError
-
-from toscatranslator.providers.common.translator_to_provider import translate as translate_to_provider
-
 from toscaparser.imports import ImportsLoader
-
 from toscaparser.topology_template import TopologyTemplate
 
 from toscatranslator.common.exception import ProviderFileError, TemplateDependencyError, \
@@ -16,8 +12,10 @@ from toscatranslator.common.exception import ProviderFileError, TemplateDependen
 
 from toscatranslator.common.tosca_reserved_keys import *
 from toscatranslator.common import utils
-from toscatranslator.providers.common.provider_resource import ProviderResource
+
 from toscatranslator.providers.common.provider_configuration import ProviderConfiguration
+from toscatranslator.providers.common.translator_to_provider import translate as translate_to_provider
+from toscatranslator.providers.common.provider_resource import ProviderResource
 
 
 class ProviderToscaTemplate(object):

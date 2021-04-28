@@ -2,6 +2,9 @@ import itertools
 import os
 import importlib
 
+from random import randint,seed
+from time import time
+
 
 def tosca_type_parse(_type):
     tosca_type = _type.split(".", 2)
@@ -53,3 +56,9 @@ def deep_update_dict(source, overrides):
 
 def get_project_root_path():
     return os.path.dirname(os.path.dirname(os.path.dirname(__file__)))
+
+
+def get_random_int(start, end):
+    seed(time())
+    r = randint(start, end)
+    return r

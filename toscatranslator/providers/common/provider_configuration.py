@@ -8,9 +8,10 @@ except:
 import os
 from toscaparser.common.exception import ExceptionCollector
 from toscatranslator.common.exception import ProviderConfigurationNotFound
-from toscatranslator.common.configuration import Configuration, CONFIG_FILE_EXT
 
 from toscatranslator.common import utils
+
+from toscatranslator.common.configuration import Configuration, CONFIG_FILE_EXT
 
 
 class ProviderConfiguration (Configuration):

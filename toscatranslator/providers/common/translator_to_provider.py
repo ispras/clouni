@@ -1,17 +1,16 @@
-from toscatranslator.common import utils
-from toscaparser.common.exception import ExceptionCollector, ValidationError
-from toscatranslator.common.exception import UnsupportedToscaParameterUsage, ToscaParametersMappingFailed, \
-    UnsupportedExecutorType
-from toscatranslator.common.tosca_reserved_keys import *
-from toscatranslator.configuration_tools.combined.combine_configuration_tools import CONFIGURATION_TOOLS
-
 import copy
 import six
 
+from toscaparser.common.exception import ExceptionCollector, ValidationError
+from toscatranslator.common.exception import UnsupportedToscaParameterUsage, ToscaParametersMappingFailed, \
+    UnsupportedExecutorType
+
+from toscatranslator.common import utils
+from toscatranslator.common.tosca_reserved_keys import *
+from toscatranslator.configuration_tools.combined.combine_configuration_tools import get_configuration_tool_class
+
 from random import randint, seed
 from time import time
-
-from toscatranslator.common.utils import deep_update_dict
 
 SEPARATOR = '.'
 MAP_KEY = "map"
@@ -66,7 +65,7 @@ def get_structure_of_mapped_param(mapped_param, value, input_value=None, indivis
                 for k, v in value.items():
                     param, _ = get_structure_of_mapped_param(k, v, input_value)
                     for p in param:
-                        r = deep_update_dict(r, p)
+                        r = utils.deep_update_dict(r, p)
                 r, _ = get_structure_of_mapped_param(mapped_param, r, input_value, indivisible=True, if_list_type=if_list_type)
                 return r, None
 
@@ -176,14 +175,14 @@ def restructure_value(mapping_value, self, if_format_str=True, if_upper=True):
         if source_name is not None and executor_name is not None:
             if executor_name == PYTHON_EXECUTOR:
                 return utils.execute_function(PYTHON_SOURCE_DIRECTORY, source_name, parameters_dict)
-            if not CONFIGURATION_TOOLS.get(executor_name):
+            if not get_configuration_tool_class(executor_name):
                 ExceptionCollector.appendException(UnsupportedExecutorType(
                     what=executor_name
                 ))
             if self.get(ARTIFACTS) is None:
                 self[ARTIFACTS] = []
 
-            tool = CONFIGURATION_TOOLS[executor_name]()
+            tool = get_configuration_tool_class(executor_name)()
             extension = tool.get_artifact_extension()
 
             seed(time())
@@ -273,7 +272,7 @@ def get_resulted_mapping_values(parameter, mapping_value, value, self):
             temp_param = dict()
             temp_param[params_parameter[i]] = iter_value
             iter_value = temp_param
-        self = deep_update_dict(self, {params_parameter[0]: iter_value})
+        self = utils.deep_update_dict(self, {params_parameter[0]: iter_value})
         return []
     elif mapping_value_parameter:
         splitted_mapping_value_parameter = mapping_value_parameter.split(SEPARATOR)
@@ -459,7 +458,7 @@ def retrieve_node_templates(input_dict, input_prefix=None):
         if k in NODE_TEMPLATE_KEYS:
             return {input_prefix: input_dict}
         t = retrieve_node_templates(v, SEPARATOR.join([input_prefix, k]) if input_prefix else k)
-        r = deep_update_dict(r, t)
+        r = utils.deep_update_dict(r, t)
     return r
 
 
@@ -497,7 +496,7 @@ def translate_node_from_tosca(restructured_mapping, tpl_name, self):
                         ExceptionCollector.appendException()
                     keyname = self[KEYNAME] + "_" + utils.snake_case(type_name)
                 node_tpl_with_name = {keyname: {node_type: tpl}}
-                resulted_structure = deep_update_dict(resulted_structure, node_tpl_with_name)
+                resulted_structure = utils.deep_update_dict(resulted_structure, node_tpl_with_name)
 
     for keyname, node in resulted_structure.items():
         for node_type, tpl in node.items():
@@ -766,7 +765,7 @@ def restructure_mapping_facts(elements_map, extra_elements_map=None, target_para
             value = new_elements_map[VALUE]
             arguments = new_elements_map[ARGUMENTS]
             executor = new_elements_map[EXECUTOR]
-            if executor not in CONFIGURATION_TOOLS.keys():
+            if not get_configuration_tool_class(executor):
                 ExceptionCollector.appendException(UnsupportedExecutorType(
                     what=executor
                 ))
@@ -834,7 +833,7 @@ def translate(tosca_elements_map_to_provider, topology_template):
                     new_element_templates[element_type].update({tpl_name: copy.deepcopy(tpl)})
         else:
             new_element = translate_element_from_provider(element)
-            new_element_templates = deep_update_dict(new_element_templates, new_element)
+            new_element_templates = utils.deep_update_dict(new_element_templates, new_element)
 
         conditions = set(conditions)
 

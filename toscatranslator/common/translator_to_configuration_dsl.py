@@ -12,7 +12,7 @@ from toscatranslator.common.tosca_reserved_keys import IMPORTS, TOSCA_DEFINITION
     EXECUTOR, NAME
 from toscatranslator.common import utils
 from toscatranslator.common.configuration import Configuration
-from toscatranslator.configuration_tools.combined.combine_configuration_tools import CONFIGURATION_TOOLS
+from toscatranslator.configuration_tools.combined.combine_configuration_tools import get_configuration_tool_class
 
 
 REQUIRED_CONFIGURATION_PARAMS = (TOSCA_DEFINITION_FILE, DEFAULT_ARTIFACTS_DIRECTORY)
@@ -77,7 +77,7 @@ def translate(template_file, validate_only, provider, configuration_tool, cluste
     tosca = ProviderToscaTemplate(tosca_parser_template_object, provider, cluster_name)
 
     # Init configuration tool class
-    tool = CONFIGURATION_TOOLS.get(configuration_tool)()
+    tool = get_configuration_tool_class(configuration_tool)()
 
     default_artifacts_directory = config.get_section(config.MAIN_SECTION).get(DEFAULT_ARTIFACTS_DIRECTORY)
 
@@ -116,7 +116,7 @@ def generate_artifacts(new_artifacts, directory):
     r_artifacts = []
     for art in new_artifacts:
         filename = os.path.join(directory, art[NAME])
-        configuration_class = CONFIGURATION_TOOLS.get(art[EXECUTOR])()
+        configuration_class = get_configuration_tool_class(art[EXECUTOR])()
         if not configuration_class:
             ExceptionCollector.appendException(UnsupportedExecutorType(
                 what=art[EXECUTOR]

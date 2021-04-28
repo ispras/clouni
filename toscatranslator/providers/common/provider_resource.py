@@ -1,4 +1,5 @@
 import copy
+
 from toscatranslator.common import utils
 from toscatranslator.common.tosca_reserved_keys import ATTRIBUTES, PROPERTIES, ARTIFACTS, NAME, CAPABILITIES, \
     REQUIREMENTS, INTERFACES, NODE, NODES, ROOT
