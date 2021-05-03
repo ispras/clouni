@@ -7,7 +7,7 @@ from toscatranslator.common.translator_to_configuration_dsl import translate
 
 
 class TranslatorShell(object):
-    def __init__(self, argv):
+    def __init__(self, argv, server=False):
 
         parser = self.get_parser()
         (args, args_list) = parser.parse_known_args(argv)
@@ -39,8 +39,11 @@ class TranslatorShell(object):
         self.working_dir = os.getcwd()
 
         output = translate(self.template_file, self.validate_only, self.provider, self.configuration_tool, self.cluster_name, self.is_delete,
-                           extra={'global': self.extra})
-        self.output_print(output)
+                           extra={'global': self.extra}, a_file = not server)
+        if (server):
+            return output
+        else:
+            self.output_print(output)
 
     def get_parser(self):
         parser = argparse.ArgumentParser(prog="clouni")
@@ -94,6 +97,7 @@ class TranslatorShell(object):
 def main(args=None):
     if args is None:
         args = sys.argv[1:]
+    # print(args)
     TranslatorShell(args)
 
 
