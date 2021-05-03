@@ -5,11 +5,12 @@ from toscaparser.common.exception import ValidationError
 from concurrent import futures
 import logging
 import grpc
+import sys
 
 class ClouniServicer(api_pb2_grpc.ClouniServicer):
 
     def Clouni(self, request, context):
-        args = _RequestParse(request)
+        args = self._RequestParse(request)
         response = ClouniResponse()
         try:
             if request.validate_only:
@@ -30,13 +31,40 @@ class ClouniServicer(api_pb2_grpc.ClouniServicer):
             response.error = str(err)
             return response
 
-# print(dir(ClouniResponse()))
-# c = ClouniResponse()
-# c.status = ClouniResponse.Status.OK
-# c.error = " "
-# c.content = " "
-# print((c))
+            
+    def _RequestParse(self, request):
+        args = []
+        if request.template_file_content == "":
+            raise Exception("Request field 'template_file_content' is required")
+        else:
+            args.append("--template-file")
+            args.append(request.template_file_content)
+        if request.cluster_name == "":
+            raise Exception("Request field 'cluster_name' is required")
+        else:
+            args.append("--cluster-name")
+            args.append(request.cluster_name)
+        if request.validate_only:
+            args.append("--validate-only")
+        if request.delete:
+            args.append("--delete")
+        if request.provider == "":
+            args.append("--provider")
+            args.append(request.provider)
+        if request.configuration_tool == "":
+            args.append("--configuration-tool")
+            args.append(request.configuration_tool)
+        if request.async:
+            args.append("--async")
+        if len(request.extra) > 0:
+            args.append("--extra")
+        for key, value in request.extra.items():
+            args.append(key+'='+value)
+
+
 def serve():
+    request = ClouniRequest(extra={'key1':'value1', 'key2':'value2'}, provider='qwerty', template_file_content="qwe", cluster_name='asd')
+    ClouniServicer().Clouni(request, 1)
     server = grpc.server(futures.ThreadPoolExecutor(max_workers=10))
     api_pb2_grpc.add_ClouniServicer_to_server(
         ClouniServicer(), server)
