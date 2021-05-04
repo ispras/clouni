@@ -9,24 +9,37 @@ from toscatranslator.common.translator_to_configuration_dsl import translate
 class TranslatorShell(object):
     def __init__(self, argv, server=False):
 
-        parser = self.get_parser()
-        (args, args_list) = parser.parse_known_args(argv)
+        if server:
+            self.template_file = argv['template_file_content']
+            self.validate_only = argv['validate_only']
+            self.is_delete = argv['delete']
+            self.provider = argv['provider']
+            self.output_file = None
+            self.configuration_tool = argv['configuration_tool']
+            self.cluster_name = argv['cluster_name']
+            self.extra = argv['extra']
 
-        self.template_file = args.template_file
-        self.validate_only = args.validate_only
-        self.is_delete = args.delete
-        self.provider = args.provider
-        self.output_file = args.output_file
-        self.configuration_tool = args.configuration_tool
-        self.cluster_name = args.cluster_name
-        self.extra = {}
-        for i in args.extra:
-            i_splitted = [j.strip() for j in i.split('=', 1)]
-            if len(i_splitted) < 2:
-                raise Exception('Failed parsing parameter \'--extra\', required \'key=value\' format')
-            self.extra.update({i_splitted[0]: i_splitted[1]})
-        if args.async and not self.extra.get('async'):
-            self.extra['async'] = args.async
+            if argv['async'] and not self.extra.get('async'):
+                self.extra['async'] = args.async
+        else:
+            parser = self.get_parser()
+            (args, args_list) = parser.parse_known_args(argv)
+            print(args)
+            self.template_file = args.template_file
+            self.validate_only = args.validate_only
+            self.is_delete = args.delete
+            self.provider = args.provider
+            self.output_file = args.output_file
+            self.configuration_tool = args.configuration_tool
+            self.cluster_name = args.cluster_name
+            self.extra = {}
+            for i in args.extra:
+                i_splitted = [j.strip() for j in i.split('=', 1)]
+                if len(i_splitted) < 2:
+                    raise Exception('Failed parsing parameter \'--extra\', required \'key=value\' format')
+                self.extra.update({i_splitted[0]: i_splitted[1]})
+            if args.async and not self.extra.get('async'):
+                self.extra['async'] = args.async
 
         for k, v in self.extra.items():
             if isinstance(v, six.string_types):
