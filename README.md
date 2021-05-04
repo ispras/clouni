@@ -204,17 +204,31 @@ For example to create OpenStack server cloud image name and flavor must be speci
 ## Usage gRPC server
 
 ~~~shell
-clouni-server
+clouni-server --help
+~~~
+Output:
+~~~
+usage: clouni-server [-h] [--max_workers <number of workers>] [--port <port>]
+                     [--verbose]
+
+optional arguments:
+  -h, --help            show this help message and exit
+  --max_workers <number of workers>
+                        Maximum of working gRPC threads, default 10
+  --port <port>, -p <port>
+                        Port on which server will be started, default 50051
+  --verbose, -v         Logger verbosity, default -vvv
+
 ~~~
 
-The server will be started on port 50051.
 You need to implement client using specification
 located at *toscatranslator/api.proto*
 
-Supported options are identical to the CLI version
-except not supported `-h` option and `--template-file` option,
+Supported clouni request options are identical to the CLI version
+except not supported `--output-file` option and `--template-file` option,
 replaced by `template_file_content`
 
+Log file is `./.clouni-server.log`
 
 ## Adding new provider
 
