@@ -192,9 +192,6 @@ def serve(argv =  None):
         logger.critical("Invalid port argument: should be greater or equal than 0. Exiting")
         sys.exit(1)
     # Starting server
-
-    request = ClouniRequest(extra={'key1':'value1', 'key2':'value2'}, provider='qwerty', template_file_content="qwe", cluster_name='asd')
-    print(ClouniServicer(logger).Clouni(request, 1))
     try:
         server = grpc.server(futures.ThreadPoolExecutor(max_workers=max_workers))
         api_pb2_grpc.add_ClouniServicer_to_server(
