@@ -2,7 +2,7 @@
 """Client and server classes corresponding to protobuf-defined services."""
 import grpc
 
-import toscatranslator.api_pb2 as api__pb2
+import grpc_clouni.api_pb2 as api__pb2
 
 
 class ClouniStub(object):

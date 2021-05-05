@@ -1,6 +1,7 @@
-from toscatranslator.api_pb2 import ClouniResponse, ClouniRequest
-import toscatranslator.api_pb2_grpc as api_pb2_grpc
-import toscatranslator.shell as shell
+from grpc_clouni.api_pb2 import ClouniResponse, ClouniRequest
+import grpc_clouni.api_pb2_grpc as api_pb2_grpc
+# import toscatranslator.shell as shell
+from toscatranslator.common.translator_to_configuration_dsl import translate
 from toscaparser.common.exception import ValidationError
 from concurrent import futures
 import logging
@@ -8,6 +9,35 @@ import grpc
 import argparse
 import sys
 import atexit
+import os
+import six
+
+class TranslatorServer(object):
+    def __init__(self, argv):
+        self.template_file = argv['template_file_content']
+        self.validate_only = argv['validate_only']
+        self.is_delete = argv['delete']
+        self.provider = argv['provider']
+        self.output_file = None
+        self.configuration_tool = argv['configuration_tool']
+        self.cluster_name = argv['cluster_name']
+        self.extra = argv['extra']
+
+        if argv['async'] and not self.extra.get('async'):
+            self.extra['async'] = args.async
+        for k, v in self.extra.items():
+            if isinstance(v, six.string_types):
+                if v.isnumeric():
+                    if int(v) == float(v):
+                        self.extra[k] = int(v)
+                    else:
+                        self.extra[k] = float(v)
+
+        self.working_dir = os.getcwd()
+
+        output = translate(self.template_file, self.validate_only, self.provider, self.configuration_tool, self.cluster_name, self.is_delete,
+                           extra={'global': self.extra}, a_file=False)
+        return output
 
 class ClouniServicer(api_pb2_grpc.ClouniServicer):
     def __init__(self, logger):
@@ -26,12 +56,12 @@ class ClouniServicer(api_pb2_grpc.ClouniServicer):
             else:
                 self.logger.info("Request - status OK")
                 response.status = ClouniResponse.Status.OK
-            response.content = shell.TranslatorShell(args, server=True)
+            response.content = TranslatorServer(args)
 
             self.logger.info("Response send")
             return response
         except ValidationError as err:
-            self.logger.exception("")
+            self.logger.exception("\n")
             if request.validate_only:
                 self.logger.info("Validate only request - status TEMPLATE_INVALID")
                 response.status = ClouniResponse.Status.TEMPLATE_INVALID
@@ -42,7 +72,7 @@ class ClouniServicer(api_pb2_grpc.ClouniServicer):
             self.logger.info("Response send")
             return response
         except Exception as err:
-            self.logger.exception("")
+            self.logger.exception("\n")
             self.logger.info("Request - status ERROR")
             response.status = ClouniResponse.Status.ERROR
             response.error = str(err)
@@ -89,12 +119,16 @@ class ClouniServicer(api_pb2_grpc.ClouniServicer):
 def parse_args(argv):
     parser = argparse.ArgumentParser(prog="clouni-server")
 
-    parser.add_argument('--max_workers',
+    parser.add_argument('--max-workers',
                         metavar='<number of workers>',
                         default=10,
                         type=int,
                         help='Maximum of working gRPC threads, default 10')
 
+    parser.add_argument('--host',
+                        metavar='<host_name/host_address>',
+                        action='append',
+                        help='Hosts on which server will be started, may be more than one, default [::]')
     parser.add_argument('--port', '-p',
                         metavar='<port>',
                         default=50051,
@@ -104,29 +138,31 @@ def parse_args(argv):
                         action='count',
                         default=3,
                         help='Logger verbosity, default -vvv')
+    parser.add_argument('--no-host-error',
+                        action='store_true',
+                        default=False,
+                        help='If unable to start server on host:port and this option used, warning will be logged instead of critical error')
     try:
         args, args_list = parser.parse_known_args(argv)
     except argparse.ArgumentError:
         logging.critical("Failed to parse arguments. Exiting")
         sys.exit(1)
-    return args.max_workers, args.port, args.verbose
+    return args.max_workers, args.host, args.port, args.verbose, args.no_host_error
 
 def serve(argv =  None):
     # Log init
     logger = logging.getLogger("Clouni server")
-    logger.setLevel(logging.INFO)
+    # logger.setLevel(logging.INFO)
     fh = logging.FileHandler(".clouni-server.log")
     formatter = logging.Formatter('%(asctime)s - %(levelname)s - %(threadName)s - %(message)s')
     fh.setFormatter(formatter)
     logger.addHandler(fh)
 
-    logger.info("Logging clouni-server started")
     atexit.register(lambda logger: logger.info("Exited"), logger)
     # Argparse
     if argv is None:
         argv = sys.argv[1:]
-    max_workers, port, verbose = parse_args(argv)
-    logger.info("Arguments succesfully parsed: max_workers %s, port %s", max_workers, port)
+    max_workers, hosts, port, verbose, no_host_error = parse_args(argv)
 
     # Verbosity choose
     if verbose == 1:
@@ -142,6 +178,10 @@ def serve(argv =  None):
         logger.info("Logger level set to DEBUG")
         logger.setLevel(logging.DEBUG)
 
+    if hosts is None:
+        hosts = ['[::]', ]
+    logger.info("Logging clouni-server started")
+    logger.debug("Arguments succesfully parsed: max_workers %s, port %s, host %s", max_workers, port, str(hosts))
     # Argument check
     if max_workers < 1:
         logger.critical("Invalid max_workers argument: should be greater than 0. Exiting")
@@ -159,11 +199,27 @@ def serve(argv =  None):
         server = grpc.server(futures.ThreadPoolExecutor(max_workers=max_workers))
         api_pb2_grpc.add_ClouniServicer_to_server(
             ClouniServicer(logger), server)
-        port = server.add_insecure_port('[::]:'+str(port))
-        server.start()
-        logger.info("Server started on port %s", port)
+
+        host_exist = False
+        for host in hosts:
+            try:
+                port = server.add_insecure_port(host+":"+str(port))
+                host_exist = True
+                logger.info("Server is going to start on %s:%s", host, port)
+            except:
+                if no_host_error:
+                    logger.warning("Failed to start server on %s:%s", host, port)
+                else:
+                    logger.error("Failed to start server on %s:%s", host, port)
+                    sys.exit(1)
+        if host_exist:
+            server.start()
+            logger.info("Server started")
+        else:
+            logger.critical("No host exists")
+            sys.exit(1)
     except Exception:
-        logger.critical("Unable to start the server. Exiting")
+        logger.critical("Unable to start the server")
         sys.exit(1)
     try:
         server.wait_for_termination()
