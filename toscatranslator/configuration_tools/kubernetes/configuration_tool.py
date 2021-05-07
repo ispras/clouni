@@ -12,6 +12,12 @@ TYPE = 'type'
 class KubernetesConfigurationTool(ConfigurationTool):
     TOOL_NAME = KUBERNETES
 
+    def to_dsl(self, provider, nodes_relationships_queue, cluster_name, is_delete, artifacts=None,
+               target_directory=None, extra=None):
+        if not is_delete:
+            return self.to_dsl_for_create(provider, nodes_relationships_queue, artifacts, target_directory,
+                                          cluster_name, extra)
+
     def to_dsl_for_create(self, provider, nodes_queue, artifacts, target_directory, cluster_name, extra=None):
         k8s_list = []
         for node in nodes_queue:

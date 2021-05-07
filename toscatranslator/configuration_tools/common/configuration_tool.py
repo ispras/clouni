@@ -28,26 +28,16 @@ class ConfigurationTool(object):
 
         self.tool_config = ConfigurationToolConfiguration(self.TOOL_NAME)
 
-    def to_dsl_for_create(self, provider, nodes_relationships_queue, artifacts, target_directory, cluster_name,
-                          extra=None):
+    def to_dsl(self, provider, nodes_relationships_queue, cluster_name, is_delete, artifacts=None,
+               target_directory=None, extra=None):
         """
         Generate scenarios for configuration tool to execute
         :param provider: provider type key name
         :param nodes_relationships_queue: can be of class ProviderResource or RelationshipTemplate
+        :param cluster_name: unified name of cluster of template
+        :param is_delete: boolean value that means if scenario should create or delete cluster
         :param artifacts: list of artifacts that are mentioned in template
         :param target_directory: directory where copy artifacts
-        :param cluster_name: unified name of cluster of template
-        :param extra: extra parameters for configuration tool scenarios
-        :return: string with dsl scenario which is used to deploy
-        """
-        raise NotImplementedError()
-
-    def to_dsl_for_delete(self, provider, nodes_relationships_queue, cluster_name, extra=None):
-        """
-        Generate scenarios for configuration tool to execute
-        :param provider: provider type key name
-        :param nodes_relationships_queue: can be of class ProviderResource or RelationshipTemplate
-        :param cluster_name: unified name of cluster of template
         :param extra: extra parameters for configuration tool scenarios
         :return: string with dsl scenario which is used to deploy
         """
@@ -191,7 +181,4 @@ class ConfigurationTool(object):
         raise NotImplementedError()
 
     def get_artifact_extension(self):
-        raise NotImplementedError()
-
-    def get_ansible_tasks_for_async(self, element_object, **kwargs):
         raise NotImplementedError()

@@ -100,10 +100,9 @@ def translate(template_file, validate_only, provider, configuration_tool, cluste
         extra = {}
     extra_full = utils.deep_update_dict(extra, tosca.extra_configuration_tool_params.get(configuration_tool, {}))
 
-    configuration_content = tool.to_dsl_for_create(tosca.provider, tosca.provider_nodes_queue, tool_artifacts,
-                                                   default_artifacts_directory, tosca.cluster_name, extra=extra_full) \
-        if not is_delete else tool.to_dsl_for_delete(tosca.provider, tosca.provider_nodes_queue, tosca.cluster_name,
-                                                     extra=extra_full)
+    configuration_content = tool.to_dsl(tosca.provider, tosca.provider_nodes_queue, tosca.cluster_name, is_delete,
+                                        tool_artifacts, default_artifacts_directory, extra=extra_full)
+
     return configuration_content
 
 
