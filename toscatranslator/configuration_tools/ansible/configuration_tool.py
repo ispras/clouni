@@ -58,24 +58,17 @@ class AnsibleConfigurationTool(ConfigurationTool):
 
         provider_config = ProviderConfiguration(provider)
         ansible_config = provider_config.get_section(ANSIBLE)
+        node_filter_config = provider_config.get_subsection(ANSIBLE, NODE_FILTER)
         provider_async_default_delay = ansible_config.get(ASYNC_DEFAULT_DELAY) or \
                                        self.async_default_delay
         provider_async_default_retries = ansible_config.get(ASYNC_DEFAULT_RETRIES) or \
                                          self.async_default_retries
         provider_async_default_time = ansible_config.get(ASYNC_DEFAULT_TIME) or self.async_default_time
-
         extra_async = self.get_extra_async(extra, provider_async_default_time)
+
         prev_dep_order = 0
-
         path = self.rap_ansible_variable("playbook_dir") + '/id_vars_' + cluster_name + self.get_artifact_extension()
-
-        if not is_delete:
-            module_description = 'Create'
-        else:
-            module_description = 'Delete'
-
         elements_queue = self.init_queue(nodes_relationships_queue)
-
         ansible_task_list = []
 
         if not is_delete:
@@ -95,20 +88,34 @@ class AnsibleConfigurationTool(ConfigurationTool):
         check_async_tasks = []
 
         for v in elements_queue:
+            extra_tasks_for_delete = self.get_extra_tasks_for_delete(v.name.replace('-', '_'), path)
+            description_prefix, module_prefix = self.get_module_prefixes(is_delete, ansible_config)
+            description_by_type = self.ansible_description_by_type(v.type_name, description_prefix)
+            module_by_type = self.ansible_module_by_type(v.type_name, module_prefix)
+            if not is_delete:
+                ansible_tasks = self.get_ansible_tasks_for_create(v, target_directory, node_filter_config,
+                                                                  description_by_type, module_by_type,
+                                                                  additional_args=extra)
+            else:
+                ansible_tasks = self.get_ansible_tasks_for_delete(v, description_by_type, module_by_type,
+                                                                  additional_args=extra)
+            tasks_for_async = self.get_ansible_tasks_for_async(v, description_prefix, provider_async_default_retries,
+                                                               provider_async_default_delay)
+            if not is_delete or is_delete and not any(item == module_by_type for item in
+                                     ansible_config.get('modules_skipping_delete', [])):
+                if extra_async != False:
+                    if prev_dep_order != v.dependency_order:
+                        ansible_task_list.extend(check_async_tasks)
+                        check_async_tasks = []
+                        prev_dep_order = v.dependency_order
+                    check_async_tasks.extend(tasks_for_async)
+                ansible_task_list.extend(ansible_tasks)
+
             if not is_delete:
                 if extra_async != False:
-                    check_async_tasks, ansible_task_list, prev_dep_order = self.add_async_task(v, v.dependency_order, check_async_tasks, ansible_task_list, prev_dep_order, provider_async_default_retries, provider_async_default_delay, module_description)
-                    check_async_tasks.extend(self.get_extra_tasks_for_delete(v.name.replace('-', '_'), path))
-                    ansible_task_list.extend(self.get_ansible_tasks_for_create(v, target_directory, provider_config, module_description, additional_args=extra))
+                    check_async_tasks.extend(extra_tasks_for_delete)
                 else:
-                    ansible_task_list.extend(self.get_ansible_tasks_for_create(v, target_directory, provider_config, module_description, additional_args=extra))
-                    ansible_task_list.extend(self.get_extra_tasks_for_delete(v.name.replace('-', '_'), path))
-            else:
-                if not any(item == self.ansible_module_by_type(v, ansible_config) for item in
-                           ansible_config.get('modules_skipping_delete', [])):
-                    if extra_async != False:
-                        check_async_tasks, ansible_task_list, prev_dep_order = self.add_async_task(v, v.dependency_order, check_async_tasks, ansible_task_list, prev_dep_order, provider_async_default_delay, provider_async_default_retries, module_description)
-                    ansible_task_list.extend(self.get_ansible_tasks_for_delete(v, ansible_config, module_description, additional_args=extra))
+                    ansible_task_list.extend(extra_tasks_for_delete)
 
         if extra_async != False:
             ansible_task_list.extend(check_async_tasks)
@@ -117,8 +124,9 @@ class AnsibleConfigurationTool(ConfigurationTool):
             ansible_task_list.append({FILE: {
                 PATH: path,
                 STATE: 'absent'}})
+
         ansible_playbook = [dict(
-            name=module_description + ' ' + provider + ' cluster',
+            name=description_prefix + ' ' + provider + ' cluster',
             hosts=self.default_host,
             tasks=ansible_task_list
         )]
@@ -137,14 +145,6 @@ class AnsibleConfigurationTool(ConfigurationTool):
         if extra_async == True:
             extra_async = int(async_default_time)
         return extra_async
-
-    def add_async_task(self, v, dependency_order, check_async_tasks, ansible_task_list, prev_dep_order, retries, delay, module_description):
-        if prev_dep_order != dependency_order:
-            ansible_task_list.extend(check_async_tasks)
-            check_async_tasks = []
-            prev_dep_order = dependency_order
-        check_async_tasks.extend(self.get_ansible_tasks_for_async(v, module_description, retries, delay))
-        return check_async_tasks, ansible_task_list, prev_dep_order
 
     def init_queue(self, nodes_relationships_queue):
         elements_queue = []
@@ -182,7 +182,8 @@ class AnsibleConfigurationTool(ConfigurationTool):
         else:
             return data
 
-    def get_ansible_tasks_for_create(self, element_object, target_directory, config, module_description, additional_args=None):
+    def get_ansible_tasks_for_create(self, element_object, target_directory, node_filter_config, description_by_type,
+                                     module_by_type, additional_args=None):
         """
         Fulfill the dict with ansible task arguments to create infrastructure
         If the node contains get_operation_output parameters then the operation is executed
@@ -201,9 +202,7 @@ class AnsibleConfigurationTool(ConfigurationTool):
             additional_args = utils.deep_update_dict(additional_args_global,
                                                      additional_args_element)
 
-        ansible_tasks_for_create = []
-
-        node_filter_config = config.get_subsection(ANSIBLE, NODE_FILTER)
+        ansible_tasks = []
         if not node_filter_config:
             node_filter_config = {}
         node_filter_source_prefix = node_filter_config.get('node_filter_source_prefix', '')
@@ -243,7 +242,7 @@ class AnsibleConfigurationTool(ConfigurationTool):
                             ))
 
                     include_path = self.copy_condition_to_the_directory('equals', target_directory)
-                    ansible_tasks = [
+                    ansible_tasks_temp = [
                         {
                             node_filter_source: {},
                             REGISTER: NODE_FILTER_FACTS_REGISTER
@@ -269,7 +268,7 @@ class AnsibleConfigurationTool(ConfigurationTool):
                         }
                     ]
                     # self.copy_conditions_to_the_directory({'equals'}, target_directory)
-                    ansible_tasks_for_create.extend(ansible_tasks)
+                    ansible_tasks.extend(ansible_tasks_temp)
                     arg = self.rap_ansible_variable(node_filter_value_with_id)
             configuration_args[arg_key] = arg
 
@@ -277,27 +276,27 @@ class AnsibleConfigurationTool(ConfigurationTool):
             if i.name == 'preconfigure':
                 op_name = '_'.join([element_object.name, 'prepare', 'preconfigure'])
                 if not self.global_operations_info.get(op_name, {}).get(OUTPUT_IDS):
-                    ansible_tasks_for_create.extend(
+                    ansible_tasks.extend(
                         self.get_ansible_tasks_from_operation(op_name, target_directory, True))
         ansible_args = copy.copy(element_object.configuration_args)
         ansible_args[STATE] = 'present'
         task_name = element_object.name.replace('-', '_')
         ansible_task_as_dict = dict()
-        ansible_task_as_dict[NAME] = self.ansible_description_by_type(element_object, config.get_section(ANSIBLE), module_description)
-        ansible_task_as_dict[self.ansible_module_by_type(element_object, config.get_section(ANSIBLE))] = configuration_args
+        ansible_task_as_dict[NAME] = description_by_type
+        ansible_task_as_dict[module_by_type] = configuration_args
         ansible_task_as_dict[REGISTER] = task_name
         ansible_task_as_dict.update(additional_args)
-        ansible_tasks_for_create.append(ansible_task_as_dict)
-        return ansible_tasks_for_create
+        ansible_tasks.append(ansible_task_as_dict)
+        return ansible_tasks
 
-    def get_ansible_tasks_for_delete(self, element_object, ansible_config, module_description, additional_args=None):
+    def get_ansible_tasks_for_delete(self, element_object, description_by_type, module_by_type, additional_args=None):
         """
         Fulfill the dict with ansible task arguments to delete infrastructure
         Operations are mentioned in the node or in relationship_template
         :param: node: ProviderResource
         :return: string of ansible task to place in playbook
         """
-        ansible_tasks_for_delete = []
+        ansible_tasks = []
         if additional_args is None:
             additional_args = {}
         else:
@@ -307,10 +306,11 @@ class AnsibleConfigurationTool(ConfigurationTool):
 
         task_name = element_object.name.replace('-', '_')
         ansible_task_list = [dict(), dict()]
-        for task in ansible_task_list: task[NAME] = self.ansible_description_by_type(element_object, ansible_config, module_description)
-        ansible_task_list[0][self.ansible_module_by_type(element_object, ansible_config)] = {
+        for task in ansible_task_list:
+            task[NAME] = description_by_type
+        ansible_task_list[0][module_by_type] = {
             NAME: self.rap_ansible_variable(task_name + '_delete'), 'state': 'absent'}
-        ansible_task_list[1][self.ansible_module_by_type(element_object, ansible_config)] = {
+        ansible_task_list[1][module_by_type] = {
             NAME: self.rap_ansible_variable('item'), 'state': 'absent'}
         ansible_task_list[0]['when'] = task_name + '_delete' + IS_DEFINED
         ansible_task_list[1]['when'] = task_name + '_ids is defined'
@@ -318,27 +318,34 @@ class AnsibleConfigurationTool(ConfigurationTool):
         for task in ansible_task_list:
             task[REGISTER] = task_name + '_var'
             task.update(additional_args)
-            ansible_tasks_for_delete.append(task)
-            ansible_tasks_for_delete.append(
+            ansible_tasks.append(task)
+            ansible_tasks.append(
                 {SET_FACT: task_name + '=\'' + self.rap_ansible_variable(task_name + '_var') + '\'',
                  'when': task_name + '_var' + '.changed'})
-        return ansible_tasks_for_delete
+        return ansible_tasks
 
-    def ansible_description_by_type(self, provider_source_obj, ansible_config, module_description):
-        module_desc = module_description + ' element'
-        if ansible_config:
-            new_module_desc = ansible_config.get('module_description' + '_' + module_description.lower())
-            if new_module_desc:
-                module_desc = new_module_desc
-        return module_desc + ' ' + utils.snake_case(provider_source_obj.type_name).replace('_', ' ')
+    def ansible_description_by_type(self, provider_source_obj_type, description_prefix):
+        return description_prefix + ' ' + utils.snake_case(provider_source_obj_type).replace('_', ' ')
 
-    def ansible_module_by_type(self, provider_source_obj, ansible_config):
+    def ansible_module_by_type(self, provider_source_obj_type, module_prefix):
+        return module_prefix + utils.snake_case(provider_source_obj_type)
+
+    def get_module_prefixes(self, is_delete, ansible_config=None, low=False):
+        if is_delete:
+            desc = 'Delete'
+        else:
+            desc = 'Create'
         module_prefix = ''
         if ansible_config:
+            new_module_desc = ansible_config.get('module_description' + '_' + desc.lower())
+            if new_module_desc:
+                desc = new_module_desc
             new_module_prefix = ansible_config.get('module_prefix')
             if new_module_prefix:
                 module_prefix = new_module_prefix
-        return module_prefix + utils.snake_case(provider_source_obj.type_name)
+        if low:
+            desc = desc.lower()
+        return desc, module_prefix
 
     def get_ansible_tasks_from_operation(self, op_name, target_directory, if_required=False):
         tasks = []
@@ -444,12 +451,12 @@ class AnsibleConfigurationTool(ConfigurationTool):
             target_filename = os.path.join(target_directory, cond + self.get_artifact_extension())
             copyfile(filename, target_filename)
 
-    def get_ansible_tasks_for_async(self, element_object, module_description, retries=None, delay=None):
+    def get_ansible_tasks_for_async(self, element_object, description_prefix, retries=None, delay=None):
         jid = '.'.join([element_object.name, 'ansible_job_id'])
         results_var = '.'.join([element_object.name, 'results'])
         tasks = [
             {
-                NAME: 'Checking ' + element_object.name + ' ' + module_description.lower() + 'd',
+                NAME: 'Checking ' + element_object.name + ' ' + description_prefix.lower() + 'd',
                 'async_status': 'jid=' + self.rap_ansible_variable(jid),
                 REGISTER: 'async_result_status',
                 'until': 'async_result_status.finished',
@@ -458,7 +465,7 @@ class AnsibleConfigurationTool(ConfigurationTool):
                 'when': jid + IS_DEFINED
             },
             {
-                NAME: 'Checking ' + element_object.name + ' ' + module_description.lower() + 'd',
+                NAME: 'Checking ' + element_object.name + ' ' + description_prefix.lower() + 'd',
                 'async_status': 'jid=' + self.rap_ansible_variable(results_var + '[item|int].ansible_job_id'),
                 REGISTER: 'async_result_status_list',
                 'until': 'async_result_status_list.finished or async_result_status_list.results[item].finished | default(0)',
