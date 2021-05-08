@@ -29,16 +29,31 @@ class TestAnsibleOpenStackOutput (unittest.TestCase, TestAnsibleProvider):
 
     def test_full_translating(self):
         file_path = os.path.join('examples', 'tosca-server-example.yaml')
-        shell.main(['--template-file', file_path, '--cluster-name', 'test', '--provider', self.PROVIDER])
+        file_output_path = os.path.join('examples', 'tosca-server-example-output.yaml')
+        shell.main(['--template-file', file_path, '--cluster-name', 'test', '--provider', self.PROVIDER,
+                    '--output-file', file_output_path])
+
+        file_diff_path = os.path.join('examples', 'tosca-server-example-ansible-openstack.yaml')
+        self.diff_files(file_output_path, file_diff_path)
 
     def test_delete_full_translating(self):
         file_path = os.path.join('examples', 'tosca-server-example.yaml')
-        shell.main(['--template-file', file_path, '--cluster-name', 'test', '--provider', self.PROVIDER, '--delete'])
+        file_output_path = os.path.join('examples', 'tosca-server-example-output-delete.yaml')
+        shell.main(['--template-file', file_path, '--cluster-name', 'test', '--provider', self.PROVIDER, '--delete',
+                    '--output-file', file_output_path])
+
+        file_diff_path = os.path.join('examples', 'tosca-server-example-ansible-delete-openstack.yaml')
+        self.diff_files(file_output_path, file_diff_path)
 
     def test_full_async_translating(self):
         file_path = os.path.join('examples', 'tosca-server-example.yaml')
+        file_output_path = os.path.join('examples', 'tosca-server-example-output-async.yaml')
         shell.main(['--template-file', file_path, '--cluster-name', 'test', '--provider', self.PROVIDER, '--async',
-                    '--extra', 'retries=3', 'async=60', 'poll=0', 'delay=1'])
+                    '--extra', 'retries=3', 'async=60', 'poll=0', 'delay=1',
+                    '--output-file', file_output_path])
+
+        file_diff_path = os.path.join('examples', 'tosca-server-example-ansible-async-openstack.yaml')
+        self.diff_files(file_output_path, file_diff_path)
 
     def test_delete_full_async_translating(self):
         file_path = os.path.join('examples', 'tosca-server-example.yaml')

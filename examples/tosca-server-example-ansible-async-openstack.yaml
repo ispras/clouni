@@ -20,22 +20,22 @@
       target_objects: '{{ new_target_objects }}'
     register: temp_value
   - set_fact:
-      target_objects_7564: '{{ target_objects }}'
+      target_objects_7316: '{{ target_objects }}'
   - set_fact:
-      input_facts: '{{ target_objects_7564 }}'
+      input_facts: '{{ target_objects_7316 }}'
   - set_fact:
-      input_args_7740:
+      input_args_5691:
       - allocation_pool_start
       - allocation_pool_end
       - 192.168.12.26
   - set_fact:
-      input_args: '{{ input_args_7740 }}'
+      input_args: '{{ input_args_5691 }}'
   - include: /home/user/git/clouni/artifacts/ip_contains.yaml
   - set_fact:
       network_id: '{{ matched_object["network_id"] }}'
     register: tmp_value
   - set_fact:
-      network_id_2937: '{{ network_id }}'
+      network_id_8428: '{{ network_id }}'
   - os_subnets_facts: {}
     register: target_objects
   - set_fact:
@@ -55,54 +55,54 @@
       target_objects: '{{ new_target_objects }}'
     register: temp_value
   - set_fact:
-      target_objects_1778: '{{ target_objects }}'
+      target_objects_5789: '{{ target_objects }}'
   - os_networks_facts: {}
     register: facts_result
   - set_fact:
       target_objects: '{{ facts_result["ansible_facts"]["openstack_networks"] }}'
     register: tmp_value
   - set_fact:
-      target_objects_5869: '{{ target_objects }}'
+      target_objects_6227: '{{ target_objects }}'
   - os_image_facts: {}
     register: facts_result
   - set_fact:
       target_objects: '{{ facts_result["ansible_facts"]["openstack_image"] }}'
     register: tmp_value
   - set_fact:
-      target_objects_6224: '{{ target_objects }}'
+      target_objects_5993: '{{ target_objects }}'
   - set_fact:
-      input_facts: '{{ target_objects_1778 }}'
+      input_facts: '{{ target_objects_5789 }}'
   - set_fact:
-      input_args_4094:
+      input_args_1397:
       - allocation_pool_start
       - allocation_pool_end
       - 10.10.18.217
   - set_fact:
-      input_args: '{{ input_args_4094 }}'
+      input_args: '{{ input_args_1397 }}'
   - include: /home/user/git/clouni/artifacts/ip_contains.yaml
   - set_fact:
       network_id: '{{ matched_object["network_id"] }}'
     register: tmp_value
   - set_fact:
-      network_id_4029: '{{ network_id }}'
+      network_id_9403: '{{ network_id }}'
   - set_fact:
-      input_facts: '{{ target_objects_5869 }}'
+      input_facts: '{{ target_objects_6227 }}'
   - set_fact:
-      input_args_1326:
+      input_args_6684:
       - id
-      - '{{ network_id_4029 }}'
+      - '{{ network_id_9403 }}'
   - set_fact:
-      input_args: '{{ input_args_1326 }}'
+      input_args: '{{ input_args_6684 }}'
   - include: /home/user/git/clouni/artifacts/equals.yaml
   - set_fact:
       name: '{{ matched_object["name"] }}'
     register: tmp_value
   - set_fact:
-      name_6495: '{{ name }}'
+      name_1991: '{{ name }}'
   - set_fact:
-      input_facts: '{{ target_objects_6224 }}'
+      input_facts: '{{ target_objects_5993 }}'
   - set_fact:
-      input_args_6146:
+      input_args_8191:
       - - name
         - properties
       - architecture: x86_64
@@ -110,13 +110,13 @@
         distribution: xenial
         version: 16.04
   - set_fact:
-      input_args: '{{ input_args_6146 }}'
+      input_args: '{{ input_args_8191 }}'
   - include: /home/user/git/clouni/artifacts/contains.yaml
   - set_fact:
       name: '{{ matched_object["name"] }}'
     register: tmp_value
   - set_fact:
-      name_9282: '{{ name }}'
+      name_8993: '{{ name }}'
   - file:
       path: '{{ playbook_dir }}/id_vars_test.yaml'
       state: absent
@@ -127,6 +127,36 @@
     os_security_group:
       name: server_kube_master_security_group
     register: server_kube_master_security_group
+    retries: 3
+    async: 60
+    poll: 0
+    delay: 1
+  - name: Checking server_kube_master_security_group created
+    async_status: jid={{ server_kube_master_security_group.ansible_job_id }}
+    register: async_result_status
+    until: async_result_status.finished
+    retries: 60
+    delay: 5
+    when: server_kube_master_security_group.ansible_job_id is defined
+  - name: Checking server_kube_master_security_group created
+    async_status: jid={{ server_kube_master_security_group.results[item|int].ansible_job_id
+      }}
+    register: async_result_status_list
+    until: async_result_status_list.finished or async_result_status_list.results[item].finished
+      | default(0)
+    retries: 60
+    delay: 5
+    with_sequence: start=0 end={{ server_kube_master_security_group.results|length
+      - 1 }}
+    when: server_kube_master_security_group.results is defined
+  - name: Saving server_kube_master_security_group result
+    set_fact:
+      server_kube_master_security_group: '{{ async_result_status }}'
+    when: server_kube_master_security_group.ansible_job_id is defined
+  - name: Saving server_kube_master_security_group result
+    set_fact:
+      server_kube_master_security_group: '{{ async_result_status_list }}'
+    when: server_kube_master_security_group.results is defined
   - set_fact:
       server_kube_master_security_group_list: '{{ server_kube_master_security_group_list
         | default([]) }} + [ "{{ item.id }}" ]'
@@ -169,8 +199,50 @@
       remote_ip_prefix: 0.0.0.0
       security_group: server_kube_master_security_group
     register: server_kube_master_security_group_rule
+    retries: 3
+    async: 60
+    poll: 0
+    delay: 1
     with_sequence: start=0 end={{ [server_kube_master_protocols | length, server_kube_master_ports
       | length] | max - 1 }} format=%d
+  - name: Create OpenStack component port
+    os_port:
+      fixed_ips:
+      - ip_address: 192.168.12.26
+      name: server_kube_master_port_0
+      vnic_type: normal
+      network: '{{ network_id_8428 }}'
+    register: server_kube_master_port
+    retries: 3
+    async: 60
+    poll: 0
+    delay: 1
+  - name: Checking server_kube_master_security_group_rule created
+    async_status: jid={{ server_kube_master_security_group_rule.ansible_job_id }}
+    register: async_result_status
+    until: async_result_status.finished
+    retries: 60
+    delay: 5
+    when: server_kube_master_security_group_rule.ansible_job_id is defined
+  - name: Checking server_kube_master_security_group_rule created
+    async_status: jid={{ server_kube_master_security_group_rule.results[item|int].ansible_job_id
+      }}
+    register: async_result_status_list
+    until: async_result_status_list.finished or async_result_status_list.results[item].finished
+      | default(0)
+    retries: 60
+    delay: 5
+    with_sequence: start=0 end={{ server_kube_master_security_group_rule.results|length
+      - 1 }}
+    when: server_kube_master_security_group_rule.results is defined
+  - name: Saving server_kube_master_security_group_rule result
+    set_fact:
+      server_kube_master_security_group_rule: '{{ async_result_status }}'
+    when: server_kube_master_security_group_rule.ansible_job_id is defined
+  - name: Saving server_kube_master_security_group_rule result
+    set_fact:
+      server_kube_master_security_group_rule: '{{ async_result_status_list }}'
+    when: server_kube_master_security_group_rule.results is defined
   - set_fact:
       server_kube_master_security_group_rule_list: '{{ server_kube_master_security_group_rule_list
         | default([]) }} + [ "{{ item.id }}" ]'
@@ -196,14 +268,31 @@
     when: server_kube_master_security_group_rule_list is undefined and server_kube_master_security_group_rule.id
       is undefined
     ignore_errors: true
-  - name: Create OpenStack component port
-    os_port:
-      fixed_ips:
-      - ip_address: 192.168.12.26
-      name: server_kube_master_port_0
-      vnic_type: normal
-      network: '{{ network_id_2937 }}'
-    register: server_kube_master_port
+  - name: Checking server_kube_master_port created
+    async_status: jid={{ server_kube_master_port.ansible_job_id }}
+    register: async_result_status
+    until: async_result_status.finished
+    retries: 60
+    delay: 5
+    when: server_kube_master_port.ansible_job_id is defined
+  - name: Checking server_kube_master_port created
+    async_status: jid={{ server_kube_master_port.results[item|int].ansible_job_id
+      }}
+    register: async_result_status_list
+    until: async_result_status_list.finished or async_result_status_list.results[item].finished
+      | default(0)
+    retries: 60
+    delay: 5
+    with_sequence: start=0 end={{ server_kube_master_port.results|length - 1 }}
+    when: server_kube_master_port.results is defined
+  - name: Saving server_kube_master_port result
+    set_fact:
+      server_kube_master_port: '{{ async_result_status }}'
+    when: server_kube_master_port.ansible_job_id is defined
+  - name: Saving server_kube_master_port result
+    set_fact:
+      server_kube_master_port: '{{ async_result_status_list }}'
+    when: server_kube_master_port.results is defined
   - set_fact:
       server_kube_master_port_list: '{{ server_kube_master_port_list | default([])
         }} + [ "{{ item.id }}" ]'
@@ -238,7 +327,7 @@
         ram: 1024.0
   - include: /home/user/git/clouni/artifacts/equals.yaml
   - set_fact:
-      id_6824: '{{ matched_object["id"] }}'
+      id_3909: '{{ matched_object["id"] }}'
   - name: Create OpenStack component server
     os_server:
       config_drive: false
@@ -247,11 +336,40 @@
       - port-name: server_kube_master_port_0
       - net-name: test-two-routers
       auto_ip: false
-      flavor: '{{ id_6824 }}'
+      flavor: '{{ id_3909 }}'
       security_groups:
       - server_kube_master_security_group
-      image: '{{ name_9282 }}'
+      image: '{{ name_8993 }}'
     register: server_kube_master_server
+    retries: 3
+    async: 60
+    poll: 0
+    delay: 1
+  - name: Checking server_kube_master_server created
+    async_status: jid={{ server_kube_master_server.ansible_job_id }}
+    register: async_result_status
+    until: async_result_status.finished
+    retries: 60
+    delay: 5
+    when: server_kube_master_server.ansible_job_id is defined
+  - name: Checking server_kube_master_server created
+    async_status: jid={{ server_kube_master_server.results[item|int].ansible_job_id
+      }}
+    register: async_result_status_list
+    until: async_result_status_list.finished or async_result_status_list.results[item].finished
+      | default(0)
+    retries: 60
+    delay: 5
+    with_sequence: start=0 end={{ server_kube_master_server.results|length - 1 }}
+    when: server_kube_master_server.results is defined
+  - name: Saving server_kube_master_server result
+    set_fact:
+      server_kube_master_server: '{{ async_result_status }}'
+    when: server_kube_master_server.ansible_job_id is defined
+  - name: Saving server_kube_master_server result
+    set_fact:
+      server_kube_master_server: '{{ async_result_status_list }}'
+    when: server_kube_master_server.results is defined
   - set_fact:
       server_kube_master_server_list: '{{ server_kube_master_server_list | default([])
         }} + [ "{{ item.id }}" ]'
@@ -277,9 +395,39 @@
   - name: Create OpenStack component floating ip
     os_floating_ip:
       floating_ip_address: 10.10.18.217
-      network: '{{ name_6495 }}'
+      network: '{{ name_1991 }}'
       server: server_kube_master
     register: server_kube_master_floating_ip
+    retries: 3
+    async: 60
+    poll: 0
+    delay: 1
+  - name: Checking server_kube_master_floating_ip created
+    async_status: jid={{ server_kube_master_floating_ip.ansible_job_id }}
+    register: async_result_status
+    until: async_result_status.finished
+    retries: 60
+    delay: 5
+    when: server_kube_master_floating_ip.ansible_job_id is defined
+  - name: Checking server_kube_master_floating_ip created
+    async_status: jid={{ server_kube_master_floating_ip.results[item|int].ansible_job_id
+      }}
+    register: async_result_status_list
+    until: async_result_status_list.finished or async_result_status_list.results[item].finished
+      | default(0)
+    retries: 60
+    delay: 5
+    with_sequence: start=0 end={{ server_kube_master_floating_ip.results|length -
+      1 }}
+    when: server_kube_master_floating_ip.results is defined
+  - name: Saving server_kube_master_floating_ip result
+    set_fact:
+      server_kube_master_floating_ip: '{{ async_result_status }}'
+    when: server_kube_master_floating_ip.ansible_job_id is defined
+  - name: Saving server_kube_master_floating_ip result
+    set_fact:
+      server_kube_master_floating_ip: '{{ async_result_status_list }}'
+    when: server_kube_master_floating_ip.results is defined
   - set_fact:
       server_kube_master_floating_ip_list: '{{ server_kube_master_floating_ip_list
         | default([]) }} + [ "{{ item.id }}" ]'
@@ -305,3 +453,4 @@
     when: server_kube_master_floating_ip_list is undefined and server_kube_master_floating_ip.id
       is undefined
     ignore_errors: true
+

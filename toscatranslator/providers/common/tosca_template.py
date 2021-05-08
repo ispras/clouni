@@ -4,23 +4,18 @@ import json
 import yaml
 
 from toscaparser.common.exception import ExceptionCollector, ValidationError
-
-from toscatranslator.providers.common.translator_to_provider import translate as translate_to_provider
-
-from toscatranslator.common import tosca_type
-
 from toscaparser.imports import ImportsLoader
-
 from toscaparser.topology_template import TopologyTemplate
 
-from toscatranslator.configuration_tools.combined.combine_configuration_tools import CONFIGURATION_TOOLS
-from toscatranslator.common.exception import ProviderFileError, TemplateDependencyError, UnsupportedExecutorType, \
+from toscatranslator.common.exception import ProviderFileError, TemplateDependencyError, \
     ProviderConfigurationParameterError
 
 from toscatranslator.common.tosca_reserved_keys import *
-from toscatranslator.common.utils import deep_update_dict
-from toscatranslator.providers.common.provider_resource import ProviderResource
+from toscatranslator.common import utils
+
 from toscatranslator.providers.common.provider_configuration import ProviderConfiguration
+from toscatranslator.providers.common.translator_to_provider import translate as translate_to_provider
+from toscatranslator.providers.common.provider_resource import ProviderResource
 
 
 class ProviderToscaTemplate(object):
@@ -90,59 +85,12 @@ class ProviderToscaTemplate(object):
         """
         provider_nodes = list()
         for node in self.node_templates:
-            (namespace, category, type_name) = tosca_type.parse(node.type)
+            (namespace, category, type_name) = utils.tosca_type_parse(node.type)
             if namespace != self.provider or category != NODES:
                 ExceptionCollector.appendException(Exception('Unexpected values'))
             provider_node_instance = ProviderResource(self.provider, node, self.relationship_templates)
             provider_nodes.append(provider_node_instance)
         return provider_nodes
-
-    def to_configuration_dsl(self, configuration_tool, is_delete, directory=None, extra=None):
-        """
-        Fulfill configuration_content with functions based on configuration tool from every node
-        :return:
-        """
-        if not directory:
-            directory = self.DEFAULT_ARTIFACTS_DIRECTOR
-        if not extra:
-            extra = dict()
-
-        self.configuration_content = ''
-        self.configuration_ready = False
-        tool = CONFIGURATION_TOOLS.get(configuration_tool)()
-        if bool(self.used_conditions_set):
-            tool.copy_conditions_to_the_directory(self.used_conditions_set, directory)
-        tool_artifacts = []
-        for art in self.artifacts:
-            executor = art.get(EXECUTOR)
-            if bool(executor) and executor != configuration_tool:
-                self.generate_artifacts([art], directory)
-            else:
-                tool_artifacts.append(art)
-        extra = deep_update_dict(extra, self.extra_configuration_tool_params.get(configuration_tool, {}))
-        self.configuration_content = tool.to_dsl_for_delete(self.provider, self.provider_nodes_queue, self.cluster_name, extra=extra) \
-                if is_delete else tool.to_dsl_for_create(self.provider, self.provider_nodes_queue, tool_artifacts, directory, self.cluster_name, extra=extra)
-        self.configuration_ready = True
-        return self.configuration_content
-
-    def generate_artifacts(self, new_artifacts, directory=None):
-        """
-        From the info of new artifacts generate files which execute
-        :param new_artifacts: list of dicts containing (value, source, parameters, executor, name, configuration_tool)
-        :return: None
-        """
-        if not directory:
-            directory = self.DEFAULT_ARTIFACTS_DIRECTOR
-
-        for art in new_artifacts:
-            filename = os.path.join(directory, art[NAME])
-            configuration_class = CONFIGURATION_TOOLS.get(art[EXECUTOR])()
-            if not configuration_class:
-                ExceptionCollector.appendException(UnsupportedExecutorType(
-                    what=art[EXECUTOR]
-                ))
-            configuration_class.create_artifact(filename, art)
-            self.artifacts.append(filename)
 
     def _sort_nodes_by_priority(self):
         """
@@ -293,12 +241,12 @@ class ProviderToscaTemplate(object):
                         req_node = req[k].get(NODE)
 
                         if req_relationship is not None:
-                            _, _, type_name = tosca_type.parse(req_relationship)
+                            _, _, type_name = utils.tosca_type_parse(req_relationship)
                             if type_name is None:
                                 self.add_template_dependency(node.name, req_relationship)
 
                         if req_node is not None:
-                            _, _, type_name = tosca_type.parse(req_node)
+                            _, _, type_name = utils.tosca_type_parse(req_node)
                             if type_name is None:
                                 self.add_template_dependency(node.name, req_node)
 
@@ -392,12 +340,12 @@ class ProviderToscaTemplate(object):
 
         rel_types = []
         for k, v in self.provider_defs.items():
-            (_, element_type, _) = tosca_type.parse(k)
+            (_, element_type, _) = utils.tosca_type_parse(k)
             if element_type == RELATIONSHIP_TYPES:
                 rel_types.append(v)
 
         topology_tpl = TopologyTemplate(dict_tpl, self.full_provider_defs, rel_types)
         self.artifacts.extend(new_artifacts)
-        self.extra_configuration_tool_params = deep_update_dict(self.extra_configuration_tool_params, new_extra)
+        self.extra_configuration_tool_params = utils.deep_update_dict(self.extra_configuration_tool_params, new_extra)
 
         return topology_tpl

@@ -3,6 +3,25 @@ tosca_definitions_version: tosca_simple_yaml_1_0
 imports:
   - toscatranslator/providers/amazon/TOSCA_amazon_definition_1_0.yaml
 
+relationship_types:
+  amazon.relationships.ServerKubeMasterServerImageId:
+    derived_from: amazon.relationships.DependsOn
+    interfaces:
+      Target:
+        choose_ec2_ami_facts:
+          description: Operation
+        total_ec2_ami_facts:
+          description: Operation
+  amazon.relationships.ServerKubeMasterServerInstanceType:
+    derived_from: amazon.relationships.DependsOn
+    interfaces:
+      Target:
+        choose_ec2_instance_type_facts:
+          description: Operation
+        total_ec2_instance_type_facts:
+          description: Operation
+
+
 topology_template:
   node_templates:
     server_kube_master_group:
@@ -45,7 +64,7 @@ topology_template:
                       - image_id
   relationship_templates:
     server_kube_master_server_image_id:
-      type: amazon.relationships.DependsOn
+      type: amazon.relationships.ServerKubeMasterServerImageId
       interfaces:
         Target:
           choose_ec2_ami_facts:
@@ -69,7 +88,7 @@ topology_template:
               - server_kube_master_ansible_ec2_ami_facts.yaml
               - server_kube_master_ansible_set_fact.yaml
     server_kube_master_server_instance_type:
-      type: amazon.relationships.DependsOn
+      type: amazon.relationships.ServerKubeMasterServerInstanceType
       interfaces:
         Target:
           choose_ec2_instance_type_facts:

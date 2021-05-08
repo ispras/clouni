@@ -1,5 +1,7 @@
-from toscatranslator.configuration_tools.common.configuration_tool import ConfigurationTool
 import yaml
+
+from toscatranslator.configuration_tools.common.configuration_tool import ConfigurationTool
+from toscatranslator.common.tosca_reserved_keys import KUBERNETES
 
 API_VERSION = 'apiVersion'
 API_GROUP = 'apiGroup'
@@ -8,6 +10,14 @@ TYPE = 'type'
 
 
 class KubernetesConfigurationTool(ConfigurationTool):
+    TOOL_NAME = KUBERNETES
+
+    def to_dsl(self, provider, nodes_relationships_queue, cluster_name, is_delete, artifacts=None,
+               target_directory=None, extra=None):
+        if not is_delete:
+            return self.to_dsl_for_create(provider, nodes_relationships_queue, artifacts, target_directory,
+                                          cluster_name, extra)
+
     def to_dsl_for_create(self, provider, nodes_queue, artifacts, target_directory, cluster_name, extra=None):
         k8s_list = []
         for node in nodes_queue:
@@ -27,3 +37,6 @@ class KubernetesConfigurationTool(ConfigurationTool):
 
     def copy_conditions_to_the_directory(self, used_conditions_set, directory):
         return
+
+    def get_artifact_extension(self):
+        return '.yaml'
