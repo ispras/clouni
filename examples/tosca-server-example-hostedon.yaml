@@ -1,0 +1,43 @@
+tosca_definitions_version: tosca_simple_yaml_1_0
+
+node_types:
+  clouni.nodes.ServerExample:
+    derived_from: tosca.nodes.SoftwareComponent
+
+topology_template:
+  node_templates:
+    ku:
+      type: clouni.nodes.ServerExample
+      properties:
+        component_version: 0.1
+      requirements:
+        - host: server_kube_master
+      interfaces:
+        Standard:
+          configure: ansible-server-example.yaml
+
+    server_kube_master:
+      type: tosca.nodes.Compute
+      attributes:
+        networks:
+          default:
+            network_name: net-for-intra-sandbox
+      capabilities:
+        host:
+          properties:
+            num_cpus: 1
+            disk_size: 5 GiB
+            mem_size: 1024 MiB
+        endpoint:
+          properties:
+            protocol: tcp
+            port: 22
+            initiator: target
+          attributes:
+            ip_address: 0.0.0.0
+        os:
+          properties:
+            architecture: x86_64
+            type: ubuntu
+            distribution: xenial
+            version: 16.04
