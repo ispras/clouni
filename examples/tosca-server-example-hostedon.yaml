@@ -6,6 +6,23 @@ node_types:
 
 topology_template:
   node_templates:
+    server_kube_master:
+      type: tosca.nodes.Compute
+      attributes:
+        networks:
+          default:
+            network_name: internal
+      capabilities:
+        host:
+          properties:
+            num_cpus: 1
+            disk_size: 10 GiB
+            mem_size: 1024 MiB
+        os:
+          properties:
+            architecture: x86_64
+            type: cirros
+            version: 0.4.0
     ku:
       type: clouni.nodes.ServerExample
       properties:
@@ -14,30 +31,4 @@ topology_template:
         - host: server_kube_master
       interfaces:
         Standard:
-          configure: ansible-server-example.yaml
-
-    server_kube_master:
-      type: tosca.nodes.Compute
-      attributes:
-        networks:
-          default:
-            network_name: net-for-intra-sandbox
-      capabilities:
-        host:
-          properties:
-            num_cpus: 1
-            disk_size: 5 GiB
-            mem_size: 1024 MiB
-        endpoint:
-          properties:
-            protocol: tcp
-            port: 22
-            initiator: target
-          attributes:
-            ip_address: 0.0.0.0
-        os:
-          properties:
-            architecture: x86_64
-            type: ubuntu
-            distribution: xenial
-            version: 16.04
+          create: examples/ansible-server-example.yaml

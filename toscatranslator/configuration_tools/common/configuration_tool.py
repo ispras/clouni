@@ -85,7 +85,7 @@ class ConfigurationTool(object):
         required_operations = {}
         for op_name, op in operations.items():
             if isinstance(op, six.string_types):
-                op = {
+                operations[op_name] = {
                     IMPLEMENTATION: op
                 }
             op_required = self.list_get_operation_outputs(op)

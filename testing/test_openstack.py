@@ -60,6 +60,18 @@ class TestAnsibleOpenStackOutput (unittest.TestCase, TestAnsibleProvider):
         shell.main(['--template-file', file_path, '--cluster-name', 'test', '--provider', self.PROVIDER, '--async',
                     '--delete', '--extra', 'retries=3', 'async=60', 'poll=0', 'delay=1'])
 
+    def test_full_translating_outputs(self):
+        file_path = os.path.join('examples', 'tosca-server-example-outputs.yaml')
+        file_output_path = os.path.join('examples', 'tosca-server-example-outputs-output.yaml')
+        shell.main(['--template-file', file_path, '--cluster-name', 'test', '--provider', self.PROVIDER,
+                    '--output-file', file_output_path])
+
+    def test_full_translating_hostedon(self):
+        file_path = os.path.join('examples', 'tosca-server-example-hostedon.yaml')
+        file_output_path = os.path.join('examples', 'tosca-server-example-hostedon-output.yaml')
+        shell.main(['--template-file', file_path, '--cluster-name', 'test', '--provider', self.PROVIDER,
+                    '--output-file', file_output_path])
+
     def test_server_name(self):
         template = copy.deepcopy(self.DEFAULT_TEMPLATE)
         playbook = self.get_ansible_create_output(template)

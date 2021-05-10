@@ -1,6 +1,7 @@
 import itertools
 import os
 import importlib
+import copy
 
 from random import randint,seed
 from time import time
@@ -62,3 +63,14 @@ def get_random_int(start, end):
     seed(time())
     r = randint(start, end)
     return r
+
+
+def get_full_type_definition(type_definition):
+    type_definition_defs = {}
+    temp = type_definition
+    while temp != None:
+        temp_defs = copy.deepcopy(temp.defs)
+        type_definition_defs = deep_update_dict(temp_defs, type_definition_defs)
+        temp = temp.parent_type
+    type_definition.defs = type_definition_defs
+    return type_definition

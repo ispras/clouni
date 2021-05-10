@@ -88,17 +88,24 @@ class AnsibleConfigurationTool(ConfigurationTool):
         check_async_tasks = []
 
         for v in elements_queue:
-            extra_tasks_for_delete = self.get_extra_tasks_for_delete(v.name.replace('-', '_'), path)
+            if not v.is_software_component:
+                extra_tasks_for_delete = self.get_extra_tasks_for_delete(v.name.replace('-', '_'), path)
+            else:
+                extra_tasks_for_delete = []
             description_prefix, module_prefix = self.get_module_prefixes(is_delete, ansible_config)
             description_by_type = self.ansible_description_by_type(v.type_name, description_prefix)
             module_by_type = self.ansible_module_by_type(v.type_name, module_prefix)
-            if not is_delete:
-                ansible_tasks = self.get_ansible_tasks_for_create(v, target_directory, node_filter_config,
-                                                                  description_by_type, module_by_type,
-                                                                  additional_args=extra)
+            if v.is_software_component:
+                ansible_tasks = self.get_ansible_tasks_from_interface(v, target_directory, is_delete,
+                                                                      additional_args=extra)
             else:
-                ansible_tasks = self.get_ansible_tasks_for_delete(v, description_by_type, module_by_type,
-                                                                  additional_args=extra)
+                if not is_delete:
+                    ansible_tasks = self.get_ansible_tasks_for_create(v, target_directory, node_filter_config,
+                                                                      description_by_type, module_by_type,
+                                                                      additional_args=extra)
+                else:
+                    ansible_tasks = self.get_ansible_tasks_for_delete(v, description_by_type, module_by_type,
+                                                                      additional_args=extra)
             tasks_for_async = self.get_ansible_tasks_for_async(v, description_prefix, provider_async_default_retries,
                                                                provider_async_default_delay)
             if not is_delete or is_delete and not any(item == module_by_type for item in
@@ -324,6 +331,37 @@ class AnsibleConfigurationTool(ConfigurationTool):
                  'when': task_name + '_var' + '.changed'})
         return ansible_tasks
 
+    def get_ansible_tasks_from_interface(self, element_object, target_directory, is_delete, additional_args=None):
+        if additional_args is None:
+            additional_args = {}
+        else:
+            additional_args_global = copy.deepcopy(additional_args.get('global', {}))
+            additional_args_element = copy.deepcopy(additional_args.get(element_object.name, {}))
+            additional_args = utils.deep_update_dict(additional_args_global,
+                                                     additional_args_element)
+        ansible_tasks = []
+        scripts = []
+        for interface in element_object.nodetemplate.interfaces:
+            if not is_delete and interface.name == 'create' or is_delete and interface.name == 'delete':
+                implementations = interface.implementation
+                if isinstance(interface.implementation, six.string_types):
+                    implementations = [interface.implementation]
+                scripts.extend(implementations)
+
+        for script in scripts:
+            import_file = os.path.join(target_directory, script)
+            abs_path_file = os.path.abspath(import_file)
+            abs_source = os.path.abspath(script)
+            os.makedirs(os.path.dirname(abs_path_file), exist_ok=True)
+            copyfile(abs_source, abs_path_file)
+            new_ansible_task = {
+                IMPORT_TASKS_MODULE: import_file
+            }
+            new_ansible_task.update(additional_args)
+            ansible_tasks.append(new_ansible_task)
+
+        return ansible_tasks
+
     def ansible_description_by_type(self, provider_source_obj_type, description_prefix):
         return description_prefix + ' ' + utils.snake_case(provider_source_obj_type).replace('_', ' ')
 
@@ -384,9 +422,8 @@ class AnsibleConfigurationTool(ConfigurationTool):
                 new_tasks = self.create_artifact_data(art_data)
                 tasks.extend(new_tasks)
             else:
-                abs_path_file = os.path.abspath(os.path.join(target_directory, i))
                 new_task = {
-                    IMPORT_TASKS_MODULE: abs_path_file
+                    IMPORT_TASKS_MODULE: os.path.join(target_directory, i)
                 }
                 tasks.append(new_task)
         if op_info.get(OUTPUT_IDS):
@@ -437,7 +474,7 @@ class AnsibleConfigurationTool(ConfigurationTool):
             ))
         target_filename = os.path.join(target_directory, cond + self.get_artifact_extension())
         copyfile(filename, target_filename)
-        return os.path.abspath(target_filename)
+        return target_filename
 
     def copy_conditions_to_the_directory(self, conditions_set, target_directory):
         os.makedirs(target_directory, exist_ok=True)

@@ -391,7 +391,7 @@ node_types:
       - security_group: # after create security_group_id
           capability: openstack.capabilities.Container
           node: openstack.nodes.SecurityGroup
-          relationship: openstack.relationships.HostedOn
+          relationship: openstack.relationships.DependsOn
           occurrences: [ 1, 1 ]
 
   openstack.nodes.Server: # os_server, os_server_facts
@@ -567,7 +567,7 @@ node_types:
       - network_name: # network_id in facts
           capability: openstack.capabilities.Container
           node: openstack.nodes.Network
-          relationship: openstack.relationships.HostedOn
+          relationship: openstack.relationships.DependsOn
           occurrences: [ 1, 1 ]
 
   openstack.nodes.Volume: # os_volume

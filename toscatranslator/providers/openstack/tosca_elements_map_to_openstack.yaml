@@ -300,6 +300,17 @@ tosca.nodes.Compute:
       error: true
       reason: Bad description in TOSCA Profile YAML v1.0
 
+tosca.nodes.SoftwareComponent:
+#  - tosca.nodes.SoftwareComponent
+  - requirements: tosca.nodes.SoftwareComponent.requirements
+  - requirements.host:
+      parameter: tosca.nodes.SoftwareComponent.requirements.host
+      value: "{self[value]}_server"
+  - attributes: tosca.nodes.SoftwareComponent.attributes
+  - properties: tosca.nodes.SoftwareComponent.properties
+  - capabilities: tosca.nodes.SoftwareComponent.capabilities
+  - interfaces: tosca.nodes.SoftwareComponent.interfaces
+
 tosca.relationships.DependsOn: openstack.relationships.DependsOn
 tosca.relationships.HostedOn: openstack.relationships.HostedOn
 tosca.relationships.ConnectsTo: openstack.relationships.ConnectsTo

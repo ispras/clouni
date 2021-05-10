@@ -433,6 +433,37 @@ def get_restructured_mapping_item(key_prefix, parameter, mapping_value, value, s
     return None
 
 
+def get_parent_node_template(node):
+    node = copy.deepcopy(node)
+    node.type_definition = utils.get_full_type_definition(node.parent_type)
+    new_entity_tpl = copy.deepcopy(node.entity_tpl)
+    new_entity_tpl[TYPE] = node.type
+    if node.parent_type is not None:
+        new_entity_tpl[DERIVED_FROM] = node.parent_type.type
+    else:
+        new_entity_tpl.pop(DERIVED_FROM, None)
+    for sec in NODE_TEMPLATE_KEYS:
+        if new_entity_tpl.get(sec, None) is not None:
+            if isinstance(new_entity_tpl[sec], dict):
+                sec_keys = node.type_definition.defs.get(sec, {}).keys()
+                for key in node.entity_tpl[sec].keys():
+                    if key not in sec_keys:
+                        new_entity_tpl[sec].pop(key)
+                if new_entity_tpl[sec] == {}:
+                    new_entity_tpl.pop(sec)
+    node.entity_tpl = new_entity_tpl
+    return node
+
+
+def get_node_type_from_parameter(parameter):
+    splitted_parameter = parameter.split(SEPARATOR)
+    for i in range(len(splitted_parameter)):
+        if splitted_parameter[i] in NODE_TEMPLATE_KEYS:
+            node_type = SEPARATOR.join(splitted_parameter[:i])
+            return node_type
+    return parameter
+
+
 def restructure_mapping(tosca_elements_map_to_provider, node, self):
     """
     Restructure the mapping elements to make the mapping uniform the only 1 version to be interpreted.
@@ -450,7 +481,20 @@ def restructure_mapping(tosca_elements_map_to_provider, node, self):
             template[section] = section_value
 
     self[NAME] = node.name
-    return get_restructured_mapping_item('', '', tosca_elements_map_to_provider, {node.type: template}, self)
+    r = get_restructured_mapping_item('', '', tosca_elements_map_to_provider, {node.type: template}, self)
+    # if node.parent_type != None and node.parent_type != SEPARATOR.join([TOSCA, NODES, ROOT]):
+    if node.parent_type != None:
+        node_parent = get_parent_node_template(node)
+        r_parent = restructure_mapping(tosca_elements_map_to_provider, node_parent, self)
+        r_parent.extend(r)
+        r = r_parent
+    for i in range(len(r)):
+        parameter_node_type = get_node_type_from_parameter(r[i][PARAMETER])
+        mapping_node_type = get_node_type_from_parameter(r[i][MAP_KEY][PARAMETER])
+        if parameter_node_type == mapping_node_type and parameter_node_type != node.type:
+            r[i][PARAMETER] = r[i][PARAMETER].replace(parameter_node_type, node.type)
+            r[i][MAP_KEY][PARAMETER] = r[i][MAP_KEY][PARAMETER].replace(mapping_node_type, node.type)
+    return r
 
 
 def retrieve_node_templates(input_dict, input_prefix=None):
@@ -793,7 +837,7 @@ def restructure_mapping_facts(elements_map, extra_elements_map=None, target_para
     return elements_map, extra_elements_map, conditions
 
 
-def translate(tosca_elements_map_to_provider, topology_template):
+def translate(tosca_elements_map_to_provider, topology_template, provider):
     """
     Main function of this file, the only which is used outside the file
     :param tosca_elements_map_to_provider: dict from provider specific file
@@ -810,7 +854,7 @@ def translate(tosca_elements_map_to_provider, topology_template):
     artifacts = []
     conditions = []
     extra = dict()
-    self = {}
+    self = dict()
     self[ARTIFACTS] = []
     self[EXTRA] = dict()
 
@@ -820,7 +864,7 @@ def translate(tosca_elements_map_to_provider, topology_template):
         self[KEYNAME] = element.name
         self[BUFFER] = {}
 
-        if namespace == TOSCA:
+        if namespace != provider:
             restructured_mapping = restructure_mapping(tosca_elements_map_to_provider, element, self)
 
             restructured_mapping, extra_mappings, conditions = restructure_mapping_facts(restructured_mapping)
