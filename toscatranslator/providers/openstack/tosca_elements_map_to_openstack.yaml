@@ -4,6 +4,12 @@ tosca.nodes.Compute:
     value: "{self[name]}"
   - properties:
       meta: openstack.nodes.Server.properties.meta
+  - parameter:  openstack.nodes.Server.interfaces.Prepare.preconfigure.implementation
+    value:
+      executor: ansible
+      source: add_host
+      parameters: '{self[buffer][add_host]}'
+      value: temp_value
   - attributes:
       tosca_name:
         parameter: "{self[name]}"
@@ -110,6 +116,26 @@ tosca.nodes.Compute:
                               - "{self[value]}"
                 - parameter: server
                   value: "{self[keyname]}_server"
+        - parameter: '{self[buffer][add_host][groups]}'
+          value: '{self[keyname]}'
+        - parameter: '{self[buffer][add_host][hostname]}'
+          value: '{self[value]}'
+#        - parameter: openstack.nodes.Server.interfaces.Prepare.preconfigure.implementation
+#          value:
+#          - executor: ansible
+#            source: lineinfile
+#            parameters:
+#              insertafter: EOF
+#              line: '[{self[keyname]}]'
+#              path: 'inventory.yaml'
+#            value: temp_value
+#          - executor: ansible
+#            source: lineinfile
+#            parameters:
+#              insertafter: EOF
+#              line: '{self[value]}'
+#              path: 'inventory.yaml'
+#            value: temp_value
       networks.*.network_name:
         parameter: openstack.nodes.Server.properties.nics
         value:
@@ -282,6 +308,24 @@ tosca.nodes.Compute:
                   - - name
                     - properties
                   - "{self[buffer][os]}"
+        - parameter: '{self[buffer][add_host][ansible_user]}'
+          value: '{self[value]}'
+#        - parameter: openstack.nodes.Server.interfaces.Prepare.preconfigure.implementation
+#          value:
+#          - executor: ansible
+#            source: lineinfile
+#            parameters:
+#              insertafter: EOF
+#              line: '[{self[keyname]}:vars]'
+#              path: 'inventory.yaml'
+#            value: temp_value
+#          - executor: ansible
+#            source: lineinfile
+#            parameters:
+#              insertafter: EOF
+#              line: 'ansible_user={self[value]}'
+#              path: 'inventory.yaml'
+#            value: temp_value
       os.properties.distribution: "{self[buffer][os][distribution]}"
       os.properties.version: "{self[buffer][os][version]}"
       scalable.properties:

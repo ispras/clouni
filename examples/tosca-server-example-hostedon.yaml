@@ -9,6 +9,7 @@ topology_template:
     server_kube_master:
       type: tosca.nodes.Compute
       attributes:
+        public_address: 10.100.157.20
         networks:
           default:
             network_name: internal

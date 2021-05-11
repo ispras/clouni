@@ -96,6 +96,7 @@ class ProviderToscaTemplate(object):
             provider_node_instance = ProviderResource(self.provider, node, self.relationship_templates,
                                                       is_software_component)
             provider_nodes.append(provider_node_instance)
+
         return provider_nodes
 
     def full_type_definitions(self, topology_template):

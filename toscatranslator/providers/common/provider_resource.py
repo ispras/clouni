@@ -2,7 +2,7 @@ import copy
 
 from toscatranslator.common import utils
 from toscatranslator.common.tosca_reserved_keys import ATTRIBUTES, PROPERTIES, ARTIFACTS, NAME, CAPABILITIES, \
-    REQUIREMENTS, INTERFACES, NODE, NODES, ROOT, TOSCA, DERIVED_FROM
+    REQUIREMENTS, INTERFACES, NODE, NODES, ROOT, TOSCA, DERIVED_FROM, NODE_FILTER
 
 from toscatranslator.providers.common.all_requirements import ProviderRequirements
 
@@ -36,6 +36,7 @@ class ProviderResource(object):
         self.relationship_templates = list()
         self.dependency_order = 0
         self.is_software_component = is_software_component
+        self.host = None
 
         # NOTE: Get the parameters from template using provider definition
         self.configuration_args = dict()
@@ -68,6 +69,8 @@ class ProviderResource(object):
         relationship_template_names = set()
         provider_requirements = ProviderRequirements(self.requirement_definitions, self.provider)
         self.requirements = provider_requirements.get_requirements(node)
+        if self.requirements.get('host', None) != None:
+            self.host = self.requirements['host'][0].value
         self.node_filter_artifacts = []
         for key, req in self.requirements.items():
             if type(req) is list:
@@ -82,6 +85,7 @@ class ProviderResource(object):
                     _, _, type_name = utils.tosca_type_parse(relation)
                     if type_name is None:
                         relationship_template_names.add(relation)
+
 
         for relation in relationship_templates:
             if relation.name in relationship_template_names:

@@ -11,7 +11,7 @@ from toscatranslator.common.exception import ProviderConfigurationParameterError
 
 from toscatranslator.common import utils
 from toscatranslator.common.tosca_reserved_keys import PARAMETERS, VALUE, EXTRA, SOURCE, INPUTS, NODE_FILTER, NAME, \
-    NODES, GET_OPERATION_OUTPUT, IMPLEMENTATION, ANSIBLE
+    NODES, GET_OPERATION_OUTPUT, IMPLEMENTATION, ANSIBLE, HOST
 
 from toscatranslator.providers.common.provider_configuration import ProviderConfiguration
 from toscatranslator.configuration_tools.common.configuration_tool import ConfigurationTool, \
@@ -67,8 +67,8 @@ class AnsibleConfigurationTool(ConfigurationTool):
         extra_async = self.get_extra_async(extra, provider_async_default_time)
 
         prev_dep_order = 0
-        path = self.rap_ansible_variable("playbook_dir") + '/id_vars_' + cluster_name + self.get_artifact_extension()
-        elements_queue = self.init_queue(nodes_relationships_queue)
+        ids_file_path = self.rap_ansible_variable("playbook_dir") + '/id_vars_' + cluster_name + self.get_artifact_extension()
+        elements_queue, software_queue = self.init_queue(nodes_relationships_queue)
         ansible_task_list = []
 
         if not is_delete:
@@ -76,36 +76,29 @@ class AnsibleConfigurationTool(ConfigurationTool):
                 ansible_task_list.extend(self.get_ansible_tasks_from_operation(v, target_directory))
 
             ansible_task_list.append({FILE: {
-                PATH: path,
+                PATH: ids_file_path,
                 STATE: 'absent'}})
             ansible_task_list.append({FILE: {
-                PATH: path,
+                PATH: ids_file_path,
                 STATE: 'touch'}})
         else:
             elements_queue.reverse()
-            ansible_task_list.append({'include_vars': path})
+            ansible_task_list.append({'include_vars': ids_file_path})
 
         check_async_tasks = []
 
         for v in elements_queue:
-            if not v.is_software_component:
-                extra_tasks_for_delete = self.get_extra_tasks_for_delete(v.name.replace('-', '_'), path)
-            else:
-                extra_tasks_for_delete = []
+            extra_tasks_for_delete = self.get_extra_tasks_for_delete(v.name.replace('-', '_'), ids_file_path)
             description_prefix, module_prefix = self.get_module_prefixes(is_delete, ansible_config)
             description_by_type = self.ansible_description_by_type(v.type_name, description_prefix)
             module_by_type = self.ansible_module_by_type(v.type_name, module_prefix)
-            if v.is_software_component:
-                ansible_tasks = self.get_ansible_tasks_from_interface(v, target_directory, is_delete,
-                                                                      additional_args=extra)
+            if not is_delete:
+                ansible_tasks = self.get_ansible_tasks_for_create(v, target_directory, node_filter_config,
+                                                                  description_by_type, module_by_type,
+                                                                  additional_args=extra)
             else:
-                if not is_delete:
-                    ansible_tasks = self.get_ansible_tasks_for_create(v, target_directory, node_filter_config,
-                                                                      description_by_type, module_by_type,
-                                                                      additional_args=extra)
-                else:
-                    ansible_tasks = self.get_ansible_tasks_for_delete(v, description_by_type, module_by_type,
-                                                                      additional_args=extra)
+                ansible_tasks = self.get_ansible_tasks_for_delete(v, description_by_type, module_by_type,
+                                                                  additional_args=extra)
             tasks_for_async = self.get_ansible_tasks_for_async(v, description_prefix, provider_async_default_retries,
                                                                provider_async_default_delay)
             if not is_delete or is_delete and not any(item == module_by_type for item in
@@ -129,7 +122,7 @@ class AnsibleConfigurationTool(ConfigurationTool):
 
         if is_delete:
             ansible_task_list.append({FILE: {
-                PATH: path,
+                PATH: ids_file_path,
                 STATE: 'absent'}})
 
         ansible_playbook = [dict(
@@ -137,6 +130,17 @@ class AnsibleConfigurationTool(ConfigurationTool):
             hosts=self.default_host,
             tasks=ansible_task_list
         )]
+
+        for v in software_queue:
+            ansible_tasks = self.get_ansible_tasks_from_interface(v, target_directory, is_delete,
+                                                                  additional_args=extra)
+            software_playbook = dict(
+                name=description_prefix + ' ' + v.name + ' ' + ' software component',
+                hosts=v.host,
+                tasks=ansible_tasks
+            )
+            ansible_playbook.append(software_playbook)
+
         return yaml.dump(ansible_playbook, default_flow_style=False, sort_keys=False)
 
     def get_extra_async(self, extra, async_default_time):
@@ -155,6 +159,7 @@ class AnsibleConfigurationTool(ConfigurationTool):
 
     def init_queue(self, nodes_relationships_queue):
         elements_queue = []
+        software_queue = []
         for v in nodes_relationships_queue:
             self.gather_global_operations(v)
         for op_name, op in self.global_operations_info.items():
@@ -164,8 +169,11 @@ class AnsibleConfigurationTool(ConfigurationTool):
             if element_type == NODES:
                 new_conf_args = self.replace_all_get_functions(v.configuration_args)
                 v.configuration_args = new_conf_args
-                elements_queue.append(v)
-        return elements_queue
+                if v.is_software_component:
+                    software_queue.append(v)
+                else:
+                    elements_queue.append(v)
+        return elements_queue, software_queue
 
     def replace_all_get_functions(self, data):
         if isinstance(data, dict):
