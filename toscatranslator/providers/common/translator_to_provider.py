@@ -867,8 +867,9 @@ def translate(tosca_elements_map_to_provider, topology_template, provider):
         if namespace != provider:
             restructured_mapping = restructure_mapping(tosca_elements_map_to_provider, element, self)
 
-            restructured_mapping, extra_mappings, conditions = restructure_mapping_facts(restructured_mapping)
+            restructured_mapping, extra_mappings, new_conditions = restructure_mapping_facts(restructured_mapping)
             restructured_mapping.extend(extra_mappings)
+            conditions.extend(new_conditions)
 
             tpl_structure = translate_node_from_tosca(restructured_mapping, element.name, self)
             for tpl_name, temp_tpl in tpl_structure.items():
@@ -881,6 +882,6 @@ def translate(tosca_elements_map_to_provider, topology_template, provider):
             new_element = translate_element_from_provider(element)
             new_element_templates = utils.deep_update_dict(new_element_templates, new_element)
 
-        conditions = set(conditions)
+    conditions = set(conditions)
 
     return new_element_templates, self[ARTIFACTS], conditions, self[EXTRA]
