@@ -2,6 +2,7 @@ import unittest
 from testing.base import TestAnsibleProvider
 import copy
 import os
+import re
 
 from toscatranslator import shell
 
@@ -292,6 +293,30 @@ class TestAnsibleOpenStackOutput (unittest.TestCase, TestAnsibleProvider):
 
     def test_scalable_capabilities(self):
         super(TestAnsibleOpenStackOutput, self).test_scalable_capabilities()
+
+    def test_get_input(self):
+        template = copy.deepcopy(self.DEFAULT_TEMPLATE)
+        template['topology_template']['inputs'] = {
+            'public_address': {
+                'type': 'string',
+                'default': '10.100.157.20'
+            }
+        }
+        testing_parameter = {
+            "public_address": {
+                "get_input": "public_address"
+            }
+        }
+        template = self.update_template_attribute(template, self.NODE_NAME, testing_parameter)
+        playbook = self.get_ansible_create_output(template)
+        self.assertIsNotNone(next(iter(playbook), {}).get('tasks'))
+
+        tasks = playbook[0]['tasks']
+        checked = False
+        for task in tasks:
+            if re.match('{{ public_address_[0-9]+ }}', task.get('os_floating_ip', {}).get('floating_ip_address', '')):
+                checked = True
+        self.assertTrue(checked)
 
     def check_scalable_capabilities(self, tasks, testing_value=None):
         server_name = None

@@ -11,14 +11,15 @@ from toscatranslator.common.exception import ProviderConfigurationParameterError
 
 from toscatranslator.common import utils
 from toscatranslator.common.tosca_reserved_keys import PARAMETERS, VALUE, EXTRA, SOURCE, INPUTS, NODE_FILTER, NAME, \
-    NODES, GET_OPERATION_OUTPUT, IMPLEMENTATION, ANSIBLE, HOST
+    NODES, GET_OPERATION_OUTPUT, IMPLEMENTATION, ANSIBLE, GET_INPUT
 
 from toscatranslator.providers.common.provider_configuration import ProviderConfiguration
 from toscatranslator.configuration_tools.common.configuration_tool import ConfigurationTool, \
     OUTPUT_IDS, OUTPUT_ID_RANGE_START, OUTPUT_ID_RANGE_END
 
-ANSIBLE_RESERVED_KEYS = (REGISTER, PATH, FILE, STATE, LINEINFILE, SET_FACT, IS_DEFINED, IMPORT_TASKS_MODULE) = \
-    ('register', 'path', 'file', 'state', 'lineinfile', 'set_fact', ' is defined', 'include')
+ANSIBLE_RESERVED_KEYS = \
+    (REGISTER, PATH, FILE, STATE, LINEINFILE, SET_FACT, IS_DEFINED, IS_UNDEFINED, IMPORT_TASKS_MODULE) = \
+    ('register', 'path', 'file', 'state', 'lineinfile', 'set_fact', ' is defined', 'is_undefined', 'include')
 
 REQUIRED_CONFIG_PARAMS = (ASYNC_DEFAULT_TIME, ASYNC_DEFAULT_RETRIES, ASYNC_DEFAULT_DELAY, INITIAL_ARTIFACTS_DIRECTORY,
                        DEFAULT_HOST) = ("async_default_time", "async_default_retries", "async_default_delay",
@@ -45,7 +46,7 @@ class AnsibleConfigurationTool(ConfigurationTool):
             setattr(self, param, main_config[param])
 
     def to_dsl(self, provider, nodes_relationships_queue, cluster_name, is_delete, artifacts=None,
-               target_directory=None, extra=None):
+               target_directory=None, inputs=None, outputs=None, extra=None):
 
         if artifacts is None:
             artifacts = []
@@ -68,8 +69,9 @@ class AnsibleConfigurationTool(ConfigurationTool):
 
         prev_dep_order = 0
         ids_file_path = self.rap_ansible_variable("playbook_dir") + '/id_vars_' + cluster_name + self.get_artifact_extension()
+        self.init_global_variables(inputs)
         elements_queue, software_queue = self.init_queue(nodes_relationships_queue)
-        ansible_task_list = []
+        ansible_task_list = self.get_ansible_tasks_for_inputs(inputs)
 
         if not is_delete:
             for v in self.global_operations_queue:
@@ -183,6 +185,9 @@ class AnsibleConfigurationTool(ConfigurationTool):
             if len(data) == 1 and next(iter(data.keys())) == GET_OPERATION_OUTPUT:
                 full_op_name = '_'.join(data[GET_OPERATION_OUTPUT][:3]).lower()
                 output_id = self.global_operations_info[full_op_name][OUTPUT_IDS][data[GET_OPERATION_OUTPUT][-1]]
+                return self.rap_ansible_variable(output_id)
+            if len(data) == 1 and next(iter(data.keys())) == GET_INPUT:
+                output_id = self.global_variables['input_'+data[GET_INPUT]]
                 return self.rap_ansible_variable(output_id)
 
             r = {}
@@ -582,3 +587,28 @@ class AnsibleConfigurationTool(ConfigurationTool):
 
     def get_artifact_extension(self):
         return '.yaml'
+
+    def init_global_variables(self, inputs):
+        if inputs == None:
+            return
+        for input in inputs:
+            self.global_variables['input_' + input.name] = \
+                input.name + '_' + str(utils.get_random_int(OUTPUT_ID_RANGE_START, OUTPUT_ID_RANGE_END))
+        return
+
+    def get_ansible_tasks_for_inputs(self, inputs):
+        ansible_tasks = []
+        for input in inputs:
+            if input.default != None:
+                ansible_tasks.append({
+                    SET_FACT: {
+                        input.name: input.default
+                    },
+                    'when': input.name + IS_UNDEFINED
+                })
+            ansible_tasks.append({
+                SET_FACT: {
+                    self.global_variables['input_' + input.name]: self.rap_ansible_variable(input.name)
+                }
+            })
+        return ansible_tasks
