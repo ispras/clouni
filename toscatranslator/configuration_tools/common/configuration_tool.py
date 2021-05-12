@@ -29,7 +29,7 @@ class ConfigurationTool(object):
         self.tool_config = ConfigurationToolConfiguration(self.TOOL_NAME)
 
     def to_dsl(self, provider, nodes_relationships_queue, cluster_name, is_delete, artifacts=None,
-               target_directory=None, extra=None):
+               target_directory=None, inputs=None, outputs=None, extra=None):
         """
         Generate scenarios for configuration tool to execute
         :param provider: provider type key name

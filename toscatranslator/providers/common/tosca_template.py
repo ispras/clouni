@@ -56,6 +56,8 @@ class ProviderToscaTemplate(object):
         self.artifacts = []
         self.used_conditions_set = set()
         self.extra_configuration_tool_params = dict()
+        self.inputs = self.tosca_topology_template.inputs
+        self.outputs = self.tosca_topology_template.outputs
 
         self.topology_template = self.translate_to_provider()
 
