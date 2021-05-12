@@ -92,13 +92,16 @@ class AnsibleConfigurationTool(ConfigurationTool):
             description_prefix, module_prefix = self.get_module_prefixes(is_delete, ansible_config)
             description_by_type = self.ansible_description_by_type(v.type_name, description_prefix)
             module_by_type = self.ansible_module_by_type(v.type_name, module_prefix)
-            if not is_delete:
-                ansible_tasks = self.get_ansible_tasks_for_create(v, target_directory, node_filter_config,
-                                                                  description_by_type, module_by_type,
-                                                                  additional_args=extra)
-            else:
-                ansible_tasks = self.get_ansible_tasks_for_delete(v, description_by_type, module_by_type,
-                                                                  additional_args=extra)
+            ansible_tasks = self.get_ansible_tasks_from_interface(v, target_directory, is_delete,
+                                                            additional_args=extra)
+            if len(ansible_tasks) == 0:
+                if not is_delete:
+                    ansible_tasks = self.get_ansible_tasks_for_create(v, target_directory, node_filter_config,
+                                                                      description_by_type, module_by_type,
+                                                                      additional_args=extra)
+                else:
+                    ansible_tasks = self.get_ansible_tasks_for_delete(v, description_by_type, module_by_type,
+                                                                      additional_args=extra)
             tasks_for_async = self.get_ansible_tasks_for_async(v, description_prefix, provider_async_default_retries,
                                                                provider_async_default_delay)
             if not is_delete or is_delete and not any(item == module_by_type for item in

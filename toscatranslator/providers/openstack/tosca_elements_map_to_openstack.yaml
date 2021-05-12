@@ -4,10 +4,10 @@ tosca.nodes.Compute:
     value: "{self[name]}"
   - properties:
       meta: openstack.nodes.Server.properties.meta
-  - parameter: openstack.nodes.Server.attributes.auto_ip
-    value: false
   - parameter: '{self[buffer][add_host][hostname]}'
     value: '{{{{ {self[keyname]}_floating_ip.floating_ip.floating_ip_address }}}}'
+  - parameter: openstack.nodes.FloatingIp.requirements.server
+    value: "{self[keyname]}_server"
   - parameter:  openstack.nodes.FloatingIp.interfaces.Prepare.configure.implementation
     value:
     - executor: ansible
@@ -127,8 +127,8 @@ tosca.nodes.Compute:
                               - allocation_pool_start
                               - allocation_pool_end
                               - "{self[value]}"
-                - parameter: server
-                  value: "{self[keyname]}_server"
+            - parameter: openstack.nodes.Server.attributes.auto_ip
+              value: false
         - parameter: '{self[buffer][add_host][groups]}'
           value: '{self[keyname]}'
 #        - parameter: openstack.nodes.Server.interfaces.Prepare.preconfigure.implementation
