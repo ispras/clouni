@@ -318,6 +318,35 @@ class TestAnsibleOpenStackOutput (unittest.TestCase, TestAnsibleProvider):
                 checked = True
         self.assertTrue(checked)
 
+    def test_get_property(self):
+        template = copy.deepcopy(self.DEFAULT_TEMPLATE)
+        testing_value = "master=true"
+        testing_parameter = {
+            "meta": testing_value
+        }
+        template = self.update_template_property(template, self.NODE_NAME, testing_parameter)
+        template['topology_template']['node_templates'][self.NODE_NAME + '_2'] = {
+            'type': 'tosca.nodes.Compute',
+            'properties': {
+                'meta': {
+                    'get_property': [
+                        self.NODE_NAME,
+                        'meta'
+                    ]
+                }
+            }
+        }
+        playbook = self.get_ansible_create_output(template)
+        self.assertIsNotNone(next(iter(playbook), {}).get('tasks'))
+
+        tasks = playbook[0]['tasks']
+        checked = True
+        for task in tasks:
+            os_server_task = task.get('os_server', None)
+            if os_server_task != None and os_server_task.get('meta', None) != testing_value:
+                checked = False
+        self.assertTrue(checked)
+
     def check_scalable_capabilities(self, tasks, testing_value=None):
         server_name = None
         default_instances = 2
