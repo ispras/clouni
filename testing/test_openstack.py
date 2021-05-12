@@ -293,6 +293,27 @@ class TestAnsibleOpenStackOutput (unittest.TestCase, TestAnsibleProvider):
     def test_scalable_capabilities(self):
         super(TestAnsibleOpenStackOutput, self).test_scalable_capabilities()
 
+    def test_get_input(self):
+        template = copy.deepcopy(self.DEFAULT_TEMPLATE)
+        template['topology_template']['inputs'] = {
+            'public_address': {
+                'type': 'string'
+            }
+        }
+        testing_parameter = {
+            "public_address": "{ get_input: public_address }"
+        }
+        template = self.update_template_attribute(template, self.NODE_NAME, testing_parameter)
+        playbook = self.get_ansible_create_output(template)
+        self.assertIsNotNone(next(iter(playbook), {}).get('tasks'))
+
+        tasks = playbook[0]['tasks']
+        checked = False
+        for task in tasks:
+            if task.get('os_floating_ip', {}).get('floating_ip_address', None) == '{{ public_address }}':
+                checked = True
+        self.assertTrue(checked)
+
     def check_scalable_capabilities(self, tasks, testing_value=None):
         server_name = None
         default_instances = 2
