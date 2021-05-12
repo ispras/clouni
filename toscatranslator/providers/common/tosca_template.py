@@ -17,6 +17,8 @@ from toscatranslator.providers.common.provider_configuration import ProviderConf
 from toscatranslator.providers.common.translator_to_provider import translate as translate_to_provider
 from toscatranslator.providers.common.provider_resource import ProviderResource
 
+SEPARATOR = '.'
+
 
 class ProviderToscaTemplate(object):
     REQUIRED_CONFIG_PARAMS = (TOSCA_ELEMENTS_MAP_FILE, TOSCA_ELEMENTS_DEFINITION_FILE) = \
@@ -58,6 +60,7 @@ class ProviderToscaTemplate(object):
         self.extra_configuration_tool_params = dict()
         self.inputs = self.tosca_topology_template.inputs
         self.outputs = self.tosca_topology_template.outputs
+        node_templates = self.resolve_get_property_functions(self.tosca_topology_template.nodetemplates)
 
         self.topology_template = self.translate_to_provider()
 
@@ -380,3 +383,34 @@ class ProviderToscaTemplate(object):
         self.extra_configuration_tool_params = utils.deep_update_dict(self.extra_configuration_tool_params, new_extra)
 
         return topology_tpl
+
+    def _get_all_get_properties(self, data, path=''):
+        r = []
+        if isinstance(data, dict):
+            for k, v in data.items():
+                if k == GET_PROPERTY:
+                    r.append({path: v})
+                r.extend(self._get_all_get_properties(v, SEPARATOR.join([path, k])))
+        elif isinstance(data, list):
+            for i in range(len(data)):
+                r.extend(self._get_all_get_properties(data[i], SEPARATOR.join([path, str(i)])))
+        return r
+
+    def resolve_get_property_functions(self, nodes):
+        functions = []
+        nodes_by_name = {}
+        for node in nodes:
+            functions.extend(self._get_all_get_properties(node.entity_tpl, node.name))
+            nodes_by_name[node.name] = node
+        for function in functions:
+            for f_name, f_body in function.items():
+                dep_node = nodes_by_name[f_body[0]]
+                function[f_name] = dep_node.entity_tpl[PROPERTIES][f_body[1]]
+        for function in functions:
+            for f_name, f_body in function.items():
+                f_name_splitted = f_name.split(SEPARATOR)
+                tpl = nodes_by_name[f_name_splitted[0]].entity_tpl
+                for i in range(1, len(f_name_splitted)-1):
+                    tpl = tpl[f_name_splitted[i]]
+                tpl[f_name_splitted[-1]] = f_body
+        return nodes

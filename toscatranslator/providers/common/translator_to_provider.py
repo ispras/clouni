@@ -55,6 +55,7 @@ def get_structure_of_mapped_param(mapped_param, value, input_value=None, indivis
 
                 for v in value:
                     if isinstance(v, str):
+                        # Error! Stucks in recursion if {get_property: []} is used
                         param, _ = get_structure_of_mapped_param(SEPARATOR.join([mapped_param, v]), input_value, input_value)
                     else:
                         param, _ = get_structure_of_mapped_param(mapped_param, v, input_value)
@@ -64,6 +65,7 @@ def get_structure_of_mapped_param(mapped_param, value, input_value=None, indivis
             if isinstance(value, dict):
                 r = dict()
                 for k, v in value.items():
+                    # Error! Stucks in recursion if {get_property: []} is used
                     param, _ = get_structure_of_mapped_param(k, v, input_value)
                     for p in param:
                         r = utils.deep_update_dict(r, p)
