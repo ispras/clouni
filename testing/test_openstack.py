@@ -79,7 +79,7 @@ class TestAnsibleOpenStackOutput (unittest.TestCase, TestAnsibleProvider):
         self.assertIsInstance(playbook[0], dict)
         self.assertIsNotNone(playbook[0]['tasks'])
         tasks = playbook[0]['tasks']
-        self.assertEqual(len(tasks), 8)
+        self.assertEqual(len(tasks), 17)
         self.assertIsNotNone(tasks[2][SERVER_MODULE_NAME])
         server = tasks[2][SERVER_MODULE_NAME]
         self.assertEqual(server['name'], self.NODE_NAME)
