@@ -4,6 +4,27 @@ tosca.nodes.Compute:
     value: "{self[name]}"
   - properties:
       meta: openstack.nodes.Server.properties.meta
+  - parameter: openstack.nodes.Server.attributes.auto_ip
+    value: false
+  - parameter: '{self[buffer][add_host][hostname]}'
+    value: '{{{{ {self[keyname]}_floating_ip.floating_ip.floating_ip_address }}}}'
+  - parameter:  openstack.nodes.FloatingIp.interfaces.Prepare.configure.implementation
+    value:
+    - executor: ansible
+      source: add_host
+      parameters: '{self[buffer][add_host]}'
+      value: temp_value
+    - executor: ansible
+      source: shell
+      parameters: 'ssh-keyscan {{{{ host_ip }}}},`dig +short {{{{ host_ip }}}}`'
+      value: host_key
+    - executor: ansible
+      source: known_hosts
+      parameters:
+        path: ~/.ssh/known_hosts
+        name: "{{{{ host_ip }}}}"
+        key: "{{{{ host_key.stdout }}}}"
+      value: temp_value
   - attributes:
       tosca_name:
         parameter: "{self[name]}"
@@ -57,8 +78,6 @@ tosca.nodes.Compute:
           value:
           - port-name: "{self[name]}_port_0"
       public_address:
-        - parameter: openstack.nodes.Server.attributes.auto_ip
-          value: false
         - parameter: openstack.nodes.FloatingIp
           value:
             - attributes.floating_ip_address
@@ -110,6 +129,24 @@ tosca.nodes.Compute:
                               - "{self[value]}"
                 - parameter: server
                   value: "{self[keyname]}_server"
+        - parameter: '{self[buffer][add_host][groups]}'
+          value: '{self[keyname]}'
+#        - parameter: openstack.nodes.Server.interfaces.Prepare.preconfigure.implementation
+#          value:
+#          - executor: ansible
+#            source: lineinfile
+#            parameters:
+#              insertafter: EOF
+#              line: '[{self[keyname]}]'
+#              path: 'inventory.yaml'
+#            value: temp_value
+#          - executor: ansible
+#            source: lineinfile
+#            parameters:
+#              insertafter: EOF
+#              line: '{self[value]}'
+#              path: 'inventory.yaml'
+#            value: temp_value
       networks.*.network_name:
         parameter: openstack.nodes.Server.properties.nics
         value:
@@ -282,6 +319,24 @@ tosca.nodes.Compute:
                   - - name
                     - properties
                   - "{self[buffer][os]}"
+        - parameter: '{self[buffer][add_host][ansible_user]}'
+          value: '{self[value]}'
+#        - parameter: openstack.nodes.Server.interfaces.Prepare.preconfigure.implementation
+#          value:
+#          - executor: ansible
+#            source: lineinfile
+#            parameters:
+#              insertafter: EOF
+#              line: '[{self[keyname]}:vars]'
+#              path: 'inventory.yaml'
+#            value: temp_value
+#          - executor: ansible
+#            source: lineinfile
+#            parameters:
+#              insertafter: EOF
+#              line: 'ansible_user={self[value]}'
+#              path: 'inventory.yaml'
+#            value: temp_value
       os.properties.distribution: "{self[buffer][os][distribution]}"
       os.properties.version: "{self[buffer][os][version]}"
       scalable.properties:
@@ -299,6 +354,17 @@ tosca.nodes.Compute:
     requirements.local_storage:
       error: true
       reason: Bad description in TOSCA Profile YAML v1.0
+
+tosca.nodes.SoftwareComponent:
+#  - tosca.nodes.SoftwareComponent
+  - requirements: tosca.nodes.SoftwareComponent.requirements
+  - requirements.host:
+      parameter: tosca.nodes.SoftwareComponent.requirements.host
+      value: "{self[value]}_server"
+  - attributes: tosca.nodes.SoftwareComponent.attributes
+  - properties: tosca.nodes.SoftwareComponent.properties
+  - capabilities: tosca.nodes.SoftwareComponent.capabilities
+  - interfaces: tosca.nodes.SoftwareComponent.interfaces
 
 tosca.relationships.DependsOn: openstack.relationships.DependsOn
 tosca.relationships.HostedOn: openstack.relationships.HostedOn

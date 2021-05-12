@@ -41,7 +41,7 @@ class ProviderRequirements (object):
         # NOTE set the list required requirements and the list of multiple requirements (of type list)
         self.required_requirement_keys = set()
         for req_def in self.requirement_definitions:
-            occurrences = req_def.get(OCCURRENCES)  # list
+            occurrences = req_def.get(OCCURRENCES, [0, 'UNBOUNDED'])  # list
             min_ocs = occurrences[0]
             max_ocs = occurrences[1]
             if int(min_ocs) > 0:

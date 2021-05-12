@@ -45,7 +45,7 @@ class ProviderToscaTemplate(object):
         # toscaparser.tosca_template:ToscaTemplate
         self.tosca_parser_template = tosca_parser_template
         # toscaparser.topology_template:TopologyTemplate
-        self.tosca_topology_template = tosca_parser_template.topology_template
+        self.tosca_topology_template = self.full_type_definitions(self.tosca_parser_template.topology_template)
 
         import_definition_file = ImportsLoader([self.definition_file()], None, list(SERVICE_TEMPLATE_KEYS),
                                                self.tosca_topology_template.tpl)
@@ -71,6 +71,10 @@ class ProviderToscaTemplate(object):
         self.configuration_ready = None
 
         # Create the list of ProviderResource instances
+        self.software_component_names = []
+        for node in self.node_templates:
+            if self._is_software_component(node):
+                self.software_component_names.append(node.name)
         self.provider_nodes = self._provider_nodes()
         self.provider_nodes_by_name = self._provider_nodes_by_name()
         self.relationship_templates_by_name = self._relationship_templates_by_name()
@@ -86,11 +90,19 @@ class ProviderToscaTemplate(object):
         provider_nodes = list()
         for node in self.node_templates:
             (namespace, category, type_name) = utils.tosca_type_parse(node.type)
-            if namespace != self.provider or category != NODES:
+            is_software_component = node.name in self.software_component_names
+            if namespace != self.provider and not is_software_component or category != NODES:
                 ExceptionCollector.appendException(Exception('Unexpected values'))
-            provider_node_instance = ProviderResource(self.provider, node, self.relationship_templates)
+            provider_node_instance = ProviderResource(self.provider, node, self.relationship_templates,
+                                                      is_software_component)
             provider_nodes.append(provider_node_instance)
+
         return provider_nodes
+
+    def full_type_definitions(self, topology_template):
+        for node in topology_template.nodetemplates:
+            node.type_definition = utils.get_full_type_definition(node.type_definition)
+        return topology_template
 
     def _sort_nodes_by_priority(self):
         """
@@ -99,11 +111,20 @@ class ProviderToscaTemplate(object):
         :return: dictionary with keys = priority
         """
         sorted_by_priority = dict()
-        for i in range(0, ProviderResource.MAX_NUM_PRIORITIES):
-            sorted_by_priority[i] = []
+        max_priority = 0
         for node in self.provider_nodes:
-            priority = node.node_priority_by_type()
-            sorted_by_priority[priority].append(node.nodetemplate.name)
+            if not node.name in self.software_component_names:
+                priority = node.node_priority_by_type()
+                priority_sorted = sorted_by_priority.get(priority, [])
+                priority_sorted.append(node.nodetemplate.name)
+                sorted_by_priority[priority] = priority_sorted
+                if priority > max_priority:
+                    max_priority = priority
+        max_priority += 1
+        for i in range(max_priority):
+            if sorted_by_priority.get(i, None) is None:
+                sorted_by_priority[i] = []
+        sorted_by_priority[max_priority] = self.software_component_names
         return sorted_by_priority
 
     def _relationship_templates_by_name(self):
@@ -124,6 +145,14 @@ class ProviderToscaTemplate(object):
             provider_nodes_by_name[node.nodetemplate.name] = node
 
         return provider_nodes_by_name
+
+    def _is_software_component(self, node):
+        tmp = copy.copy(node)
+        while tmp != None:
+            if tmp.type == 'tosca.nodes.SoftwareComponent':
+                return True
+            tmp = tmp.parent_type
+        return False
 
     def sort_nodes_by_dependency(self):
         """
@@ -329,7 +358,7 @@ class ProviderToscaTemplate(object):
 
     def translate_to_provider(self):
         new_element_templates, new_artifacts, conditions_set, new_extra = translate_to_provider(
-            self.tosca_elements_map_to_provider(), self.tosca_topology_template)
+            self.tosca_elements_map_to_provider(), self.tosca_topology_template, self.provider)
 
         self.used_conditions_set = conditions_set
         dict_tpl = copy.deepcopy(self.tosca_topology_template.tpl)

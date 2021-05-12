@@ -898,6 +898,8 @@ interface_types:
     derived_from: tosca.interfaces.Root
     preconfigure:
       description: Operation to pre-configure the node.
+    configure:
+      description: Operation to configure the node.
 
 
 ##########################################################################

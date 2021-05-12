@@ -11,7 +11,7 @@ from toscatranslator.common.exception import ProviderConfigurationParameterError
 
 from toscatranslator.common import utils
 from toscatranslator.common.tosca_reserved_keys import PARAMETERS, VALUE, EXTRA, SOURCE, INPUTS, NODE_FILTER, NAME, \
-    NODES, GET_OPERATION_OUTPUT, IMPLEMENTATION, ANSIBLE
+    NODES, GET_OPERATION_OUTPUT, IMPLEMENTATION, ANSIBLE, HOST
 
 from toscatranslator.providers.common.provider_configuration import ProviderConfiguration
 from toscatranslator.configuration_tools.common.configuration_tool import ConfigurationTool, \
@@ -67,8 +67,8 @@ class AnsibleConfigurationTool(ConfigurationTool):
         extra_async = self.get_extra_async(extra, provider_async_default_time)
 
         prev_dep_order = 0
-        path = self.rap_ansible_variable("playbook_dir") + '/id_vars_' + cluster_name + self.get_artifact_extension()
-        elements_queue = self.init_queue(nodes_relationships_queue)
+        ids_file_path = self.rap_ansible_variable("playbook_dir") + '/id_vars_' + cluster_name + self.get_artifact_extension()
+        elements_queue, software_queue = self.init_queue(nodes_relationships_queue)
         ansible_task_list = []
 
         if not is_delete:
@@ -76,19 +76,19 @@ class AnsibleConfigurationTool(ConfigurationTool):
                 ansible_task_list.extend(self.get_ansible_tasks_from_operation(v, target_directory))
 
             ansible_task_list.append({FILE: {
-                PATH: path,
+                PATH: ids_file_path,
                 STATE: 'absent'}})
             ansible_task_list.append({FILE: {
-                PATH: path,
+                PATH: ids_file_path,
                 STATE: 'touch'}})
         else:
             elements_queue.reverse()
-            ansible_task_list.append({'include_vars': path})
+            ansible_task_list.append({'include_vars': ids_file_path})
 
         check_async_tasks = []
 
         for v in elements_queue:
-            extra_tasks_for_delete = self.get_extra_tasks_for_delete(v.name.replace('-', '_'), path)
+            extra_tasks_for_delete = self.get_extra_tasks_for_delete(v.name.replace('-', '_'), ids_file_path)
             description_prefix, module_prefix = self.get_module_prefixes(is_delete, ansible_config)
             description_by_type = self.ansible_description_by_type(v.type_name, description_prefix)
             module_by_type = self.ansible_module_by_type(v.type_name, module_prefix)
@@ -122,7 +122,7 @@ class AnsibleConfigurationTool(ConfigurationTool):
 
         if is_delete:
             ansible_task_list.append({FILE: {
-                PATH: path,
+                PATH: ids_file_path,
                 STATE: 'absent'}})
 
         ansible_playbook = [dict(
@@ -130,6 +130,17 @@ class AnsibleConfigurationTool(ConfigurationTool):
             hosts=self.default_host,
             tasks=ansible_task_list
         )]
+
+        for v in software_queue:
+            ansible_tasks = self.get_ansible_tasks_from_interface(v, target_directory, is_delete,
+                                                                  additional_args=extra)
+            software_playbook = dict(
+                name=description_prefix + ' ' + v.name + ' ' + ' software component',
+                hosts=v.host,
+                tasks=ansible_tasks
+            )
+            ansible_playbook.append(software_playbook)
+
         return yaml.dump(ansible_playbook, default_flow_style=False, sort_keys=False)
 
     def get_extra_async(self, extra, async_default_time):
@@ -148,6 +159,7 @@ class AnsibleConfigurationTool(ConfigurationTool):
 
     def init_queue(self, nodes_relationships_queue):
         elements_queue = []
+        software_queue = []
         for v in nodes_relationships_queue:
             self.gather_global_operations(v)
         for op_name, op in self.global_operations_info.items():
@@ -157,8 +169,11 @@ class AnsibleConfigurationTool(ConfigurationTool):
             if element_type == NODES:
                 new_conf_args = self.replace_all_get_functions(v.configuration_args)
                 v.configuration_args = new_conf_args
-                elements_queue.append(v)
-        return elements_queue
+                if v.is_software_component:
+                    software_queue.append(v)
+                else:
+                    elements_queue.append(v)
+        return elements_queue, software_queue
 
     def replace_all_get_functions(self, data):
         if isinstance(data, dict):
@@ -272,11 +287,17 @@ class AnsibleConfigurationTool(ConfigurationTool):
                     arg = self.rap_ansible_variable(node_filter_value_with_id)
             configuration_args[arg_key] = arg
 
+        post_tasks = []
         for i in element_object.nodetemplate.interfaces:
             if i.name == 'preconfigure':
                 op_name = '_'.join([element_object.name, 'prepare', 'preconfigure'])
                 if not self.global_operations_info.get(op_name, {}).get(OUTPUT_IDS):
                     ansible_tasks.extend(
+                        self.get_ansible_tasks_from_operation(op_name, target_directory, True))
+            if i.name == 'configure':
+                op_name = '_'.join([element_object.name, 'prepare', 'configure'])
+                if not self.global_operations_info.get(op_name, {}).get(OUTPUT_IDS):
+                    post_tasks.extend(
                         self.get_ansible_tasks_from_operation(op_name, target_directory, True))
         ansible_args = copy.copy(element_object.configuration_args)
         ansible_args[STATE] = 'present'
@@ -287,6 +308,7 @@ class AnsibleConfigurationTool(ConfigurationTool):
         ansible_task_as_dict[REGISTER] = task_name
         ansible_task_as_dict.update(additional_args)
         ansible_tasks.append(ansible_task_as_dict)
+        ansible_tasks.extend(post_tasks)
         return ansible_tasks
 
     def get_ansible_tasks_for_delete(self, element_object, description_by_type, module_by_type, additional_args=None):
@@ -322,6 +344,37 @@ class AnsibleConfigurationTool(ConfigurationTool):
             ansible_tasks.append(
                 {SET_FACT: task_name + '=\'' + self.rap_ansible_variable(task_name + '_var') + '\'',
                  'when': task_name + '_var' + '.changed'})
+        return ansible_tasks
+
+    def get_ansible_tasks_from_interface(self, element_object, target_directory, is_delete, additional_args=None):
+        if additional_args is None:
+            additional_args = {}
+        else:
+            additional_args_global = copy.deepcopy(additional_args.get('global', {}))
+            additional_args_element = copy.deepcopy(additional_args.get(element_object.name, {}))
+            additional_args = utils.deep_update_dict(additional_args_global,
+                                                     additional_args_element)
+        ansible_tasks = []
+        scripts = []
+        for interface in element_object.nodetemplate.interfaces:
+            if not is_delete and interface.name == 'create' or is_delete and interface.name == 'delete':
+                implementations = interface.implementation
+                if isinstance(interface.implementation, six.string_types):
+                    implementations = [interface.implementation]
+                scripts.extend(implementations)
+
+        for script in scripts:
+            import_file = os.path.join(target_directory, script)
+            abs_path_file = os.path.abspath(import_file)
+            abs_source = os.path.abspath(script)
+            os.makedirs(os.path.dirname(abs_path_file), exist_ok=True)
+            copyfile(abs_source, abs_path_file)
+            new_ansible_task = {
+                IMPORT_TASKS_MODULE: import_file
+            }
+            new_ansible_task.update(additional_args)
+            ansible_tasks.append(new_ansible_task)
+
         return ansible_tasks
 
     def ansible_description_by_type(self, provider_source_obj_type, description_prefix):
@@ -384,9 +437,8 @@ class AnsibleConfigurationTool(ConfigurationTool):
                 new_tasks = self.create_artifact_data(art_data)
                 tasks.extend(new_tasks)
             else:
-                abs_path_file = os.path.abspath(os.path.join(target_directory, i))
                 new_task = {
-                    IMPORT_TASKS_MODULE: abs_path_file
+                    IMPORT_TASKS_MODULE: os.path.join(target_directory, i)
                 }
                 tasks.append(new_task)
         if op_info.get(OUTPUT_IDS):
@@ -437,7 +489,7 @@ class AnsibleConfigurationTool(ConfigurationTool):
             ))
         target_filename = os.path.join(target_directory, cond + self.get_artifact_extension())
         copyfile(filename, target_filename)
-        return os.path.abspath(target_filename)
+        return target_filename
 
     def copy_conditions_to_the_directory(self, conditions_set, target_directory):
         os.makedirs(target_directory, exist_ok=True)
