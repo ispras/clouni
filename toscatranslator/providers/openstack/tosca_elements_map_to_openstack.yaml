@@ -4,11 +4,26 @@ tosca.nodes.Compute:
     value: "{self[name]}"
   - properties:
       meta: openstack.nodes.Server.properties.meta
-  - parameter:  openstack.nodes.Server.interfaces.Prepare.preconfigure.implementation
+  - parameter: openstack.nodes.Server.attributes.auto_ip
+    value: false
+  - parameter: '{self[buffer][add_host][hostname]}'
+    value: '{{{{ {self[keyname]}_floating_ip.floating_ip.floating_ip_address }}}}'
+  - parameter:  openstack.nodes.FloatingIp.interfaces.Prepare.configure.implementation
     value:
-      executor: ansible
+    - executor: ansible
       source: add_host
       parameters: '{self[buffer][add_host]}'
+      value: temp_value
+    - executor: ansible
+      source: shell
+      parameters: 'ssh-keyscan {{{{ host_ip }}}},`dig +short {{{{ host_ip }}}}`'
+      value: host_key
+    - executor: ansible
+      source: known_hosts
+      parameters:
+        path: ~/.ssh/known_hosts
+        name: "{{{{ host_ip }}}}"
+        key: "{{{{ host_key.stdout }}}}"
       value: temp_value
   - attributes:
       tosca_name:
@@ -63,8 +78,6 @@ tosca.nodes.Compute:
           value:
           - port-name: "{self[name]}_port_0"
       public_address:
-        - parameter: openstack.nodes.Server.attributes.auto_ip
-          value: false
         - parameter: openstack.nodes.FloatingIp
           value:
             - attributes.floating_ip_address
@@ -118,8 +131,6 @@ tosca.nodes.Compute:
                   value: "{self[keyname]}_server"
         - parameter: '{self[buffer][add_host][groups]}'
           value: '{self[keyname]}'
-        - parameter: '{self[buffer][add_host][hostname]}'
-          value: '{self[value]}'
 #        - parameter: openstack.nodes.Server.interfaces.Prepare.preconfigure.implementation
 #          value:
 #          - executor: ansible

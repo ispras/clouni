@@ -287,11 +287,17 @@ class AnsibleConfigurationTool(ConfigurationTool):
                     arg = self.rap_ansible_variable(node_filter_value_with_id)
             configuration_args[arg_key] = arg
 
+        post_tasks = []
         for i in element_object.nodetemplate.interfaces:
             if i.name == 'preconfigure':
                 op_name = '_'.join([element_object.name, 'prepare', 'preconfigure'])
                 if not self.global_operations_info.get(op_name, {}).get(OUTPUT_IDS):
                     ansible_tasks.extend(
+                        self.get_ansible_tasks_from_operation(op_name, target_directory, True))
+            if i.name == 'configure':
+                op_name = '_'.join([element_object.name, 'prepare', 'configure'])
+                if not self.global_operations_info.get(op_name, {}).get(OUTPUT_IDS):
+                    post_tasks.extend(
                         self.get_ansible_tasks_from_operation(op_name, target_directory, True))
         ansible_args = copy.copy(element_object.configuration_args)
         ansible_args[STATE] = 'present'
@@ -302,6 +308,7 @@ class AnsibleConfigurationTool(ConfigurationTool):
         ansible_task_as_dict[REGISTER] = task_name
         ansible_task_as_dict.update(additional_args)
         ansible_tasks.append(ansible_task_as_dict)
+        ansible_tasks.extend(post_tasks)
         return ansible_tasks
 
     def get_ansible_tasks_for_delete(self, element_object, description_by_type, module_by_type, additional_args=None):

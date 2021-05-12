@@ -6,30 +6,29 @@ node_types:
 
 topology_template:
   node_templates:
-    server_kube_master:
+    tosca_server_test:
       type: tosca.nodes.Compute
       attributes:
-        public_address: 10.100.157.20
+        public_address: 10.100.149.20
         networks:
           default:
-            network_name: internal
+            network_name: net-for-intra-sandbox
       capabilities:
         host:
           properties:
             num_cpus: 1
-            disk_size: 10 GiB
+            disk_size: 50 GiB
             mem_size: 1024 MiB
         os:
           properties:
-            architecture: x86_64
-            type: cirros
-            version: 0.4.0
+            type: ubuntu
+            version: 18.04
     ku:
       type: clouni.nodes.ServerExample
       properties:
         component_version: 0.1
       requirements:
-        - host: server_kube_master
+        - host: tosca_server_test
       interfaces:
         Standard:
           create: examples/ansible-server-example.yaml
