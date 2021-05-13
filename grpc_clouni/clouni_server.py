@@ -35,9 +35,8 @@ class TranslatorServer(object):
 
         self.working_dir = os.getcwd()
 
-        output = translate(self.template_file, self.validate_only, self.provider, self.configuration_tool, self.cluster_name, self.is_delete,
+        self.output = translate(self.template_file, self.validate_only, self.provider, self.configuration_tool, self.cluster_name, self.is_delete,
                            extra={'global': self.extra}, a_file=False)
-        return output
 
 class ClouniServicer(api_pb2_grpc.ClouniServicer):
     def __init__(self, logger):
@@ -56,7 +55,7 @@ class ClouniServicer(api_pb2_grpc.ClouniServicer):
             else:
                 self.logger.info("Request - status OK")
                 response.status = ClouniResponse.Status.OK
-            response.content = TranslatorServer(args)
+            response.content = TranslatorServer(args).output
 
             self.logger.info("Response send")
             return response

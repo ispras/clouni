@@ -94,9 +94,10 @@ def main(args=None):
         request.extra = [k, v]
 
     response = stub.Clouni(request)
-    print("Status\n")
-    print(response.status)
-    print("\nError\n")
+    print("* Status *\n")
+    status = ['TEMPLATE_VALID', 'TEMPLATE_INVALID', 'OK', 'ERROR']
+    print(status[response.status])
+    print("\n* Error *\n")
     print(response.error)
-    print("\nContent\n")
+    print("\n* Content *\n")
     print(response.content)

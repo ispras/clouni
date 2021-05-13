@@ -203,26 +203,8 @@ For example to create OpenStack server cloud image name and flavor must be speci
 
 ## Usage gRPC server
 
-~~~shell
-clouni-server --help
-~~~
-Output:
-~~~
-usage: clouni-server [-h] [--max_workers <number of workers>] [--port <port>]
-                     [--verbose]
-
-optional arguments:
-  -h, --help            show this help message and exit
-  --max_workers <number of workers>
-                        Maximum of working gRPC threads, default 10
-  --port <port>, -p <port>
-                        Port on which server will be started, default 50051
-  --verbose, -v         Logger verbosity, default -vvv
-
-~~~
-
 You need to implement client using specification
-located at *toscatranslator/api.proto*
+located at *toscatranslator/api.proto*, or use CLI-client *clouni-client*
 
 Supported clouni request options are identical to the CLI version
 except not supported `--output-file` option and `--template-file` option,
@@ -230,6 +212,421 @@ replaced by `template_file_content`
 
 Log file is `./.clouni-server.log`
 
+~~~shell
+clouni-server --help
+~~~
+Output:
+~~~
+usage: clouni-server [-h] [--max-workers <number of workers>]
+                     [--host <host_name/host_address>] [--port <port>]
+                     [--verbose] [--no-host-error]
+
+optional arguments:
+  -h, --help            show this help message and exit
+  --max-workers <number of workers>
+                        Maximum of working gRPC threads, default 10
+  --host <host_name/host_address>
+                        Hosts on which server will be started, may be more
+                        than one, default [::]
+  --port <port>, -p <port>
+                        Port on which server will be started, default 50051
+  --verbose, -v         Logger verbosity, default -vvv
+  --no-host-error       If unable to start server on host:port and this option
+                        used, warning will be logged instead of critical error
+~~~
+##### Starting server
+~~~shell
+clouni-server --max-workers 20 --host 127.0.0.1 --host 20.20.20.20 --port 50051 -vv --no-host-error
+~~~
+Server will be started on 127.0.0.1:50051 with 'warning' logger verbosity level
+Warning about unability to start server on 20.20.20.20 will be logged
+## Usage CLI grpc client
+~~~shell
+clouni-client --help
+~~~
+Output:
+~~~
+sage: clouni-client [-h] --template-file <filename> --cluster-name
+                     CLUSTER_NAME [--validate-only] [--delete]
+                     [--provider PROVIDER] [--output-file <filename>]
+                     [--configuration-tool CONFIGURATION_TOOL] [--async]
+                     [--extra KEY=VALUE [KEY=VALUE ...]]
+                     [--host <host_name/host_address>] [--port <port>]
+
+optional arguments:
+  -h, --help            show this help message and exit
+  --template-file <filename>
+                        YAML template to parse.
+  --cluster-name CLUSTER_NAME
+                        Cluster name
+  --validate-only       Only validate input template, do not perform
+                        translation.
+  --delete              Delete cluster
+  --provider PROVIDER   Cloud provider name to execute ansible playbook in.
+  --output-file <filename>
+                        Output file
+  --configuration-tool CONFIGURATION_TOOL
+                        Configuration tool which DSL the template would be
+                        translated to. Default value = "ansible"
+  --async               Provider nodes should be created asynchronously
+  --extra KEY=VALUE [KEY=VALUE ...]
+                        Extra arguments for configuration tool scripts
+  --host <host_name/host_address>
+                        Host of server, default localhost
+  --port <port>, -p <port>
+                        Port of server, default 50051
+~~~
+
+Usage is the same as *clouni* usage, with additional *host* and *port* options
+
+## Examples of using server and client
+~~~shell
+clouni-server
+clouni-client --template-file examples/tosca-server-example.yaml --cluster-name example --provider openstack
+~~~
+Output:
+~~~
+Server started
+* Status *
+
+OK
+
+* Error *
+
+
+
+* Content *
+
+- name: Create openstack cluster
+  hosts: localhost
+  tasks:
+  - os_subnets_facts: {}
+    register: target_objects
+  - set_fact:
+      target_objects: '{{ target_objects[''ansible_facts''][''openstack_subnets'']
+        }}'
+    register: temp_value
+  - set_fact:
+      new_target_objects: '{{ [] }}'
+    register: tmp_value
+  - set_fact:
+      new_target_objects: '{{ new_target_objects + [item | combine({ ''allocation_pool_start'':
+        item[''allocation_pools''][0][''start''] | default([]), ''allocation_pool_end'':
+        item[''allocation_pools''][0][''end''] | default([]) })] }}'
+    register: temp_value
+    with_items: '{{ target_objects }}'
+  - set_fact:
+      target_objects: '{{ new_target_objects }}'
+    register: temp_value
+  - set_fact:
+      target_objects_4751: '{{ target_objects }}'
+  - set_fact:
+      input_facts: '{{ target_objects_4751 }}'
+  - set_fact:
+      input_args_3387:
+      - allocation_pool_start
+      - allocation_pool_end
+      - 192.168.12.26
+  - set_fact:
+      input_args: '{{ input_args_3387 }}'
+  - include: /home/winking-maniac/grpc/clouni/artifacts/ip_contains.yaml
+  - set_fact:
+      network_id: '{{ matched_object["network_id"] }}'
+    register: tmp_value
+  - set_fact:
+      network_id_7902: '{{ network_id }}'
+  - os_subnets_facts: {}
+    register: target_objects
+  - set_fact:
+      target_objects: '{{ target_objects[''ansible_facts''][''openstack_subnets'']
+        }}'
+    register: temp_value
+  - set_fact:
+      new_target_objects: '{{ [] }}'
+    register: tmp_value
+  - set_fact:
+      new_target_objects: '{{ new_target_objects + [item | combine({ ''allocation_pool_start'':
+        item[''allocation_pools''][0][''start''] | default([]), ''allocation_pool_end'':
+        item[''allocation_pools''][0][''end''] | default([]) })] }}'
+    register: temp_value
+    with_items: '{{ target_objects }}'
+  - set_fact:
+      target_objects: '{{ new_target_objects }}'
+    register: temp_value
+  - set_fact:
+      target_objects_1191: '{{ target_objects }}'
+  - os_networks_facts: {}
+    register: facts_result
+  - set_fact:
+      target_objects: '{{ facts_result["ansible_facts"]["openstack_networks"] }}'
+    register: tmp_value
+  - set_fact:
+      target_objects_2738: '{{ target_objects }}'
+  - os_image_facts: {}
+    register: facts_result
+  - set_fact:
+      target_objects: '{{ facts_result["ansible_facts"]["openstack_image"] }}'
+    register: tmp_value
+  - set_fact:
+      target_objects_2545: '{{ target_objects }}'
+  - set_fact:
+      input_facts: '{{ target_objects_1191 }}'
+  - set_fact:
+      input_args_5927:
+      - allocation_pool_start
+      - allocation_pool_end
+      - 10.10.18.217
+  - set_fact:
+      input_args: '{{ input_args_5927 }}'
+  - include: /home/winking-maniac/grpc/clouni/artifacts/ip_contains.yaml
+  - set_fact:
+      network_id: '{{ matched_object["network_id"] }}'
+    register: tmp_value
+  - set_fact:
+      network_id_8618: '{{ network_id }}'
+  - set_fact:
+      input_facts: '{{ target_objects_2738 }}'
+  - set_fact:
+      input_args_7309:
+      - id
+      - '{{ network_id_8618 }}'
+  - set_fact:
+      input_args: '{{ input_args_7309 }}'
+  - include: /home/winking-maniac/grpc/clouni/artifacts/equals.yaml
+  - set_fact:
+      name: '{{ matched_object["name"] }}'
+    register: tmp_value
+  - set_fact:
+      name_3606: '{{ name }}'
+  - set_fact:
+      input_facts: '{{ target_objects_2545 }}'
+  - set_fact:
+      input_args_2025:
+      - - name
+        - properties
+      - architecture: x86_64
+        type: ubuntu
+        distribution: xenial
+        version: 16.04
+  - set_fact:
+      input_args: '{{ input_args_2025 }}'
+  - include: /home/winking-maniac/grpc/clouni/artifacts/contains.yaml
+  - set_fact:
+      name: '{{ matched_object["name"] }}'
+    register: tmp_value
+  - set_fact:
+      name_8378: '{{ name }}'
+  - file:
+      path: '{{ playbook_dir }}/id_vars_example.yaml'
+      state: absent
+  - file:
+      path: '{{ playbook_dir }}/id_vars_example.yaml'
+      state: touch
+  - name: Create OpenStack component security group
+    os_security_group:
+      name: server_kube_master_security_group
+    register: server_kube_master_security_group
+  - set_fact:
+      server_kube_master_security_group_list: '{{ server_kube_master_security_group_list
+        | default([]) }} + [ "{{ item.id }}" ]'
+    loop: '{{ server_kube_master_security_group.results | flatten(levels=1)  }}'
+    when: item.id  is defined
+  - set_fact:
+      server_kube_master_security_group_list:
+        server_kube_master_security_group_ids: '{{ server_kube_master_security_group_list
+          }}'
+    when: server_kube_master_security_group_list is defined
+  - lineinfile:
+      path: '{{ playbook_dir }}/id_vars_example.yaml'
+      line: 'server_kube_master_security_group_delete: {{ server_kube_master_security_group.id
+        }}'
+    when: server_kube_master_security_group.id is defined
+  - lineinfile:
+      path: '{{ playbook_dir }}/id_vars_example.yaml'
+      line: '{{ server_kube_master_security_group_list | to_nice_yaml }}'
+    when: server_kube_master_security_group_list is defined
+  - fail:
+      msg: Variable server_kube_master_security_group is undefined! So it will not
+        be deleted
+    when: server_kube_master_security_group_list is undefined and server_kube_master_security_group.id
+      is undefined
+    ignore_errors: true
+  - set_fact:
+      server_kube_master_protocols:
+      - tcp
+    register: tmp
+  - set_fact:
+      server_kube_master_ports:
+      - 22
+    register: tmp
+  - name: Create OpenStack component security group rule
+    os_security_group_rule:
+      direction: ingress
+      port_range_max: '{{ server_kube_master_ports[item | int] | default(omit) }}'
+      port_range_min: '{{ server_kube_master_ports[item | int] | default(omit) }}'
+      protocol: '{{ server_kube_master_protocols[item | int] | default(omit) }}'
+      remote_ip_prefix: 0.0.0.0
+      security_group: server_kube_master_security_group
+    register: server_kube_master_security_group_rule
+    with_sequence: start=0 end={{ [server_kube_master_protocols | length, server_kube_master_ports
+      | length] | max - 1 }} format=%d
+  - set_fact:
+      server_kube_master_security_group_rule_list: '{{ server_kube_master_security_group_rule_list
+        | default([]) }} + [ "{{ item.id }}" ]'
+    loop: '{{ server_kube_master_security_group_rule.results | flatten(levels=1)  }}'
+    when: item.id  is defined
+  - set_fact:
+      server_kube_master_security_group_rule_list:
+        server_kube_master_security_group_rule_ids: '{{ server_kube_master_security_group_rule_list
+          }}'
+    when: server_kube_master_security_group_rule_list is defined
+  - lineinfile:
+      path: '{{ playbook_dir }}/id_vars_example.yaml'
+      line: 'server_kube_master_security_group_rule_delete: {{ server_kube_master_security_group_rule.id
+        }}'
+    when: server_kube_master_security_group_rule.id is defined
+  - lineinfile:
+      path: '{{ playbook_dir }}/id_vars_example.yaml'
+      line: '{{ server_kube_master_security_group_rule_list | to_nice_yaml }}'
+    when: server_kube_master_security_group_rule_list is defined
+  - fail:
+      msg: Variable server_kube_master_security_group_rule is undefined! So it will
+        not be deleted
+    when: server_kube_master_security_group_rule_list is undefined and server_kube_master_security_group_rule.id
+      is undefined
+    ignore_errors: true
+  - name: Create OpenStack component port
+    os_port:
+      fixed_ips:
+      - ip_address: 192.168.12.26
+      name: server_kube_master_port_0
+      vnic_type: normal
+      network: '{{ network_id_7902 }}'
+    register: server_kube_master_port
+  - set_fact:
+      server_kube_master_port_list: '{{ server_kube_master_port_list | default([])
+        }} + [ "{{ item.id }}" ]'
+    loop: '{{ server_kube_master_port.results | flatten(levels=1)  }}'
+    when: item.id  is defined
+  - set_fact:
+      server_kube_master_port_list:
+        server_kube_master_port_ids: '{{ server_kube_master_port_list }}'
+    when: server_kube_master_port_list is defined
+  - lineinfile:
+      path: '{{ playbook_dir }}/id_vars_example.yaml'
+      line: 'server_kube_master_port_delete: {{ server_kube_master_port.id }}'
+    when: server_kube_master_port.id is defined
+  - lineinfile:
+      path: '{{ playbook_dir }}/id_vars_example.yaml'
+      line: '{{ server_kube_master_port_list | to_nice_yaml }}'
+    when: server_kube_master_port_list is defined
+  - fail:
+      msg: Variable server_kube_master_port is undefined! So it will not be deleted
+    when: server_kube_master_port_list is undefined and server_kube_master_port.id
+      is undefined
+    ignore_errors: true
+  - os_flavor_facts: {}
+    register: node_filter_facts_raw
+  - set_fact:
+      input_facts: '{{ node_filter_facts_raw["ansible_facts"]["openstack_flavors"]
+        }}'
+  - set_fact:
+      input_args:
+        vcpus: 1
+        disk: 5.0
+        ram: 1024.0
+  - include: /home/winking-maniac/grpc/clouni/artifacts/equals.yaml
+  - set_fact:
+      id_8623: '{{ matched_object["id"] }}'
+  - name: Create OpenStack component server
+    os_server:
+      config_drive: false
+      name: server_kube_master
+      nics:
+      - port-name: server_kube_master_port_0
+      - net-name: test-two-routers
+      auto_ip: false
+      flavor: '{{ id_8623 }}'
+      security_groups:
+      - server_kube_master_security_group
+      image: '{{ name_8378 }}'
+    register: server_kube_master_server
+  - set_fact:
+      server_kube_master_server_list: '{{ server_kube_master_server_list | default([])
+        }} + [ "{{ item.id }}" ]'
+    loop: '{{ server_kube_master_server.results | flatten(levels=1)  }}'
+    when: item.id  is defined
+  - set_fact:
+      server_kube_master_server_list:
+        server_kube_master_server_ids: '{{ server_kube_master_server_list }}'
+    when: server_kube_master_server_list is defined
+  - lineinfile:
+      path: '{{ playbook_dir }}/id_vars_example.yaml'
+      line: 'server_kube_master_server_delete: {{ server_kube_master_server.id }}'
+    when: server_kube_master_server.id is defined
+  - lineinfile:
+      path: '{{ playbook_dir }}/id_vars_example.yaml'
+      line: '{{ server_kube_master_server_list | to_nice_yaml }}'
+    when: server_kube_master_server_list is defined
+  - fail:
+      msg: Variable server_kube_master_server is undefined! So it will not be deleted
+    when: server_kube_master_server_list is undefined and server_kube_master_server.id
+      is undefined
+    ignore_errors: true
+  - name: Create OpenStack component floating ip
+    os_floating_ip:
+      floating_ip_address: 10.10.18.217
+      network: '{{ name_3606 }}'
+      server: server_kube_master
+    register: server_kube_master_floating_ip
+  - set_fact:
+      server_kube_master_floating_ip_list: '{{ server_kube_master_floating_ip_list
+        | default([]) }} + [ "{{ item.id }}" ]'
+    loop: '{{ server_kube_master_floating_ip.results | flatten(levels=1)  }}'
+    when: item.id  is defined
+  - set_fact:
+      server_kube_master_floating_ip_list:
+        server_kube_master_floating_ip_ids: '{{ server_kube_master_floating_ip_list
+          }}'
+    when: server_kube_master_floating_ip_list is defined
+  - lineinfile:
+      path: '{{ playbook_dir }}/id_vars_example.yaml'
+      line: 'server_kube_master_floating_ip_delete: {{ server_kube_master_floating_ip.id
+        }}'
+    when: server_kube_master_floating_ip.id is defined
+  - lineinfile:
+      path: '{{ playbook_dir }}/id_vars_example.yaml'
+      line: '{{ server_kube_master_floating_ip_list | to_nice_yaml }}'
+    when: server_kube_master_floating_ip_list is defined
+  - fail:
+      msg: Variable server_kube_master_floating_ip is undefined! So it will not be
+        deleted
+    when: server_kube_master_floating_ip_list is undefined and server_kube_master_floating_ip.id
+      is undefined
+    ignore_errors: true
+
+
+~~~
+
+
+~~~shell
+clouni-server
+clouni-client --template-file examples/tosca-server-example.yaml --cluster-name example --provider cubernetes
+~~~
+Output:
+~~~
+* Status *
+
+ERROR
+
+* Error *
+
+Provider configuration was not found. It must be one of the variants: "['/home/winking-maniac/grpc/clouni/cubernetes.cfg', '/home/winking-maniac/test/venv/clouni/lib/python3.6/site-packages/clouni-0.0.1-py3.6.egg/cubernetes.cfg', '/home/winking-maniac/test/venv/clouni/lib/python3.6/site-packages/clouni-0.0.1-py3.6.egg/toscatranslator/providers/cubernetes/provider.cfg', '/home/winking-maniac/test/venv/clouni/lib/python3.6/site-packages/clouni-0.0.1-py3.6.egg/toscatranslator/providers/cubernetes/cubernetes.cfg']"
+
+* Content *
+
+
+~~~
 ## Adding new provider
 
 Template of project files structure:
