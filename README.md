@@ -219,7 +219,7 @@ Output:
 ~~~
 usage: clouni-server [-h] [--max-workers <number of workers>]
                      [--host <host_name/host_address>] [--port <port>]
-                     [--verbose] [--no-host-error]
+                     [--verbose] [--no-host-error] [--stop]
 
 optional arguments:
   -h, --help            show this help message and exit
@@ -233,6 +233,7 @@ optional arguments:
   --verbose, -v         Logger verbosity, default -vvv
   --no-host-error       If unable to start server on host:port and this option
                         used, warning will be logged instead of critical error
+  --stop                Stops all working servers and exit
 ~~~
 ##### Starting server
 ~~~shell
@@ -246,7 +247,7 @@ clouni-client --help
 ~~~
 Output:
 ~~~
-Usage: clouni-client [-h] --template-file <filename> --cluster-name
+usage: clouni-client [-h] --template-file <filename> --cluster-name
                      CLUSTER_NAME [--validate-only] [--delete]
                      [--provider PROVIDER] [--output-file <filename>]
                      [--configuration-tool CONFIGURATION_TOOL] [--async]

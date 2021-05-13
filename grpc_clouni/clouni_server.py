@@ -11,6 +11,14 @@ import sys
 import atexit
 import os
 import six
+import signal
+from time import sleep
+from functools import partial
+
+def exit_gracefully(server, logger, x, y):
+    server.stop(None)
+    logger.info("Server stopped")
+    sys.exit(0)
 
 class TranslatorServer(object):
     def __init__(self, argv):
@@ -141,12 +149,16 @@ def parse_args(argv):
                         action='store_true',
                         default=False,
                         help='If unable to start server on host:port and this option used, warning will be logged instead of critical error')
+    parser.add_argument('--stop',
+                        action='store_true',
+                        default=False,
+                        help='Stops all working servers and exit')
     try:
         args, args_list = parser.parse_known_args(argv)
     except argparse.ArgumentError:
         logging.critical("Failed to parse arguments. Exiting")
         sys.exit(1)
-    return args.max_workers, args.host, args.port, args.verbose, args.no_host_error
+    return args.max_workers, args.host, args.port, args.verbose, args.no_host_error, args.stop
 
 def serve(argv =  None):
     if os.fork():
@@ -163,8 +175,19 @@ def serve(argv =  None):
     # Argparse
     if argv is None:
         argv = sys.argv[1:]
-    max_workers, hosts, port, verbose, no_host_error = parse_args(argv)
-
+    max_workers, hosts, port, verbose, no_host_error, stop = parse_args(argv)
+    if stop:
+        try:
+            with open("/tmp/.clouni-server.pid", mode='r') as f:
+                for line in f:
+                    try:
+                        os.kill(int(line), signal.SIGTERM)
+                    except ProcessLookupError as e:
+                        print(e)
+            os.remove("/tmp/.clouni-server.pid")
+        except FileNotFoundError:
+            print("Working servers not found: no .clouni-server.pid file in this directory")
+        sys.exit(0)
     # Verbosity choose
     if verbose == 1:
         logger.info("Logger level set to ERROR")
@@ -211,6 +234,8 @@ def serve(argv =  None):
                     logger.error("Failed to start server on %s:%s", host, port)
                     sys.exit(1)
         if host_exist:
+            with open("/tmp/.clouni-server.pid", mode='a') as f:
+                f.write(str(os.getpid()) + '\n')
             server.start()
             logger.info("Server started")
             print("Server started")
@@ -220,12 +245,10 @@ def serve(argv =  None):
     except Exception:
         logger.critical("Unable to start the server")
         sys.exit(1)
-    try:
-        server.wait_for_termination()
-    except KeyboardInterrupt:
-        server.stop(None)
-        logger.info("Server stopped")
-
+    signal.signal(signal.SIGINT, partial(exit_gracefully, server, logger))
+    signal.signal(signal.SIGTERM, partial(exit_gracefully, server, logger))
+    while True:
+        sleep(100)
 
 if __name__ == '__main__':
     serve()
