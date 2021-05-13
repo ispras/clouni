@@ -1,10 +1,14 @@
 ---
 
 - name: Create server Openstack
-  hosts: all
+  hosts: localhost
   tasks:
-    # Gather info if your tosca template use
     - name: Create infrastructure using TOSCA template
-      cloud_infra_by_tosca_create:
+      clouni:
         template_file: tosca-server-example.yaml
-        validate_only: true
+        provider: openstack
+        cluster_name: testing_ansible
+      register: output_data
+
+    - debug:
+        var: output_data

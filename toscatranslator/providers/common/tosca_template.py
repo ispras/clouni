@@ -4,23 +4,20 @@ import json
 import yaml
 
 from toscaparser.common.exception import ExceptionCollector, ValidationError
-
-from toscatranslator.providers.common.translator_to_provider import translate as translate_to_provider
-
-from toscatranslator.common import tosca_type
-
 from toscaparser.imports import ImportsLoader
-
 from toscaparser.topology_template import TopologyTemplate
 
-from toscatranslator.configuration_tools.combined.combine_configuration_tools import CONFIGURATION_TOOLS
-from toscatranslator.common.exception import ProviderFileError, TemplateDependencyError, UnsupportedExecutorType, \
+from toscatranslator.common.exception import ProviderFileError, TemplateDependencyError, \
     ProviderConfigurationParameterError
 
 from toscatranslator.common.tosca_reserved_keys import *
-from toscatranslator.common.utils import deep_update_dict
-from toscatranslator.providers.common.provider_resource import ProviderResource
+from toscatranslator.common import utils
+
 from toscatranslator.providers.common.provider_configuration import ProviderConfiguration
+from toscatranslator.providers.common.translator_to_provider import translate as translate_to_provider
+from toscatranslator.providers.common.provider_resource import ProviderResource
+
+SEPARATOR = '.'
 
 
 class ProviderToscaTemplate(object):
@@ -50,7 +47,7 @@ class ProviderToscaTemplate(object):
         # toscaparser.tosca_template:ToscaTemplate
         self.tosca_parser_template = tosca_parser_template
         # toscaparser.topology_template:TopologyTemplate
-        self.tosca_topology_template = tosca_parser_template.topology_template
+        self.tosca_topology_template = self.full_type_definitions(self.tosca_parser_template.topology_template)
 
         import_definition_file = ImportsLoader([self.definition_file()], None, list(SERVICE_TEMPLATE_KEYS),
                                                self.tosca_topology_template.tpl)
@@ -61,6 +58,9 @@ class ProviderToscaTemplate(object):
         self.artifacts = []
         self.used_conditions_set = set()
         self.extra_configuration_tool_params = dict()
+        self.inputs = self.tosca_topology_template.inputs
+        self.outputs = self.tosca_topology_template.outputs
+        node_templates = self.resolve_get_property_functions(self.tosca_topology_template.nodetemplates)
 
         self.topology_template = self.translate_to_provider()
 
@@ -76,6 +76,10 @@ class ProviderToscaTemplate(object):
         self.configuration_ready = None
 
         # Create the list of ProviderResource instances
+        self.software_component_names = []
+        for node in self.node_templates:
+            if self._is_software_component(node):
+                self.software_component_names.append(node.name)
         self.provider_nodes = self._provider_nodes()
         self.provider_nodes_by_name = self._provider_nodes_by_name()
         self.relationship_templates_by_name = self._relationship_templates_by_name()
@@ -90,59 +94,20 @@ class ProviderToscaTemplate(object):
         """
         provider_nodes = list()
         for node in self.node_templates:
-            (namespace, category, type_name) = tosca_type.parse(node.type)
-            if namespace != self.provider or category != NODES:
+            (namespace, category, type_name) = utils.tosca_type_parse(node.type)
+            is_software_component = node.name in self.software_component_names
+            if namespace != self.provider and not is_software_component or category != NODES:
                 ExceptionCollector.appendException(Exception('Unexpected values'))
-            provider_node_instance = ProviderResource(self.provider, node, self.relationship_templates)
+            provider_node_instance = ProviderResource(self.provider, node, self.relationship_templates,
+                                                      is_software_component)
             provider_nodes.append(provider_node_instance)
+
         return provider_nodes
 
-    def to_configuration_dsl(self, configuration_tool, is_delete, directory=None, extra=None):
-        """
-        Fulfill configuration_content with functions based on configuration tool from every node
-        :return:
-        """
-        if not directory:
-            directory = self.DEFAULT_ARTIFACTS_DIRECTOR
-        if not extra:
-            extra = dict()
-
-        self.configuration_content = ''
-        self.configuration_ready = False
-        tool = CONFIGURATION_TOOLS.get(configuration_tool)()
-        if bool(self.used_conditions_set):
-            tool.copy_conditions_to_the_directory(self.used_conditions_set, directory)
-        tool_artifacts = []
-        for art in self.artifacts:
-            executor = art.get(EXECUTOR)
-            if bool(executor) and executor != configuration_tool:
-                self.generate_artifacts([art], directory)
-            else:
-                tool_artifacts.append(art)
-        extra = deep_update_dict(extra, self.extra_configuration_tool_params.get(configuration_tool, {}))
-        self.configuration_content = tool.to_dsl_for_delete(self.provider, self.provider_nodes_queue, self.cluster_name, extra=extra) \
-                if is_delete else tool.to_dsl_for_create(self.provider, self.provider_nodes_queue, tool_artifacts, directory, self.cluster_name, extra=extra)
-        self.configuration_ready = True
-        return self.configuration_content
-
-    def generate_artifacts(self, new_artifacts, directory=None):
-        """
-        From the info of new artifacts generate files which execute
-        :param new_artifacts: list of dicts containing (value, source, parameters, executor, name, configuration_tool)
-        :return: None
-        """
-        if not directory:
-            directory = self.DEFAULT_ARTIFACTS_DIRECTOR
-
-        for art in new_artifacts:
-            filename = os.path.join(directory, art[NAME])
-            configuration_class = CONFIGURATION_TOOLS.get(art[EXECUTOR])()
-            if not configuration_class:
-                ExceptionCollector.appendException(UnsupportedExecutorType(
-                    what=art[EXECUTOR]
-                ))
-            configuration_class.create_artifact(filename, art)
-            self.artifacts.append(filename)
+    def full_type_definitions(self, topology_template):
+        for node in topology_template.nodetemplates:
+            node.type_definition = utils.get_full_type_definition(node.type_definition)
+        return topology_template
 
     def _sort_nodes_by_priority(self):
         """
@@ -151,11 +116,20 @@ class ProviderToscaTemplate(object):
         :return: dictionary with keys = priority
         """
         sorted_by_priority = dict()
-        for i in range(0, ProviderResource.MAX_NUM_PRIORITIES):
-            sorted_by_priority[i] = []
+        max_priority = 0
         for node in self.provider_nodes:
-            priority = node.node_priority_by_type()
-            sorted_by_priority[priority].append(node.nodetemplate.name)
+            if not node.name in self.software_component_names:
+                priority = node.node_priority_by_type()
+                priority_sorted = sorted_by_priority.get(priority, [])
+                priority_sorted.append(node.nodetemplate.name)
+                sorted_by_priority[priority] = priority_sorted
+                if priority > max_priority:
+                    max_priority = priority
+        max_priority += 1
+        for i in range(max_priority):
+            if sorted_by_priority.get(i, None) is None:
+                sorted_by_priority[i] = []
+        sorted_by_priority[max_priority] = self.software_component_names
         return sorted_by_priority
 
     def _relationship_templates_by_name(self):
@@ -176,6 +150,14 @@ class ProviderToscaTemplate(object):
             provider_nodes_by_name[node.nodetemplate.name] = node
 
         return provider_nodes_by_name
+
+    def _is_software_component(self, node):
+        tmp = copy.copy(node)
+        while tmp != None:
+            if tmp.type == 'tosca.nodes.SoftwareComponent':
+                return True
+            tmp = tmp.parent_type
+        return False
 
     def sort_nodes_by_dependency(self):
         """
@@ -293,12 +275,12 @@ class ProviderToscaTemplate(object):
                         req_node = req[k].get(NODE)
 
                         if req_relationship is not None:
-                            _, _, type_name = tosca_type.parse(req_relationship)
+                            _, _, type_name = utils.tosca_type_parse(req_relationship)
                             if type_name is None:
                                 self.add_template_dependency(node.name, req_relationship)
 
                         if req_node is not None:
-                            _, _, type_name = tosca_type.parse(req_node)
+                            _, _, type_name = utils.tosca_type_parse(req_node)
                             if type_name is None:
                                 self.add_template_dependency(node.name, req_node)
 
@@ -381,7 +363,7 @@ class ProviderToscaTemplate(object):
 
     def translate_to_provider(self):
         new_element_templates, new_artifacts, conditions_set, new_extra = translate_to_provider(
-            self.tosca_elements_map_to_provider(), self.tosca_topology_template)
+            self.tosca_elements_map_to_provider(), self.tosca_topology_template, self.provider)
 
         self.used_conditions_set = conditions_set
         dict_tpl = copy.deepcopy(self.tosca_topology_template.tpl)
@@ -392,12 +374,43 @@ class ProviderToscaTemplate(object):
 
         rel_types = []
         for k, v in self.provider_defs.items():
-            (_, element_type, _) = tosca_type.parse(k)
+            (_, element_type, _) = utils.tosca_type_parse(k)
             if element_type == RELATIONSHIP_TYPES:
                 rel_types.append(v)
 
         topology_tpl = TopologyTemplate(dict_tpl, self.full_provider_defs, rel_types)
         self.artifacts.extend(new_artifacts)
-        self.extra_configuration_tool_params = deep_update_dict(self.extra_configuration_tool_params, new_extra)
+        self.extra_configuration_tool_params = utils.deep_update_dict(self.extra_configuration_tool_params, new_extra)
 
         return topology_tpl
+
+    def _get_all_get_properties(self, data, path=''):
+        r = []
+        if isinstance(data, dict):
+            for k, v in data.items():
+                if k == GET_PROPERTY:
+                    r.append({path: v})
+                r.extend(self._get_all_get_properties(v, SEPARATOR.join([path, k])))
+        elif isinstance(data, list):
+            for i in range(len(data)):
+                r.extend(self._get_all_get_properties(data[i], SEPARATOR.join([path, str(i)])))
+        return r
+
+    def resolve_get_property_functions(self, nodes):
+        functions = []
+        nodes_by_name = {}
+        for node in nodes:
+            functions.extend(self._get_all_get_properties(node.entity_tpl, node.name))
+            nodes_by_name[node.name] = node
+        for function in functions:
+            for f_name, f_body in function.items():
+                dep_node = nodes_by_name[f_body[0]]
+                function[f_name] = dep_node.entity_tpl[PROPERTIES][f_body[1]]
+        for function in functions:
+            for f_name, f_body in function.items():
+                f_name_splitted = f_name.split(SEPARATOR)
+                tpl = nodes_by_name[f_name_splitted[0]].entity_tpl
+                for i in range(1, len(f_name_splitted)-1):
+                    tpl = tpl[f_name_splitted[i]]
+                tpl[f_name_splitted[-1]] = f_body
+        return nodes

@@ -37,8 +37,10 @@ class TemplateDependencyError(TOSCAException):
 class UnsupportedExecutorType(TOSCAException):
     msg_fmt = _('Unsupported executor/configuration tool name: "%(what)s"')
 
+
 class UnsupportedUnit(TOSCAException):
     msg_fmt = _('Unsupported unit "%(what)s"')
+
 
 class ProviderConfigurationNotFound(TOSCAException):
     msg_fmt = _('Provider configuration was not found. It must be one of the variants: "%(what)s"')
@@ -46,6 +48,14 @@ class ProviderConfigurationNotFound(TOSCAException):
 
 class ProviderConfigurationParameterError(TOSCAException):
     msg_fmt = _('Provider configuration parameter "%(what)s" has unsupported value or missing')
+
+
+class ConfigurationNotFound(TOSCAException):
+    msg_fmt = _('Configuration file was not found. It must be one of the variants: "%(what)s"')
+
+
+class ConfigurationParameterError(TOSCAException):
+    msg_fmt = _('Configuration parameter "%(what)s" has unsupported value or missing')
 
 
 class ConditionFileError(TOSCAException):

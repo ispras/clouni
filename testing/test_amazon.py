@@ -1,19 +1,34 @@
 from testing.base import TestAnsibleProvider, shell
 import copy
 import unittest
+import os, yaml
 
 
 INSTANCE_MODULE_NAME = 'ec2_instance'
 SEC_GROUP_MODULE_NAME = 'ec2_group'
+from toscatranslator.common.tosca_reserved_keys import TOPOLOGY_TEMPLATE, NODE_TEMPLATES, ATTRIBUTES
+PUBLIC_ADDRESS = 'public_address'
 
 
 class TestAnsibleAmazonOutput (unittest.TestCase, TestAnsibleProvider):
     PROVIDER = 'amazon'
 
+    @unittest.expectedFailure
+    def test_full_translating(self):
+        assert False
+
+    def test_full_translating_no_public(self):
+        file_path = os.path.join('examples', 'tosca-server-example.yaml')
+        template_raw = self.read_template(file_path)
+        template = yaml.load(template_raw)
+        template[TOPOLOGY_TEMPLATE][NODE_TEMPLATES][self.NODE_NAME][ATTRIBUTES].pop(PUBLIC_ADDRESS)
+        playbook = self.get_ansible_create_output(template)
+        self.assertIsNotNone(playbook)
+
     def test_validation(self):
         # Public address is not supported in AWS
-        shell.main(['--template-file', 'examples/tosca-server-example-amazon.yaml', '--validate-only',
-                    '--cluster-name', 'test'])
+        file_path = os.path.join('examples', 'tosca-server-example-amazon.yaml')
+        shell.main(['--template-file', file_path, '--validate-only', '--cluster-name', 'test'])
 
     def test_translating_to_ansible(self):
         shell.main(['--template-file', 'examples/tosca-server-example-amazon.yaml', '--provider', self.PROVIDER,
@@ -26,7 +41,7 @@ class TestAnsibleAmazonOutput (unittest.TestCase, TestAnsibleProvider):
         self.assertIsInstance(playbook[0], dict)
         self.assertIsNotNone(playbook[0]['tasks'])
         tasks = playbook[0]['tasks']
-        self.assertEqual(len(tasks), 5)
+        self.assertEqual(len(tasks), 8)
         self.assertIsNotNone(tasks[2][INSTANCE_MODULE_NAME])
         server = tasks[2][INSTANCE_MODULE_NAME]
         self.assertEqual(server['name'], self.NODE_NAME)
