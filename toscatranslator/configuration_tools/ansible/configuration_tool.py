@@ -370,18 +370,21 @@ class AnsibleConfigurationTool(ConfigurationTool):
                 if isinstance(interface.implementation, six.string_types):
                     implementations = [interface.implementation]
                 scripts.extend(implementations)
-
-        for script in scripts:
-            import_file = os.path.join(target_directory, script)
-            abs_path_file = os.path.abspath(import_file)
-            abs_source = os.path.abspath(script)
-            os.makedirs(os.path.dirname(abs_path_file), exist_ok=True)
-            copyfile(abs_source, abs_path_file)
-            new_ansible_task = {
-                IMPORT_TASKS_MODULE: import_file
-            }
-            new_ansible_task.update(additional_args)
-            ansible_tasks.append(new_ansible_task)
+                for script in implementations:
+                    import_file = os.path.join(target_directory, script)
+                    os.makedirs(os.path.dirname(import_file), exist_ok=True)
+                    copyfile(script, import_file)
+                    for input_name, input_value in interface.inputs.items():
+                        ansible_tasks.append({
+                            SET_FACT: {
+                                input_name: input_value
+                            }
+                        })
+                    new_ansible_task = {
+                        IMPORT_TASKS_MODULE: import_file
+                    }
+                    new_ansible_task.update(additional_args)
+                    ansible_tasks.append(new_ansible_task)
 
         return ansible_tasks
 

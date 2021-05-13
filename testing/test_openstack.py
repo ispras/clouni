@@ -74,7 +74,7 @@ class TestAnsibleOpenStackOutput (unittest.TestCase, TestAnsibleProvider):
         self.assertIsInstance(playbook[0], dict)
         self.assertIsNotNone(playbook[0]['tasks'])
         tasks = playbook[0]['tasks']
-        self.assertEqual(len(tasks), 17)
+        self.assertEqual(len(tasks), 18)
         self.assertIsNotNone(tasks[2][SERVER_MODULE_NAME])
         server = tasks[2][SERVER_MODULE_NAME]
         self.assertEqual(server['name'], self.NODE_NAME)
@@ -312,9 +312,11 @@ class TestAnsibleOpenStackOutput (unittest.TestCase, TestAnsibleProvider):
             }],
             'interfaces':{
                 'Standard': {
-                    'create': 'examples/ansible-server-example.yaml',
-                    'inputs': {
-                        'version': { 'get_property': ['service_1', 'component_version'] }
+                    'create': {
+                        'implementation': 'examples/ansible-server-example.yaml',
+                        'inputs': {
+                            'version': { 'get_property': ['service_1', 'component_version'] }
+                        }
                     }
                 }
             }
@@ -324,6 +326,7 @@ class TestAnsibleOpenStackOutput (unittest.TestCase, TestAnsibleProvider):
         self.assertEqual(len(playbook), 2)
         self.assertIsNotNone(playbook[0].get('tasks'))
         self.assertIsNotNone(playbook[1].get('tasks'))
+        self.assertEqual(playbook[1].get('hosts'), self.NODE_NAME)
 
         checked = False
         tasks = playbook[0]['tasks']
@@ -353,6 +356,13 @@ class TestAnsibleOpenStackOutput (unittest.TestCase, TestAnsibleProvider):
                                  '{{ host_ip }}')
                 self.assertEqual(tasks[i+4]['known_hosts'].get('key', None),
                                  '{{ host_key.stdout }}')
+                checked = True
+        self.assertTrue(checked)
+
+        tasks = playbook[1]['tasks']
+        self.assertEqual(len(tasks), 2)
+        self.assertEqual(tasks[0].get('set_fact', {}).get('version', None), 0.1)
+        self.assertEqual(tasks[1].get('include', None), "artifacts/examples/ansible-server-example.yaml")
 
     def test_get_input(self):
         template = copy.deepcopy(self.DEFAULT_TEMPLATE)
