@@ -5,13 +5,18 @@ tosca.nodes.Compute:
   - properties:
       meta: openstack.nodes.Server.properties.meta
   - parameter: '{self[buffer][add_host][hostname]}'
-    value: '{{{{ {self[keyname]}_floating_ip.floating_ip.floating_ip_address }}}}'
+    value: '{{{{ host_ip }}}}'
   - parameter: openstack.nodes.FloatingIp.requirements
     value:
       parameter: server
       value: "{self[keyname]}_server"
   - parameter:  openstack.nodes.FloatingIp.interfaces.Prepare.configure.implementation
     value:
+    - executor: ansible
+      source: set_fact
+      parameters:
+        host_ip: '{{{{ {self[keyname]}_floating_ip.floating_ip.floating_ip_address }}}}'
+      value: temp_value
     - executor: ansible
       source: add_host
       parameters: '{self[buffer][add_host]}'
@@ -131,22 +136,6 @@ tosca.nodes.Compute:
                           - "{self[value]}"
         - parameter: '{self[buffer][add_host][groups]}'
           value: '{self[keyname]}'
-#        - parameter: openstack.nodes.Server.interfaces.Prepare.preconfigure.implementation
-#          value:
-#          - executor: ansible
-#            source: lineinfile
-#            parameters:
-#              insertafter: EOF
-#              line: '[{self[keyname]}]'
-#              path: 'inventory.yaml'
-#            value: temp_value
-#          - executor: ansible
-#            source: lineinfile
-#            parameters:
-#              insertafter: EOF
-#              line: '{self[value]}'
-#              path: 'inventory.yaml'
-#            value: temp_value
       networks.*.network_name:
         parameter: openstack.nodes.Server.properties.nics
         value:

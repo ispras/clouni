@@ -6,6 +6,7 @@ import yaml
 from toscaparser.common.exception import ExceptionCollector, ValidationError
 from toscaparser.imports import ImportsLoader
 from toscaparser.topology_template import TopologyTemplate
+from toscaparser.functions import GetProperty
 
 from toscatranslator.common.exception import ProviderFileError, TemplateDependencyError, \
     ProviderConfigurationParameterError
@@ -394,6 +395,8 @@ class ProviderToscaTemplate(object):
         elif isinstance(data, list):
             for i in range(len(data)):
                 r.extend(self._get_all_get_properties(data[i], SEPARATOR.join([path, str(i)])))
+        elif isinstance(data, GetProperty):
+            r.append({path: data.args})
         return r
 
     def resolve_get_property_functions(self, nodes):
