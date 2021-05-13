@@ -3,7 +3,7 @@ from toscaparser.common.exception import ExceptionCollector
 from toscatranslator.common.exception import UnsupportedRequirementError
 from toscatranslator.providers.common.requirement import ProviderRequirement
 
-from toscatranslator.common import tosca_type, snake_case
+from toscatranslator.common import utils
 from toscatranslator.common.tosca_reserved_keys import OCCURRENCES, NODE, NAME
 
 
@@ -25,8 +25,8 @@ class ProviderRequirements (object):
             req_name = req_def[NAME]
             req_node = req_def.get(NODE)
             if req_node:
-                (_, _, type_name) = tosca_type.parse(req_node)
-                node_name = snake_case.convert(type_name)
+                (_, _, type_name) = utils.tosca_type_parse(req_node)
+                node_name = utils.snake_case(type_name)
                 if node_name == 'root':
                     continue
                 temp_req_val = self.node_name_by_requirement_name.get(req_name)
@@ -41,7 +41,7 @@ class ProviderRequirements (object):
         # NOTE set the list required requirements and the list of multiple requirements (of type list)
         self.required_requirement_keys = set()
         for req_def in self.requirement_definitions:
-            occurrences = req_def.get(OCCURRENCES)  # list
+            occurrences = req_def.get(OCCURRENCES, [0, 'UNBOUNDED'])  # list
             min_ocs = occurrences[0]
             max_ocs = occurrences[1]
             if int(min_ocs) > 0:

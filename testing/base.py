@@ -3,6 +3,7 @@ from toscatranslator import shell
 import os
 import yaml
 import copy
+import difflib
 
 from toscatranslator.common.utils import deep_update_dict
 from toscatranslator.common.tosca_reserved_keys import PROVIDERS, ANSIBLE, TYPE, \
@@ -10,9 +11,10 @@ from toscatranslator.common.tosca_reserved_keys import PROVIDERS, ANSIBLE, TYPE,
 
 TEST = 'test'
 
+
 class BaseAnsibleProvider:
     TESTING_TEMPLATE_FILENAME_TO_JOIN = ['examples', 'testing-example.yaml']
-    NODE_NAME = 'server-master'
+    NODE_NAME = 'server_kube_master'
     DEFAULT_TEMPLATE = {
         TOSCA_DEFINITIONS_VERSION: "tosca_simple_yaml_1_0",
         TOPOLOGY_TEMPLATE: {
@@ -32,6 +34,12 @@ class BaseAnsibleProvider:
             else:
                 r = os.path.join(r, i)
         return r
+
+    def read_template(self, filename=None):
+        if not filename:
+            filename = self.testing_template_filename()
+        with open(filename, 'r') as f:
+            return f.read()
 
     def write_template(self, template, filename=None):
         if not filename:
@@ -138,11 +146,18 @@ class BaseAnsibleProvider:
     def update_template_requirement(self, template, node_name, update_value):
         return self.update_node_template(template, node_name, update_value, REQUIREMENTS)
 
+    def diff_files(self, file_name1, file_name2):
+        with open(file_name1, 'r') as file1, open(file_name2, 'r') as file2:
+            text1 = file1.readlines()
+            text2 = file2.readlines()
+            for line in difflib.unified_diff(text1, text2):
+                print(line)
+
 
 class TestAnsibleProvider(BaseAnsibleProvider):
     def test_full_translating(self):
-        shell.main(['--template-file', 'examples/tosca-server-example.yaml', '--provider', self.PROVIDER,
-                    '--cluster-name', 'test'])
+        file_path = os.path.join('examples', 'tosca-server-example.yaml')
+        shell.main(['--template-file', file_path, '--provider', self.PROVIDER, '--cluster-name', 'test'])
 
     def test_meta(self, extra=None):
         if hasattr(self, 'check_meta'):

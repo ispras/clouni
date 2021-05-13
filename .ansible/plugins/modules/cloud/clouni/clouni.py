@@ -14,11 +14,11 @@ ANSIBLE_METADATA = {
 
 DOCUMENTATION = '''
 ---
-module: cloud_infra_by_tosca_create
+module: clouni
 short_description: Module to create infrastructure in cloud using TOSCA template
 version_added: "0.1"
 options:
-  template:
+  template_file:
     description: Path to the file, which contains TOSCA template
     required: true
 author:
@@ -28,8 +28,10 @@ author:
 EXAMPLES = '''
 # Specify the template
 - name: Create infrastructure using TOSCA template
-    cloud_infra_by_tosca_create:
-     template: openstack-server-example.yaml
+    clouni:
+     template_file: tosca-server-example.yaml
+     provider: openstack
+     cluster_name: testing_ansible
     register: infra_result
 
 - debug:
@@ -49,38 +51,42 @@ debug_output:
 
 from ansible.module_utils.basic import AnsibleModule
 
-import ansible.module_utils.cloud_infra_by_tosca as cibt
-
 
 def main():
     # Import toscatranslator modules
     import importlib
-    translator_to_ansible_lib = importlib.import_module('toscatranslator.common.translator_to_ansible')
-    translator = translator_to_ansible_lib.translate
+    translator_to_configuration_dsl_lib = importlib.import_module('toscatranslator.common.translator_to_configuration_dsl')
+    translator = translator_to_configuration_dsl_lib.translate
     parser_exception_lib = importlib.import_module('toscaparser.common.exception')
-    translator_exception_lib = importlib.import_module('toscatranslator.common.exception')
 
-    argument_spec = cibt.cloud_infra_full_argument_spec(
+    argument_spec = dict(
         template_file=dict(type='path', required=True),
-        validate_only=dict(type='bool', required=False),
-        translate_only=dict(type='bool', required=False),
-        provider=dict(type='str', required=False),
-        facts=dict(type='dict', required=False),
-        output_file=dict(type='path', required=False),
+        validate_only=dict(type='bool', default=False),
+        provider=dict(type='str', required=True, choices=['openstack', 'amazon', 'kubernetes']),
+        configuration_tool=dict(type='str', default='ansible', choices=['ansible', 'kubernetes']),
+        cluster_name=dict(type='str', required=True),
+        state=dict(type='str', default='present', choices=['present', 'absent']),
+        extra=dict(type='str', default=None),
+        output_playbook_name=dict(type='path', required=False),
     )
     ansible_module = AnsibleModule(argument_spec=argument_spec, supports_check_mode=True)
 
     template_file = ansible_module.params['template_file']
     validate_only = ansible_module.params['validate_only']
-    translate_only = ansible_module.params['translate_only']
     provider = ansible_module.params['provider']
-    facts = cibt.combine_facts_from_ansible_params(provider, ansible_module.params)
-    if facts is None:
-        raise translator_exception_lib.UnspecifiedFactsParserForProviderError(what=provider)
+    configuration_tool = ansible_module.params['configuration_tool']
+    cluster_name = ansible_module.params['cluster_name']
+    state = ansible_module.params['state']
+    is_delete = False
+    if state == 'absent':
+        is_delete = True
+    a_file = True
+    extra = ansible_module.params['extra']
     try:
-        stdout = translator(template_file, validate_only, provider, facts)
+        stdout = translator(template_file, validate_only, provider, configuration_tool, cluster_name, is_delete,
+                            a_file, extra)
         result = dict()
-        output_file = ansible_module.params['output_file']
+        output_file = ansible_module.params['output_playbook_name']
         if output_file:
             with open(output_file, 'w') as file_obj:
                 file_obj.write(stdout)
@@ -88,10 +94,7 @@ def main():
         else:
             result['msg'] = stdout
 
-        if validate_only or translate_only:
-            ansible_module.exit_json(**result)
-
-        raise NotImplementedError()
+        ansible_module.exit_json(**result)
 
     except parser_exception_lib.TOSCAException as err:
         ansible_module.fail_json(msg=err.message)

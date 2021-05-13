@@ -1,14 +1,15 @@
 import copy
-from toscatranslator.common import tosca_type
+
+from toscatranslator.common import utils
 from toscatranslator.common.tosca_reserved_keys import ATTRIBUTES, PROPERTIES, ARTIFACTS, NAME, CAPABILITIES, \
-    REQUIREMENTS, INTERFACES, NODE, NODES, ROOT
+    REQUIREMENTS, INTERFACES, NODE, NODES, ROOT, TOSCA, DERIVED_FROM, NODE_FILTER
 
 from toscatranslator.providers.common.all_requirements import ProviderRequirements
 
 
 class ProviderResource(object):
 
-    def __init__(self, provider, node, relationship_templates):
+    def __init__(self, provider, node, relationship_templates, is_software_component=False):
         """
 
         :param node: class NodeTemplate from toscaparser
@@ -20,7 +21,7 @@ class ProviderResource(object):
         self.nodetemplate = node
         self.name = node.name
         self.type = node.type
-        (_, _, type_name) = tosca_type.parse(self.type)
+        (_, _, type_name) = utils.tosca_type_parse(self.type)
         self.type_name = type_name
         # NOTE: filling the parameters from openstack definition to parse from input template
         node_type = node.type_definition  # toscaparser.elements.nodetype.NodeType
@@ -34,6 +35,8 @@ class ProviderResource(object):
         self.capability_keys = list(self.capability_definitions_by_name().keys())
         self.relationship_templates = list()
         self.dependency_order = 0
+        self.is_software_component = is_software_component
+        self.host = None
 
         # NOTE: Get the parameters from template using provider definition
         self.configuration_args = dict()
@@ -66,6 +69,8 @@ class ProviderResource(object):
         relationship_template_names = set()
         provider_requirements = ProviderRequirements(self.requirement_definitions, self.provider)
         self.requirements = provider_requirements.get_requirements(node)
+        if self.requirements.get('host', None) != None:
+            self.host = self.requirements['host'][0].value
         self.node_filter_artifacts = []
         for key, req in self.requirements.items():
             if type(req) is list:
@@ -77,9 +82,10 @@ class ProviderResource(object):
             for v in temp_req:
                 relation = v.relationship
                 if relation is not None:
-                    _, _, type_name = tosca_type.parse(relation)
+                    _, _, type_name = utils.tosca_type_parse(relation)
                     if type_name is None:
                         relationship_template_names.add(relation)
+
 
         for relation in relationship_templates:
             if relation.name in relationship_template_names:
@@ -94,18 +100,26 @@ class ProviderResource(object):
         :param node_type_name:
         :return:
         """
-        (_, _, type_short) = tosca_type.parse(node_type_name)
+        (_, _, type_short) = utils.tosca_type_parse(node_type_name)
         if type_short == ROOT:
             return 0
-        requirement_definitions = node_type_definitions.get(node_type_name, {}).get(REQUIREMENTS, [])
+        requirement_definitions_list = []
+        tmp = node_type_name
+        while tmp != None:
+            definition = node_type_definitions.get(tmp, {})
+            requirement_definitions_list.extend(definition.get(REQUIREMENTS, []))
+            tmp = definition.get(DERIVED_FROM, None)
+        requirement_definitions = dict()
+        for i in range(len(requirement_definitions_list), 0, -1):
+            requirement_definitions.update(requirement_definitions_list[i-1])
         max_dependency_priority = 0
-        for i in requirement_definitions:
-            for k, v in i.items():
-                req_node_type = v.get(NODE)
-                if not req_node_type == ROOT and not req_node_type == node_type_name:
-                    p = self.get_node_type_priority(node_type_definitions, req_node_type)
-                    if p > max_dependency_priority or max_dependency_priority == 0:
-                        max_dependency_priority = p + 1
+        for k, v in requirement_definitions.items():
+            req_node_type = v.get(NODE)
+            (_, _, req_short_type) = utils.tosca_type_parse(req_node_type)
+            if not req_short_type == ROOT and not req_node_type == node_type_name:
+                p = self.get_node_type_priority(node_type_definitions, req_node_type)
+                if p > max_dependency_priority or max_dependency_priority == 0:
+                    max_dependency_priority = p + 1
         if max_dependency_priority >= self.MAX_NUM_PRIORITIES:
             ProviderResource.MAX_NUM_PRIORITIES = max_dependency_priority + 1
         return max_dependency_priority
@@ -119,8 +133,8 @@ class ProviderResource(object):
         ProviderResource.MAX_NUM_PRIORITIES = 1
         node_priorities_by_type = {}
         for node_type_name, node_type_def in node_type_definitions.items():
-            (namespace, element_type, type_short) = tosca_type.parse(node_type_name)
-            if type_short != ROOT and element_type == NODES and namespace == self.provider:
+            (namespace, element_type, type_short) = utils.tosca_type_parse(node_type_name)
+            if type_short != ROOT and element_type == NODES and namespace != TOSCA:
                 node_priorities_by_type[node_type_name] = self.get_node_type_priority(node_type_definitions,
                                                                                       node_type_name)
         return node_priorities_by_type
@@ -180,4 +194,3 @@ class ProviderResource(object):
 
     def node_priority_by_type(self):
         return self.node_priority.get(self.type)
-

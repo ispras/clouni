@@ -90,6 +90,11 @@ class ProviderRequirement (object):
             return self.data
 
     def if_contain_get_function(self, value):
+        """
+        Function isn't used
+        :param value:
+        :return:
+        """
         if isinstance(value, six.string_types):
             return False
         if isinstance(value, dict):

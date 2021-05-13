@@ -2,6 +2,7 @@ import unittest
 from testing.base import TestAnsibleProvider
 import copy
 import os
+import re
 
 from toscatranslator import shell
 
@@ -29,21 +30,48 @@ class TestAnsibleOpenStackOutput (unittest.TestCase, TestAnsibleProvider):
 
     def test_full_translating(self):
         file_path = os.path.join('examples', 'tosca-server-example.yaml')
-        shell.main(['--template-file', file_path, '--cluster-name', 'test', '--provider', self.PROVIDER])
+        file_output_path = os.path.join('examples', 'tosca-server-example-output.yaml')
+        shell.main(['--template-file', file_path, '--cluster-name', 'test', '--provider', self.PROVIDER,
+                    '--output-file', file_output_path])
+
+        file_diff_path = os.path.join('examples', 'tosca-server-example-ansible-openstack.yaml')
+        self.diff_files(file_output_path, file_diff_path)
 
     def test_delete_full_translating(self):
         file_path = os.path.join('examples', 'tosca-server-example.yaml')
-        shell.main(['--template-file', file_path, '--cluster-name', 'test', '--provider', self.PROVIDER, '--delete'])
+        file_output_path = os.path.join('examples', 'tosca-server-example-output-delete.yaml')
+        shell.main(['--template-file', file_path, '--cluster-name', 'test', '--provider', self.PROVIDER, '--delete',
+                    '--output-file', file_output_path])
+
+        file_diff_path = os.path.join('examples', 'tosca-server-example-ansible-delete-openstack.yaml')
+        self.diff_files(file_output_path, file_diff_path)
 
     def test_full_async_translating(self):
         file_path = os.path.join('examples', 'tosca-server-example.yaml')
+        file_output_path = os.path.join('examples', 'tosca-server-example-output-async.yaml')
         shell.main(['--template-file', file_path, '--cluster-name', 'test', '--provider', self.PROVIDER, '--async',
-                    '--extra', 'retries=3', 'async=60', 'poll=0', 'delay=1'])
+                    '--extra', 'retries=3', 'async=60', 'poll=0', 'delay=1',
+                    '--output-file', file_output_path])
+
+        file_diff_path = os.path.join('examples', 'tosca-server-example-ansible-async-openstack.yaml')
+        self.diff_files(file_output_path, file_diff_path)
 
     def test_delete_full_async_translating(self):
         file_path = os.path.join('examples', 'tosca-server-example.yaml')
         shell.main(['--template-file', file_path, '--cluster-name', 'test', '--provider', self.PROVIDER, '--async',
                     '--delete', '--extra', 'retries=3', 'async=60', 'poll=0', 'delay=1'])
+
+    def test_full_translating_outputs(self):
+        file_path = os.path.join('examples', 'tosca-server-example-outputs.yaml')
+        file_output_path = os.path.join('examples', 'tosca-server-example-outputs-output.yaml')
+        shell.main(['--template-file', file_path, '--cluster-name', 'test', '--provider', self.PROVIDER,
+                    '--output-file', file_output_path])
+
+    def test_full_translating_hostedon(self):
+        file_path = os.path.join('examples', 'tosca-server-example-hostedon.yaml')
+        file_output_path = os.path.join('examples', 'tosca-server-example-hostedon-output.yaml')
+        shell.main(['--template-file', file_path, '--cluster-name', 'test', '--provider', self.PROVIDER,
+                    '--output-file', file_output_path])
 
     def test_server_name(self):
         template = copy.deepcopy(self.DEFAULT_TEMPLATE)
@@ -52,7 +80,7 @@ class TestAnsibleOpenStackOutput (unittest.TestCase, TestAnsibleProvider):
         self.assertIsInstance(playbook[0], dict)
         self.assertIsNotNone(playbook[0]['tasks'])
         tasks = playbook[0]['tasks']
-        self.assertEqual(len(tasks), 8)
+        self.assertEqual(len(tasks), 17)
         self.assertIsNotNone(tasks[2][SERVER_MODULE_NAME])
         server = tasks[2][SERVER_MODULE_NAME]
         self.assertEqual(server['name'], self.NODE_NAME)
@@ -265,6 +293,59 @@ class TestAnsibleOpenStackOutput (unittest.TestCase, TestAnsibleProvider):
 
     def test_scalable_capabilities(self):
         super(TestAnsibleOpenStackOutput, self).test_scalable_capabilities()
+
+    def test_get_input(self):
+        template = copy.deepcopy(self.DEFAULT_TEMPLATE)
+        template['topology_template']['inputs'] = {
+            'public_address': {
+                'type': 'string',
+                'default': '10.100.157.20'
+            }
+        }
+        testing_parameter = {
+            "public_address": {
+                "get_input": "public_address"
+            }
+        }
+        template = self.update_template_attribute(template, self.NODE_NAME, testing_parameter)
+        playbook = self.get_ansible_create_output(template)
+        self.assertIsNotNone(next(iter(playbook), {}).get('tasks'))
+
+        tasks = playbook[0]['tasks']
+        checked = False
+        for task in tasks:
+            if re.match('{{ public_address_[0-9]+ }}', task.get('os_floating_ip', {}).get('floating_ip_address', '')):
+                checked = True
+        self.assertTrue(checked)
+
+    def test_get_property(self):
+        template = copy.deepcopy(self.DEFAULT_TEMPLATE)
+        testing_value = "master=true"
+        testing_parameter = {
+            "meta": testing_value
+        }
+        template = self.update_template_property(template, self.NODE_NAME, testing_parameter)
+        template['topology_template']['node_templates'][self.NODE_NAME + '_2'] = {
+            'type': 'tosca.nodes.Compute',
+            'properties': {
+                'meta': {
+                    'get_property': [
+                        self.NODE_NAME,
+                        'meta'
+                    ]
+                }
+            }
+        }
+        playbook = self.get_ansible_create_output(template)
+        self.assertIsNotNone(next(iter(playbook), {}).get('tasks'))
+
+        tasks = playbook[0]['tasks']
+        checked = True
+        for task in tasks:
+            os_server_task = task.get('os_server', None)
+            if os_server_task != None and os_server_task.get('meta', None) != testing_value:
+                checked = False
+        self.assertTrue(checked)
 
     def check_scalable_capabilities(self, tasks, testing_value=None):
         server_name = None

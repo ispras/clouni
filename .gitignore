@@ -15,3 +15,6 @@ build
 # Ansible credentials
 clouds.yaml
 ansible-hosts
+
+# Testing examples
+tosca-server-example-output*
