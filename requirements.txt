@@ -3,5 +3,7 @@
 ansible==2.8.8 # GPL-3.0 for Ansible playbook execution
 openstacksdk==0.46.0 # for Ansible playbook execution when using OpenStack
 netaddr==0.7.19 # for using 'ipaddr' in ip_contains.yaml Ansible artifact
+grpcio==1.37.1 # for grpc support
+grpcio-tools==1.37.1 # for grpc support
 pyyaml
 six

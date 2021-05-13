@@ -1,0 +1,40 @@
+syntax = "proto3";
+
+service Clouni {
+    rpc Clouni(ClouniRequest) returns (ClouniResponse) {}
+}
+
+// Clouni request
+// Fields are specified in Clouni help
+
+message ClouniRequest {
+    string template_file_content = 1;
+    string cluster_name = 2;
+    bool validate_only = 3;
+    bool delete = 4;
+    string provider = 5;
+    string configuration_tool = 6;
+    bool async = 7;
+    map<string, string> extra = 8;
+}
+
+// Clouni response
+//      Status: TEMPLATE_VALID - returned for validate-only requests if template is valid
+//              TEMPLATE_INVALID - returned for validate-only requests if template is invalid
+//              OK - returned for normal execution of non-validate-only request
+//              ERROR - returned if any error occured
+//      Error: error description(only with ERROR status)
+//      Content: content of proceeded template file(only with OK status)
+
+message ClouniResponse {
+    enum Status {
+        TEMPLATE_VALID = 0;
+        TEMPLATE_INVALID = 1;
+        OK = 2;
+        ERROR = 3;
+    }
+    Status status = 1;
+    string error = 2;
+    string content = 3;
+
+}
