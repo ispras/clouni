@@ -61,12 +61,6 @@ class TestAnsibleOpenStackOutput (unittest.TestCase, TestAnsibleProvider):
         shell.main(['--template-file', file_path, '--cluster-name', 'test', '--provider', self.PROVIDER, '--async',
                     '--delete', '--extra', 'retries=3', 'async=60', 'poll=0', 'delay=1'])
 
-    def test_full_translating_outputs(self):
-        file_path = os.path.join('examples', 'tosca-server-example-outputs.yaml')
-        file_output_path = os.path.join('examples', 'tosca-server-example-outputs-output.yaml')
-        shell.main(['--template-file', file_path, '--cluster-name', 'test', '--provider', self.PROVIDER,
-                    '--output-file', file_output_path])
-
     def test_full_translating_hostedon(self):
         file_path = os.path.join('examples', 'tosca-server-example-hostedon.yaml')
         file_output_path = os.path.join('examples', 'tosca-server-example-hostedon-output.yaml')
@@ -293,6 +287,72 @@ class TestAnsibleOpenStackOutput (unittest.TestCase, TestAnsibleProvider):
 
     def test_scalable_capabilities(self):
         super(TestAnsibleOpenStackOutput, self).test_scalable_capabilities()
+
+    def test_host_of_software_component(self):
+        template = copy.deepcopy(self.DEFAULT_TEMPLATE)
+        testing_parameter = {
+            "public_address": "10.100.149.15",
+            "network": {
+                "default": "net-for-intra-sandbox"
+            }
+        }
+        template = self.update_template_attribute(template, self.NODE_NAME, testing_parameter)
+        template['node_types'] = {
+            'clouni.nodes.ServerExample': {
+                'derived_from': 'tosca.nodes.SoftwareComponent'
+            }
+        }
+        template['topology_template']['node_templates']['service_1'] = {
+            'type': 'clouni.nodes.ServerExample',
+            'properties': {
+                'component_version': 0.1
+            },
+            'requirements': [{
+                'host': self.NODE_NAME
+            }],
+            'interfaces':{
+                'Standard': {
+                    'create': 'examples/ansible-server-example.yaml',
+                    'inputs': {
+                        'version': { 'get_property': ['service_1', 'component_version'] }
+                    }
+                }
+            }
+        }
+        playbook = self.get_ansible_create_output(template)
+
+        self.assertEqual(len(playbook), 2)
+        self.assertIsNotNone(playbook[0].get('tasks'))
+        self.assertIsNotNone(playbook[1].get('tasks'))
+
+        checked = False
+        tasks = playbook[0]['tasks']
+        for i in range(len(tasks)):
+            if tasks[i].get('os_floating_ip', None) != None:
+                fip_var = tasks[i]['register']
+
+                self.assertIsNotNone(tasks[i+1].get('set_fact', None))
+                self.assertEqual(tasks[i+1]['set_fact'].get('host_ip', None),
+                                 '{{ '+ fip_var + '.floating_ip.floating_ip_address }}')
+
+                self.assertIsNotNone(tasks[i+2].get('add_host', None))
+                self.assertEqual(tasks[i+2]['add_host'].get('hostname', None),
+                                 '{{ host_ip }}')
+                self.assertEqual(tasks[i+2]['add_host'].get('groups', None),
+                                 self.NODE_NAME)
+
+                self.assertIsNotNone(tasks[i+3].get('shell', None))
+                self.assertEqual(tasks[i+3]['shell'],
+                                 'ssh-keyscan {{ host_ip }},`dig +short {{ host_ip }}`')
+                self.assertIsNotNone(tasks[i+3].get('register', None))
+                self.assertEqual(tasks[i+3]['register'],
+                                 'host_key')
+
+                self.assertIsNotNone(tasks[i+4].get('known_hosts', None))
+                self.assertEqual(tasks[i+4]['known_hosts'].get('name', None),
+                                 '{{ host_ip }}')
+                self.assertEqual(tasks[i+4]['known_hosts'].get('key', None),
+                                 '{{ host_key.stdout }}')
 
     def test_get_input(self):
         template = copy.deepcopy(self.DEFAULT_TEMPLATE)
