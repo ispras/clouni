@@ -46,8 +46,8 @@ class ClouniServicer(api_pb2_grpc.ClouniServicer):
 
     def Clouni(self, request, context):
         self.logger.info("Request received")
+        self.logger.debug("Request content: %s", str(request))
         args = self._RequestParse(request)
-        print(args)
         response = ClouniResponse()
         try:
             if request.validate_only:
@@ -150,6 +150,8 @@ def parse_args(argv):
     return args.max_workers, args.host, args.port, args.verbose, args.no_host_error
 
 def serve(argv =  None):
+    if os.fork():
+        sys.exit(0);
     # Log init
     logger = logging.getLogger("Clouni server")
     # logger.setLevel(logging.INFO)
@@ -212,6 +214,7 @@ def serve(argv =  None):
         if host_exist:
             server.start()
             logger.info("Server started")
+            print("Server started")
         else:
             logger.critical("No host exists")
             sys.exit(1)
