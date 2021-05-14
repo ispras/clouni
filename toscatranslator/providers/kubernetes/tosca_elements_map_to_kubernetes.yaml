@@ -30,40 +30,36 @@ tosca.nodes.Compute:
         error: true
         reason: "disk_size not supported in Kubernetes"
       mem_size:
-        parameter: "kubernetes.nodes.Deployment.properties.spec.template.spec.containers"
+        parameter: "{self[buffer][container][resources][limits][memory]}"
         value:
-          - parameter: resources
-            value:
-              parameter: limits
-              value:
-                parameter: memory
-                value:
-                  source: transform_units
-                  parameters:
-                    source_value: "{self[value]}"
-                    is_without_b: True
-                  executor: python
-                  value: default
+          source: transform_units
+          parameters:
+            source_value: "{self[value]}"
+            target_unit: "MB"
+#            is_without_b: True
+          executor: python
+          value: default
     endpoint.properties:
+      - parameter: "{self[buffer][container][ports]}"
+        value:
+          - "{self[buffer][container_port]}"
       - protocol:
           parameter: "{self[buffer][endpoint][protocol]}"
           value: "{self[value]}"
         port:
           - parameter: "{self[buffer][endpoint][port]}"
             value: "{self[value]}"
+          - parameter: "{self[buffer][container_port][port]}"
+            value: "{self[value]}"
+          - parameter: "{self[buffer][container_port][containerPort]}"
+            value: "{self[value]}"
           - parameter: "kubernetes.nodes.Service.properties.metadata.name"
             value: "{self[name]}-service"
         port_name:
+          - parameter: "{self[buffer][container_port][name]}"
+            value: "{self[value]}"
           - parameter: "{self[buffer][endpoint][targetPort]}"
             value: "{self[value]}"
-          - parameter: "kubernetes.nodes.Deployment.properties.spec.template.spec.containers"
-            value:
-              - parameter: ports
-                value:
-                  - parameter: name
-                    value: "{self[value]}"
-                  - parameter: containerPort
-                    value: "{self[value]}"
           - parameter: "kubernetes.nodes.Service.properties.spec.selector"
             value:
               app: "{self[name]}"
@@ -89,6 +85,9 @@ tosca.nodes.Compute:
         value:
           - "{self[buffer][endpoint]}"
     os.properties:
+      - parameter: "kubernetes.nodes.Deployment.properties.spec.template.spec.containers"
+        value:
+          - "{self[buffer][container]}"
       - architecture:
           error: true
           reason: "not supported in Kubernetes"
@@ -96,15 +95,13 @@ tosca.nodes.Compute:
           parameter: "{self[buffer][image]}"
           value: "{self[value]}"
         distribution:
-          parameter: "{self[buffer][image]}"
-          value: "{self[value]}"
+          parameter: "{self[buffer][ver]}"
+          value: ":{self[value]}"
         version:
           parameter: "{self[buffer][ver]}"
           value: ":{self[value]}"
-      - parameter: "kubernetes.nodes.Deployment.properties.spec.template.spec.containers"
-        value:
-          - parameter: image
-            value: "{self[buffer][image]}{self[buffer][ver]}"
+      - parameter: "{self[buffer][container][image]}"
+        value: "{self[buffer][image]}{self[buffer][ver]}"
       - parameter: "kubernetes.nodes.Deployment.properties.metadata.name"
         value: "{self[name]}-deployment"
       - parameter: "kubernetes.nodes.Deployment.properties.spec.selector.matchLabels"
@@ -116,10 +113,8 @@ tosca.nodes.Compute:
       - parameter: "kubernetes.nodes.Deployment.properties.spec.template.metadata.labels"
         value:
           app: "{self[name]}"
-      - parameter: "kubernetes.nodes.Deployment.properties.spec.template.spec.containers"
-        value:
-          - parameter: name
-            value: "{self[name]}-container"
+      - parameter: "{self[buffer][container][name]}"
+        value: "{self[name]}-container"
     scalable.properties:
       max_instances:
         error: true

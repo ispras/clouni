@@ -33,6 +33,14 @@ class KubernetesConfigurationTool(ConfigurationTool):
         props_dict.update({API_VERSION: api})
         [props_dict.update({prop_name: prop}) for prop_name,prop in node.get(PROPERTIES, {}).items()
          if prop_name != API_VERSION and prop_name != API_GROUP]
+        if props_dict.get('kind') == 'Deployment':
+            for i in range(len(props_dict.get('spec', {}).get('template', {}).get('spec', {}).get('containers', []))):
+                memory = props_dict['spec']['template']['spec']['containers'][i]\
+                    .get('resources', {}).get('limits', {}).get('memory')
+                if memory is not None:
+                    props_dict['spec']['template']['spec']['containers'][i]['resources']['limits']['memory'] = \
+                        props_dict['spec']['template']['spec']['containers'][i]['resources']['limits']['memory']\
+                            .replace('MB', 'M')
         return props_dict
 
     def copy_conditions_to_the_directory(self, used_conditions_set, directory):

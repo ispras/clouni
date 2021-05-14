@@ -173,11 +173,11 @@ class AnsibleConfigurationTool(ConfigurationTool):
 
     def replace_all_get_functions(self, data):
         if isinstance(data, dict):
-            if len(data) == 1 and next(iter(data.keys())) == GET_OPERATION_OUTPUT:
+            if len(data) == 1 and data.get(GET_OPERATION_OUTPUT, None) is not None:
                 full_op_name = '_'.join(data[GET_OPERATION_OUTPUT][:3]).lower()
                 output_id = self.global_operations_info[full_op_name][OUTPUT_IDS][data[GET_OPERATION_OUTPUT][-1]]
                 return self.rap_ansible_variable(output_id)
-            if len(data) == 1 and next(iter(data.keys())) == GET_INPUT:
+            if len(data) == 1 and data.get(GET_INPUT, None) is not None:
                 output_id = self.global_variables['input_'+data[GET_INPUT]]
                 return self.rap_ansible_variable(output_id)
 

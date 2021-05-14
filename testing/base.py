@@ -104,7 +104,7 @@ class BaseAnsibleProvider:
         if not template_filename:
             template_filename = self.testing_template_filename()
         self.write_template(self.prepare_yaml(template))
-        r = common_translate(template_filename, False, self.PROVIDER, 'kubernetes', TEST, False)
+        r = common_translate(template_filename, False, self.PROVIDER, 'kubernetes', TEST, False, log_level='debug')
         print(r)
         manifest = list(self.parse_all_yaml(r))
         return manifest
@@ -182,7 +182,6 @@ class TestAnsibleProvider(BaseAnsibleProvider):
 
             playbook = self.get_ansible_delete_output(template, extra=extra)
 
-
     def test_private_address(self):
         if hasattr(self, 'check_private_address'):
             template = copy.deepcopy(self.DEFAULT_TEMPLATE)
@@ -190,7 +189,7 @@ class TestAnsibleProvider(BaseAnsibleProvider):
             testing_parameter = {
                 "private_address": testing_value
             }
-            template = self.update_template_attribute(template, self.NODE_NAME, testing_parameter)
+            template = self.update_template_property(template, self.NODE_NAME, testing_parameter)
             playbook = self.get_ansible_create_output(template)
 
             assert next(iter(playbook), {}).get('tasks')
@@ -205,7 +204,7 @@ class TestAnsibleProvider(BaseAnsibleProvider):
             testing_parameter = {
                 "public_address": testing_value
             }
-            template = self.update_template_attribute(template, self.NODE_NAME, testing_parameter)
+            template = self.update_template_property(template, self.NODE_NAME, testing_parameter)
             playbook = self.get_ansible_create_output(template)
 
             assert next(iter(playbook), {}).get('tasks')
@@ -224,7 +223,7 @@ class TestAnsibleProvider(BaseAnsibleProvider):
                     }
                 }
             }
-            template = self.update_template_attribute(template, self.NODE_NAME, testing_parameter)
+            template = self.update_template_property(template, self.NODE_NAME, testing_parameter)
             playbook = self.get_ansible_create_output(template)
 
             assert next(iter(playbook), {}).get('tasks')

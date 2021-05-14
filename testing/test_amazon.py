@@ -1,12 +1,13 @@
-from testing.base import TestAnsibleProvider, shell
-import copy
 import unittest
-import os, yaml
 
+from testing.base import TestAnsibleProvider
+from shell_clouni import shell
+import copy, os, yaml
+
+from toscatranslator.common.tosca_reserved_keys import TOPOLOGY_TEMPLATE, NODE_TEMPLATES, PROPERTIES
 
 INSTANCE_MODULE_NAME = 'ec2_instance'
 SEC_GROUP_MODULE_NAME = 'ec2_group'
-from toscatranslator.common.tosca_reserved_keys import TOPOLOGY_TEMPLATE, NODE_TEMPLATES, PROPERTIES
 PUBLIC_ADDRESS = 'public_address'
 
 
@@ -15,13 +16,17 @@ class TestAnsibleAmazonOutput (unittest.TestCase, TestAnsibleProvider):
 
     @unittest.expectedFailure
     def test_full_translating(self):
-        assert False
+        file_path = os.path.join('examples', 'tosca-server-example.yaml')
+        file_output_path = os.path.join('examples', 'tosca-server-example-output.yaml')
+        shell.main(['--template-file', file_path, '--cluster-name', 'test', '--provider', self.PROVIDER,
+                    '--output-file', file_output_path])
 
     def test_full_translating_no_public(self):
         file_path = os.path.join('examples', 'tosca-server-example.yaml')
         template_raw = self.read_template(file_path)
         template = yaml.load(template_raw, Loader=yaml.Loader)
         template[TOPOLOGY_TEMPLATE][NODE_TEMPLATES][self.NODE_NAME][PROPERTIES].pop(PUBLIC_ADDRESS)
+        template[TOPOLOGY_TEMPLATE][NODE_TEMPLATES][self.NODE_NAME][PROPERTIES].pop('networks')
         playbook = self.get_ansible_create_output(template)
         self.assertIsNotNone(playbook)
 
@@ -134,3 +139,10 @@ class TestAnsibleAmazonOutput (unittest.TestCase, TestAnsibleProvider):
                 self.assertIsNotNone(task[INSTANCE_MODULE_NAME].get('name'))
                 server_name = task[INSTANCE_MODULE_NAME]['name']
         self.assertIsNotNone(server_name)
+
+    @unittest.expectedFailure
+    def test_network_name(self):
+        super(TestAnsibleAmazonOutput, self).test_network_name()
+
+    def test_host_capabilities(self):
+        super(TestAnsibleAmazonOutput, self).test_host_capabilities()

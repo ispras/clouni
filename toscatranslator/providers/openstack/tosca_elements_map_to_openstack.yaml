@@ -5,7 +5,7 @@ tosca.nodes.Compute:
   - properties:
       meta: openstack.nodes.Server.properties.meta
   - parameter: '{self[buffer][add_host][hostname]}'
-    value: '{{{{ host_ip }}}}'
+    value: '{{ host_ip }}'
   - parameter: openstack.nodes.FloatingIp.requirements
     value:
       parameter: server
@@ -16,7 +16,7 @@ tosca.nodes.Compute:
     - executor: ansible
       source: set_fact
       parameters:
-        host_ip: '{{{{ {self[keyname]}_floating_ip.floating_ip.floating_ip_address }}}}'
+        host_ip: '{{ {self[keyname]}_floating_ip.floating_ip.floating_ip_address }}'
       value: temp_value
     - executor: ansible
       source: add_host
@@ -24,14 +24,14 @@ tosca.nodes.Compute:
       value: temp_value
     - executor: ansible
       source: shell
-      parameters: 'ssh-keyscan {{{{ host_ip }}}},`dig +short {{{{ host_ip }}}}`'
+      parameters: 'ssh-keyscan {{ host_ip }},`dig +short {{ host_ip }}`'
       value: host_key
     - executor: ansible
       source: known_hosts
       parameters:
         path: ~/.ssh/known_hosts
-        name: "{{{{ host_ip }}}}"
-        key: "{{{{ host_key.stdout }}}}"
+        name: "{{ host_ip }}"
+        key: "{{ host_key.stdout }}"
       value: temp_value
   - properties:
       tosca_name:
@@ -55,23 +55,23 @@ tosca.nodes.Compute:
                   - source: set_fact
                     executor: ansible
                     parameters:
-                      target_objects: "{{{{ target_objects['ansible_facts']['openstack_subnets'] }}}}"
+                      target_objects: "{{ target_objects['ansible_facts']['openstack_subnets'] }}"
                     value: temp_value
                   - source: set_fact
                     executor: ansible
                     parameters:
-                      new_target_objects: "{{{{ [] }}}}"
+                      new_target_objects: "{{ [] }}"
                     value: tmp_value
                   - source: set_fact
                     parameters:
-                      new_target_objects: "{{{{ new_target_objects + [item | combine({{ 'allocation_pool_start': item['allocation_pools'][0]['start'] | default([]), 'allocation_pool_end': item['allocation_pools'][0]['end'] | default([]) }})] }}}}"
+                      new_target_objects: "{{ new_target_objects + [item | combine({{ 'allocation_pool_start': item['allocation_pools'][0]['start'] | default([]), 'allocation_pool_end': item['allocation_pools'][0]['end'] | default([]) }})] }}"
                     extra:
-                      with_items: "{{{{ target_objects }}}}"
+                      with_items: "{{ target_objects }}"
                     value: temp_value
                     executor: ansible
                   - source: set_fact
                     parameters:
-                      target_objects: "{{{{ new_target_objects }}}}"
+                      target_objects: "{{ new_target_objects }}"
                     value: temp_value
                     executor: ansible
                 executor: ansible
@@ -111,23 +111,23 @@ tosca.nodes.Compute:
                           - source: set_fact
                             executor: ansible
                             parameters:
-                              target_objects: "{{{{ target_objects['ansible_facts']['openstack_subnets'] }}}}"
+                              target_objects: "{{ target_objects['ansible_facts']['openstack_subnets'] }}"
                             value: temp_value
                           - source: set_fact
                             executor: ansible
                             parameters:
-                              new_target_objects: "{{{{ [] }}}}"
+                              new_target_objects: "{{ [] }}"
                             value: tmp_value
                           - source: set_fact
                             parameters:
-                              new_target_objects: "{{{{ new_target_objects + [item | combine({{ 'allocation_pool_start': item['allocation_pools'][0]['start'] | default([]), 'allocation_pool_end': item['allocation_pools'][0]['end'] | default([]) }})] }}}}"
+                              new_target_objects: "{{ new_target_objects + [item | combine({{ 'allocation_pool_start': item['allocation_pools'][0]['start'] | default([]), 'allocation_pool_end': item['allocation_pools'][0]['end'] | default([]) }})] }}"
                             extra:
-                              with_items: "{{{{ target_objects }}}}"
+                              with_items: "{{ target_objects }}"
                             value: temp_value
                             executor: ansible
                           - source: set_fact
                             parameters:
-                              target_objects: "{{{{ new_target_objects }}}}"
+                              target_objects: "{{ new_target_objects }}"
                             value: temp_value
                             executor: ansible
                         executor: ansible
@@ -232,17 +232,17 @@ tosca.nodes.Compute:
             value:
               node: "{self[keyname]}_security_group"
           - parameter: "{self[extra][ansible][{self[keyname]}_security_group_rule][with_sequence]}"
-            value: "start=0 end={{{{ [{self[keyname]}_protocols | length, {self[keyname]}_ports | length] | max - 1 }}}} format=%d"
+            value: "start=0 end={{ [{self[keyname]}_protocols | length, {self[keyname]}_ports | length] | max - 1 }} format=%d"
         properties.protocol:
           - parameter: "{self[buffer][endpoint][protocol]}"
             value:
               - "{self[value]}"
           - parameter: openstack.nodes.SecurityGroupRule.properties.protocol
-            value: "{{{{ {self[keyname]}_protocols[item | int] | default(omit) }}}}"
+            value: "{{ {self[keyname]}_protocols[item | int] | default(omit) }}"
           - parameter: openstack.nodes.SecurityGroupRule.properties.port_range_min
-            value: "{{{{ {self[keyname]}_ports[item | int] | default(omit) }}}}"
+            value: "{{ {self[keyname]}_ports[item | int] | default(omit) }}"
           - parameter: openstack.nodes.SecurityGroupRule.properties.port_range_max
-            value: "{{{{ {self[keyname]}_ports[item | int] | default(omit) }}}}"
+            value: "{{ {self[keyname]}_ports[item | int] | default(omit) }}"
           - parameter: openstack.nodes.SecurityGroupRule.interfaces.Prepare.preconfigure.implementation
             value:
               - value: "tmp"
@@ -309,22 +309,6 @@ tosca.nodes.Compute:
                   - "{self[buffer][os]}"
         - parameter: '{self[buffer][add_host][ansible_user]}'
           value: '{self[value]}'
-#        - parameter: openstack.nodes.Server.interfaces.Prepare.preconfigure.implementation
-#          value:
-#          - executor: ansible
-#            source: lineinfile
-#            parameters:
-#              insertafter: EOF
-#              line: '[{self[keyname]}:vars]'
-#              path: 'inventory.yaml'
-#            value: temp_value
-#          - executor: ansible
-#            source: lineinfile
-#            parameters:
-#              insertafter: EOF
-#              line: 'ansible_user={self[value]}'
-#              path: 'inventory.yaml'
-#            value: temp_value
       os.properties.distribution: "{self[buffer][os][distribution]}"
       os.properties.version: "{self[buffer][os][version]}"
       scalable.properties:
@@ -332,13 +316,7 @@ tosca.nodes.Compute:
           - parameter: "{self[extra][ansible][{self[keyname]}_server][with_sequence]}"
             value: "start=1 end={self[value]} format={self[name]}-%d"
           - parameter: openstack.nodes.Server.properties.name
-            value: "{{{{ item }}}}"
-#        max_instances:
-#          error: true
-#          reason: Not described in TOSCA Profile YAML v1.0
-#        min_instances:
-#          error: true
-#          reason: Not described in TOSCA Profile YAML v1.0
+            value: "{{ item }}"
     requirements.local_storage:
       error: true
       reason: Bad description in TOSCA Profile YAML v1.0

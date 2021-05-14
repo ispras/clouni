@@ -145,6 +145,8 @@ data_types:
         enty_schema:
           type: kubernetes.datatypes.ContainerPort
         required: true
+        default:
+          - containerPort: 80
       resources:
         description: Compute Resources required by this container. Cannot be updated.
         type: kubernetes.datatypes.ResourceRequirements
@@ -207,7 +209,7 @@ data_types:
         type:  scalar-unit.size
         required: false
         constraints:
-          - greater_or_equal: 1  MB
+          - greater_or_equal: 1 MB
 
   kubernetes.datatypes.DeploymentSpec:
     derived_from: kubernetes.datatypes.Root
@@ -274,9 +276,7 @@ data_types:
         description: >
           Number or name of the port to access on the pods targeted by the service. Number must be in the range 1 to 65535. Name must be an IANA_SVC_NAME. If this is a string,
           it will be looked up as a named port in the target Pod's container ports.
-        type: integer
-        constraints:
-          - in_range: [1,65535]
+        type: string
         required: false
       port:
         description: the port on each node on which this service is exposed when type=NodePort or LoadBalancer.

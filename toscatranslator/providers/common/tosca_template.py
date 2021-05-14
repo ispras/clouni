@@ -13,7 +13,6 @@ import os, copy, json, yaml, logging, sys, six
 
 SEPARATOR = '.'
 
-
 class ProviderToscaTemplate(object):
     REQUIRED_CONFIG_PARAMS = (TOSCA_ELEMENTS_MAP_FILE, TOSCA_ELEMENTS_DEFINITION_FILE)
     DEPENDENCY_FUNCTIONS = (GET_PROPERTY, GET_ATTRIBUTE, GET_OPERATION_OUTPUT)
