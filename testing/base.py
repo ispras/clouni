@@ -14,7 +14,7 @@ TEST = 'test'
 
 class BaseAnsibleProvider:
     TESTING_TEMPLATE_FILENAME_TO_JOIN = ['examples', 'testing-example.yaml']
-    NODE_NAME = 'server_kube_master'
+    NODE_NAME = 'tosca_server_example'
     DEFAULT_TEMPLATE = {
         TOSCA_DEFINITIONS_VERSION: "tosca_simple_yaml_1_0",
         TOPOLOGY_TEMPLATE: {

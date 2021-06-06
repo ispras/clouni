@@ -1,2 +1,6 @@
 - debug:
     msg: "SUCCESSFULL"
+  when: version is defined
+- fail:
+    msg: "Version is undefined"
+  when: version is undefined
