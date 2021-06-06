@@ -20,7 +20,7 @@ requirements in your environment.
 ~~~shell
 python3.6 -m venv $VIRTUALENV_HOME/clouni
 ~~~
-It's recommended not to use `$ClOUNI_HOME` as your `$VIRTUALENV_HOME`
+It's recommended not to use `$CLOUNI_HOME` as your `$VIRTUALENV_HOME`
 
 Install Clouni requirements in you virtual environment if you will use this virtual
 environment to execute playbooks.
@@ -353,6 +353,17 @@ UnsupportedToscaParameterUsage: Unable to use unsupported TOSCA parameter: netwo
 * Content *
 
 
+~~~
+### Dockerfile
+*clouni-server* can be started as container with help of Docker.
+From *dockerfile* you can get image for clouni-server container:
+~~~
+cd $CLOUNI_HOME
+sudo docker build -t clouni - < dockerfile
+~~~
+Then start the server on *IP_address:port* you needed:
+~~~
+sudo docker run --name clouni-server -d -p IP_address:port:50051 clouni
 ~~~
 ## Adding new provider
 
