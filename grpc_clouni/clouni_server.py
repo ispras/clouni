@@ -161,8 +161,6 @@ def parse_args(argv):
     return args.max_workers, args.host, args.port, args.verbose, args.no_host_error, args.stop
 
 def serve(argv =  None):
-    if os.fork():
-        sys.exit(0);
     # Log init
     logger = logging.getLogger("Clouni server")
     # logger.setLevel(logging.INFO)
@@ -238,7 +236,6 @@ def serve(argv =  None):
                 f.write(str(os.getpid()) + '\n')
             server.start()
             logger.info("Server started")
-            print("Server started")
         else:
             logger.critical("No host exists")
             sys.exit(1)
