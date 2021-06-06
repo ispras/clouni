@@ -241,6 +241,8 @@ clouni-server --max-workers 20 --host 127.0.0.1 --host 20.20.20.20 --port 50051 
 ~~~
 Server will be started on 127.0.0.1:50051 with 'warning' logger verbosity level
 Warning about unability to start server on 20.20.20.20 will be logged
+
+Server will block tty, most likely you need to start it in the background(by adding & to the end of command or other advanced method)
 ## Usage CLI grpc client
 ~~~shell
 clouni-client --help
