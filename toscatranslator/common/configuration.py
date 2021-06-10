@@ -35,6 +35,7 @@ class Configuration:
         else:
             cwd_config_filename = os.path.join(os.getcwd(), file)
             root_clouni_config_filename = os.path.join(utils.get_project_root_path(),
+                                                       'toscatranslator',
                                                        file)
 
             filename_variants_priority = [
