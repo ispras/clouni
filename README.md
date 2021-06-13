@@ -219,7 +219,7 @@ Output:
 ~~~
 usage: clouni-server [-h] [--max-workers <number of workers>]
                      [--host <host_name/host_address>] [--port <port>]
-                     [--verbose] [--no-host-error] [--stop]
+                     [--verbose] [--no-host-error] [--stop] [--foreground]
 
 optional arguments:
   -h, --help            show this help message and exit
@@ -234,6 +234,7 @@ optional arguments:
   --no-host-error       If unable to start server on host:port and this option
                         used, warning will be logged instead of critical error
   --stop                Stops all working servers and exit
+  --foreground          Makes server work in foreground
 ~~~
 ##### Starting server
 ~~~shell
@@ -242,7 +243,7 @@ clouni-server --max-workers 20 --host 127.0.0.1 --host 20.20.20.20 --port 50051 
 Server will be started on 127.0.0.1:50051 with 'warning' logger verbosity level
 Warning about unability to start server on 20.20.20.20 will be logged
 
-Server will block tty, most likely you need to start it in the background(by adding & to the end of command or other advanced method)
+By default, server works in background
 ## Usage CLI grpc client
 ~~~shell
 clouni-client --help

@@ -1,5 +1,5 @@
 FROM python:3.6.13
-LABEL maintainer="gkgim@yandex.ru"
+LABEL maintainer="ISP RAS"
 WORKDIR /app/
 RUN git clone https://github.com/bura2017/tosca-parser.git &&\
     cd tosca-parser &&\
@@ -12,4 +12,4 @@ RUN git clone https://github.com/ispras/clouni.git &&\
     pip install -r requirements.txt &&\
     python setup.py install
 EXPOSE 50051
-ENTRYPOINT clouni-server --host 0.0.0.0
+ENTRYPOINT clouni-server --host 0.0.0.0 --foreground
