@@ -153,16 +153,18 @@ def parse_args(argv):
                         action='store_true',
                         default=False,
                         help='Stops all working servers and exit')
+    parser.add_argument('--foreground',
+                        action='store_true',
+                        default=False,
+                        help='Makes server work in foreground')
     try:
         args, args_list = parser.parse_known_args(argv)
     except argparse.ArgumentError:
         logging.critical("Failed to parse arguments. Exiting")
         sys.exit(1)
-    return args.max_workers, args.host, args.port, args.verbose, args.no_host_error, args.stop
+    return args.max_workers, args.host, args.port, args.verbose, args.no_host_error, args.stop, args.foreground
 
 def serve(argv =  None):
-    if os.fork():
-        sys.exit(0);
     # Log init
     logger = logging.getLogger("Clouni server")
     # logger.setLevel(logging.INFO)
@@ -175,7 +177,7 @@ def serve(argv =  None):
     # Argparse
     if argv is None:
         argv = sys.argv[1:]
-    max_workers, hosts, port, verbose, no_host_error, stop = parse_args(argv)
+    max_workers, hosts, port, verbose, no_host_error, stop, foreground = parse_args(argv)
     if stop:
         try:
             with open("/tmp/.clouni-server.pid", mode='r') as f:
@@ -188,6 +190,11 @@ def serve(argv =  None):
         except FileNotFoundError:
             print("Working servers not found: no .clouni-server.pid file in this directory")
         sys.exit(0)
+    if not foreground:
+        if os.fork():
+            sleep(1)
+            os._exit(0)
+
     # Verbosity choose
     if verbose == 1:
         logger.info("Logger level set to ERROR")

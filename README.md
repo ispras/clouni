@@ -20,7 +20,7 @@ requirements in your environment.
 ~~~shell
 python3.6 -m venv $VIRTUALENV_HOME/clouni
 ~~~
-It's recommended not to use `$ClOUNI_HOME` as your `$VIRTUALENV_HOME`
+It's recommended not to use `$CLOUNI_HOME` as your `$VIRTUALENV_HOME`
 
 Install Clouni requirements in you virtual environment if you will use this virtual
 environment to execute playbooks.
@@ -219,7 +219,7 @@ Output:
 ~~~
 usage: clouni-server [-h] [--max-workers <number of workers>]
                      [--host <host_name/host_address>] [--port <port>]
-                     [--verbose] [--no-host-error] [--stop]
+                     [--verbose] [--no-host-error] [--stop] [--foreground]
 
 optional arguments:
   -h, --help            show this help message and exit
@@ -234,6 +234,7 @@ optional arguments:
   --no-host-error       If unable to start server on host:port and this option
                         used, warning will be logged instead of critical error
   --stop                Stops all working servers and exit
+  --foreground          Makes server work in foreground
 ~~~
 ##### Starting server
 ~~~shell
@@ -241,6 +242,8 @@ clouni-server --max-workers 20 --host 127.0.0.1 --host 20.20.20.20 --port 50051 
 ~~~
 Server will be started on 127.0.0.1:50051 with 'warning' logger verbosity level
 Warning about unability to start server on 20.20.20.20 will be logged
+
+By default, server works in background
 ## Usage CLI grpc client
 ~~~shell
 clouni-client --help
@@ -351,6 +354,18 @@ UnsupportedToscaParameterUsage: Unable to use unsupported TOSCA parameter: netwo
 * Content *
 
 
+~~~
+### Dockerfile
+
+*clouni-server* can be started as container with help of Docker.
+From *dockerfile* you can get image for clouni-server container:
+~~~
+cd $CLOUNI_HOME
+sudo docker build -t clouni - < dockerfile
+~~~
+Then start the server on *IP_address:port* you needed:
+~~~
+sudo docker run --name clouni-server -d -p IP_address:port:50051 clouni
 ~~~
 ## Adding new provider
 
