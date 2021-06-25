@@ -49,6 +49,8 @@ cd $CLOUNI_HOME
 python setup.py install
 ~~~
 
+You can use [Docker installation](https://hub.docker.com/repository/docker/clouni/clouni).
+
 ## Usage local CLI
 
 Execute
