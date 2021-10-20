@@ -72,6 +72,8 @@ class AnsibleConfigurationTool(ConfigurationTool):
         self.init_global_variables(inputs)
         elements_queue, software_queue = self.init_queue(nodes_relationships_queue)
         ansible_task_list = self.get_ansible_tasks_for_inputs(inputs)
+        ansible_post_task_list = []
+        host_list = []
 
         if not is_delete:
             for v in self.global_operations_queue:
@@ -98,7 +100,7 @@ class AnsibleConfigurationTool(ConfigurationTool):
                                                             additional_args=extra)
             if len(ansible_tasks) == 0:
                 if not is_delete:
-                    ansible_tasks = self.get_ansible_tasks_for_create(v, target_directory, node_filter_config,
+                    ansible_tasks, post_tasks, host = self.get_ansible_tasks_for_create(v, target_directory, node_filter_config,
                                                                       description_by_type, module_by_type,
                                                                       additional_args=extra)
                 else:
@@ -115,6 +117,9 @@ class AnsibleConfigurationTool(ConfigurationTool):
                         prev_dep_order = v.dependency_order
                     check_async_tasks.extend(tasks_for_async)
                 ansible_task_list.extend(ansible_tasks)
+                if 'name' in host:
+                    ansible_post_task_list.extend(post_tasks)
+                    host_list.append(host['name'])
 
             if not is_delete:
                 if extra_async != False:
@@ -145,6 +150,26 @@ class AnsibleConfigurationTool(ConfigurationTool):
                 tasks=ansible_tasks
             )
             ansible_playbook.append(software_playbook)
+
+        if ansible_post_task_list is not None:
+            for i in range(len(ansible_post_task_list)):
+                configure_playbook = dict(
+                    name=description_prefix + ' ' + v.name + ' ' + 'server component',
+                    hosts=host_list[i],
+                    tasks=ansible_post_task_list[i]
+                )
+                ansible_playbook.append(configure_playbook)
+
+        #for v in elements_queue:
+        #    if v.type_name == 'Server':
+        #        ansible_tasks = self.get_ansible_tasks_from_interface(v, target_directory, is_delete,
+        #                                                              additional_args=extra)
+        #        software_playbook = dict(
+        #            name=description_prefix + ' ' + v.name + ' ' + ' server component',
+        #            hosts=v.name,
+        #            tasks=ansible_tasks
+        #        )
+        #        ansible_playbook.append(software_playbook)
 
         return yaml.dump(ansible_playbook, default_flow_style=False, sort_keys=False)
 
@@ -298,12 +323,12 @@ class AnsibleConfigurationTool(ConfigurationTool):
         post_tasks = []
         for i in element_object.nodetemplate.interfaces:
             if i.name == 'preconfigure':
-                op_name = '_'.join([element_object.name, 'prepare', 'preconfigure'])
+                op_name = '_'.join([element_object.name, i.interfacetype.split('.')[::-1][0].lower() , 'preconfigure'])
                 if not self.global_operations_info.get(op_name, {}).get(OUTPUT_IDS):
                     ansible_tasks.extend(
                         self.get_ansible_tasks_from_operation(op_name, target_directory, True))
             if i.name == 'configure':
-                op_name = '_'.join([element_object.name, 'prepare', 'configure'])
+                op_name = '_'.join([element_object.name, i.interfacetype.split('.')[::-1][0].lower(), 'configure'])
                 if not self.global_operations_info.get(op_name, {}).get(OUTPUT_IDS):
                     post_tasks.extend(
                         self.get_ansible_tasks_from_operation(op_name, target_directory, True))
@@ -316,8 +341,8 @@ class AnsibleConfigurationTool(ConfigurationTool):
         ansible_task_as_dict[REGISTER] = task_name
         ansible_task_as_dict.update(additional_args)
         ansible_tasks.append(ansible_task_as_dict)
-        ansible_tasks.extend(post_tasks)
-        return ansible_tasks
+        #ansible_tasks.extend(post_tasks)
+        return ansible_tasks, post_tasks, configuration_args
 
     def get_ansible_tasks_for_delete(self, element_object, description_by_type, module_by_type, additional_args=None):
         """
@@ -366,6 +391,7 @@ class AnsibleConfigurationTool(ConfigurationTool):
         scripts = []
         for interface in element_object.nodetemplate.interfaces:
             if not is_delete and interface.name == 'create' or is_delete and interface.name == 'delete':
+                #if not is_delete and interface.name == 'create' or is_delete and interface.name == 'delete' or interface.name == 'configure' and interface.type == 'Standard':
                 implementations = interface.implementation
                 if isinstance(interface.implementation, six.string_types):
                     implementations = [interface.implementation]
@@ -374,12 +400,13 @@ class AnsibleConfigurationTool(ConfigurationTool):
                     import_file = os.path.join(target_directory, script)
                     os.makedirs(os.path.dirname(import_file), exist_ok=True)
                     copyfile(script, import_file)
-                    for input_name, input_value in interface.inputs.items():
-                        ansible_tasks.append({
-                            SET_FACT: {
-                                input_name: input_value
-                            }
-                        })
+                    if interface.inputs != None:
+                        for input_name, input_value in interface.inputs.items():
+                            ansible_tasks.append({
+                                SET_FACT: {
+                                    input_name: input_value
+                                }
+                            })
                     new_ansible_task = {
                         IMPORT_TASKS_MODULE: import_file
                     }
