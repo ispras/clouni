@@ -156,7 +156,7 @@ class AnsibleConfigurationTool(ConfigurationTool):
                 configure_playbook = dict(
                     name=description_prefix + ' ' + v.name + ' ' + 'server component',
                     hosts=host_list[i],
-                    tasks=ansible_post_task_list[i]
+                    tasks=[ansible_post_task_list[i]]
                 )
                 ansible_playbook.append(configure_playbook)
 
