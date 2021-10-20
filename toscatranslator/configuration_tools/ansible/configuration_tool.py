@@ -117,8 +117,8 @@ class AnsibleConfigurationTool(ConfigurationTool):
                         prev_dep_order = v.dependency_order
                     check_async_tasks.extend(tasks_for_async)
                 ansible_task_list.extend(ansible_tasks)
-                if 'name' in host:
-                    ansible_post_task_list.extend(post_tasks)
+                if 'name' in host and post_tasks != []:
+                    ansible_post_task_list += post_tasks
                     host_list.append(host['name'])
 
             if not is_delete:
