@@ -80,7 +80,6 @@ class TranslatorShell(object):
                             metavar="KEY=VALUE",
                             nargs='+',
                             help='Extra arguments for configuration tool scripts')
-
         return parser
 
     def output_print(self, output_msg):
