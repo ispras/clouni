@@ -118,7 +118,7 @@ class AnsibleConfigurationTool(ConfigurationTool):
                     check_async_tasks.extend(tasks_for_async)
                 ansible_task_list.extend(ansible_tasks)
                 if 'name' in host and post_tasks != []:
-                    ansible_post_task_list += post_tasks
+                    ansible_post_task_list.append(post_tasks)
                     host_list.append(host['name'])
 
             if not is_delete:
@@ -152,24 +152,14 @@ class AnsibleConfigurationTool(ConfigurationTool):
             ansible_playbook.append(software_playbook)
 
         if ansible_post_task_list is not None:
-            for i in range(len(ansible_post_task_list)):
+            for i in range(len(host_list)):
                 configure_playbook = dict(
                     name=description_prefix + ' ' + v.name + ' ' + 'server component',
                     hosts=host_list[i],
-                    tasks=[ansible_post_task_list[i]]
+                    tasks=ansible_post_task_list[i]
                 )
                 ansible_playbook.append(configure_playbook)
 
-        #for v in elements_queue:
-        #    if v.type_name == 'Server':
-        #        ansible_tasks = self.get_ansible_tasks_from_interface(v, target_directory, is_delete,
-        #                                                              additional_args=extra)
-        #        software_playbook = dict(
-        #            name=description_prefix + ' ' + v.name + ' ' + ' server component',
-        #            hosts=v.name,
-        #            tasks=ansible_tasks
-        #        )
-        #        ansible_playbook.append(software_playbook)
 
         return yaml.dump(ansible_playbook, default_flow_style=False, sort_keys=False)
 
@@ -192,6 +182,7 @@ class AnsibleConfigurationTool(ConfigurationTool):
         software_queue = []
         for v in nodes_relationships_queue:
             self.gather_global_operations(v)
+        #print(self.global_operations_info.items())
         for op_name, op in self.global_operations_info.items():
             self.global_operations_info[op_name] = self.replace_all_get_functions(op)
         for v in nodes_relationships_queue:
@@ -440,7 +431,7 @@ class AnsibleConfigurationTool(ConfigurationTool):
 
     def get_ansible_tasks_from_operation(self, op_name, target_directory, if_required=False):
         tasks = []
-
+        #print(self.global_operations_info[op_name])
         op_info = self.global_operations_info[op_name]
         if not if_required and not op_info.get(OUTPUT_IDS) or not op_info.get(IMPLEMENTATION):
             return []
