@@ -352,7 +352,13 @@ tosca.nodes.SoftwareComponent:
   - capabilities: tosca.nodes.SoftwareComponent.capabilities
   - interfaces: tosca.nodes.SoftwareComponent.interfaces
 
-tosca.relationships.DependsOn: openstack.relationships.DependsOn
+tosca.relationships.DependsOn:
+  - requirements: openstack.relationships.DependsOn.requirements
+  - attributes: openstack.relationships.DependsOn.attributes
+  - properties: openstack.relationships.DependsOn.properties
+  - capabilities: openstack.relationships.DependsOn.capabilities
+  - interfaces: openstack.relationships.DependsOn.interfaces
+
 tosca.relationships.HostedOn: openstack.relationships.HostedOn
 tosca.relationships.ConnectsTo: openstack.relationships.ConnectsTo
 tosca.relationships.AttachesTo: openstack.relationships.AttachesTo
