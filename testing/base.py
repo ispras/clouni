@@ -1,5 +1,5 @@
 from toscatranslator.common.translator_to_configuration_dsl import translate as common_translate
-from toscatranslator import shell
+from shell_clouni import shell
 import os
 import yaml
 import copy
