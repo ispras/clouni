@@ -1,0 +1,32 @@
+- os_port_facts:
+    filters:
+      name: "{{ int_swp }}"    
+  register: port_swp_info
+  delegate_to: 127.0.0.1
+  
+- os_port_facts:
+    filters:
+      name: "{{ int_host }}"    
+  register: port_host_info
+  delegate_to: 127.0.0.1
+  
+- name: Configure router
+  shell: |
+        cat >> /etc/dhcp/dhcpd.conf << EOF
+        host {{ int_host }} {
+            hardware ethernet {{ port_host_info.ansible_facts.openstack_ports[0].mac_address }};
+            fixed-address {{ port_host_info.ansible_facts.openstack_ports[0].fixed_ips[0].ip_address }};
+        }
+        EOF
+        systemctl restart dhcpd.service
+        ifconfig eth0:{{ vip_address.split('.')[3] }} {{ vip_address }} netmask {{ ansible_default_ipv4.netmask }}
+        ip rule add to {{ port_host_info.ansible_facts.openstack_ports[0].fixed_ips[0].ip_address }} table 10
+        systemctl restart switchd.service
+        net add nat static snat tcp {{ port_host_info.ansible_facts.openstack_ports[0].fixed_ips[0].ip_address }} translate {{ vip_address }}
+        net add nat static dnat tcp {{ vip_address }} translate {{ port_host_info.ansible_facts.openstack_ports[0].fixed_ips[0].ip_address }}
+        net add nat static snat udp {{ port_host_info.ansible_facts.openstack_ports[0].fixed_ips[0].ip_address }} translate {{ vip_address }}
+        net add nat static dnat udp {{ vip_address }} translate {{ port_host_info.ansible_facts.openstack_ports[0].fixed_ips[0].ip_address }}
+        net add nat static snat icmp {{ port_host_info.ansible_facts.openstack_ports[0].fixed_ips[0].ip_address }} translate {{ vip_address }}
+        net add nat static dnat icmp {{ vip_address }} translate {{ port_host_info.ansible_facts.openstack_ports[0].fixed_ips[0].ip_address }}
+        net commit
+  become: yes

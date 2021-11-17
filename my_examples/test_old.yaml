@@ -1,0 +1,23 @@
+---
+- name: openstack configuration
+  hosts: localhost
+  vars_files:
+  tasks:
+    - os_port_facts:
+        filters:
+          name: gateway
+      register: port_info
+      
+    - debug:
+        msg: "{{ port_info }}"
+      register: ip_info
+      
+    - debug:
+        msg: "{{ port_info.ansible_facts.openstack_ports[0].fixed_ips[0].ip_address }}"
+      register: ip_info
+
+    - debug:
+        msg: "{{ ip_info.msg.split('.')[3] }}"
+
+    - debug:
+        msg: "{{ ip_info.msg |  ipaddr('address/prefix') }}"

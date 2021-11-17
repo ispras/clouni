@@ -1,0 +1,6 @@
+ext_swp: cumulus_external
+int_swp: gateway
+int_host_1: host_1_port
+int_host_2: host_2_port
+os_host: cirros
+arch_host: x86_64

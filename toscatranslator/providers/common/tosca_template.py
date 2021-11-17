@@ -20,6 +20,7 @@ from toscatranslator.providers.common.provider_configuration import ProviderConf
 from toscatranslator.providers.common.translator_to_provider import translate as translate_to_provider
 from toscatranslator.providers.common.provider_resource import ProviderResource
 
+import yaml
 SEPARATOR = '.'
 
 
@@ -29,8 +30,8 @@ class ProviderToscaTemplate(object):
     DEPENDENCY_FUNCTIONS = (GET_PROPERTY, GET_ATTRIBUTE, GET_OPERATION_OUTPUT)
     DEFAULT_ARTIFACTS_DIRECTOR = ARTIFACTS
 
-    def __init__(self, tosca_parser_template, provider, cluster_name):
-
+    def __init__(self, tosca_parser_template, provider, cluster_name, debug):
+        self.debug = debug
         self.provider = provider
         self.provider_config = ProviderConfiguration(self.provider)
         self.cluster_name = cluster_name
@@ -382,6 +383,11 @@ class ProviderToscaTemplate(object):
             (_, element_type, _) = utils.tosca_type_parse(k)
             if element_type == RELATIONSHIP_TYPES:
                 rel_types.append(v)
+        if self.debug:
+            print('Topology template raw')
+            print(yaml.dump(dict_tpl))
+            print('\n\n\n')
+
 
         topology_tpl = TopologyTemplate(dict_tpl, self.full_provider_defs, rel_types)
         self.artifacts.extend(new_artifacts)
@@ -413,6 +419,8 @@ class ProviderToscaTemplate(object):
             for f_name, f_body in function.items():
                 dep_node = nodes_by_name[f_body[0]]
                 function[f_name] = dep_node.entity_tpl[PROPERTIES][f_body[1]]
+            for i in range(2, len(f_body)):
+                function[f_name] = function[f_name][f_body[i]]
         for function in functions:
             for f_name, f_body in function.items():
                 f_name_splitted = f_name.split(SEPARATOR)

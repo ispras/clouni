@@ -1,0 +1,93 @@
+tosca_definitions_version: tosca_simple_yaml_1_0
+topology_template:
+  node_templates:
+    cumulus:
+      type: tosca.nodes.Compute
+      properties:
+        ports:
+          external:
+            port_name: cumulus_external
+          internal:
+            port_name: gateway
+      capabilities:
+        os:
+          properties:
+            type: cumulus
+        host:
+          properties:
+            num_cpus: 1
+            disk_size: 50 GiB
+            mem_size: 2048 MiB
+      interfaces:
+        Standard:
+          configure: 
+            implementation: configure_router.yaml
+            inputs:
+                int_swp: { get_attribute:  [ cumulus, ports, internal, port_name ] }
+            
+    custom_server_0:
+      type: tosca.nodes.Compute
+      properties:
+        ports:
+          internal:
+            port_name: host_1_port
+      capabilities:
+        host:
+          properties:
+            num_cpus: 1
+            disk_size: 50 GiB
+            mem_size: 2048 MiB
+        os:
+          properties:
+            architecture: cirros
+            type: x86_64
+      requirements:
+        - to_cumulus:
+            node: cumulus
+            relationship: server_1_connected_to_cumulus
+            
+    custom_server_1:
+      type: tosca.nodes.Compute
+      properties:
+        ports:
+          internal:
+            port_name: host_2_port
+      capabilities:
+        host:
+          properties:
+            num_cpus: 1
+            disk_size: 50 GiB
+            mem_size: 2048 MiB
+        os:
+          properties:
+            architecture: cirros
+            type: x86_64
+      requirements:
+        - dependency:
+            node: cumulus
+            relationship: server_2_connected_to_cumulus
+        
+  relationship_templates:
+    server_1_connected_to_cumulus:
+      type: tosca.relationships.DependsOn
+      interfaces:
+        Configure:
+          post_configure_target:
+            implementation: configure_conn.yaml
+            inputs:
+              int_swp: { get_attribute:  [ cumulus, ports, internal, port_name ] }
+              int_host: { get_attribute:  [ custom_server_1, ports, internal, port_name ] }
+              
+    server_2_connected_to_cumulus:
+      type: tosca.relationships.DependsOn
+      interfaces:
+        Configure:
+          post_configure_target:
+            implementation: configure_conn.yaml
+            inputs:
+              int_swp: { get_attribute:  [ cumulus, ports, internal, port_name ] }
+              int_host: { get_attribute:  [ custom_server_2, ports, internal, port_name ] }
+
+        
+
+            

@@ -1,0 +1,118 @@
+- name: Create OpenStack component openstack cluster
+  hosts: localhost
+  tasks:
+  - set_fact:
+      ext_swp_8991: '{{ ext_swp }}'
+  - set_fact:
+      int_swp_5250: '{{ int_swp }}'
+  - set_fact:
+      int_host_1_5923: '{{ int_host_1 }}'
+  - set_fact:
+      int_host_2_3679: '{{ int_host_2 }}'
+  - set_fact:
+      os_host_6612: '{{ os_host }}'
+  - set_fact:
+      arch_host_6365: '{{ arch_host }}'
+  - os_image_facts: {}
+    register: facts_result
+  - set_fact:
+      target_objects: '{{ facts_result["ansible_facts"]["openstack_image"] }}'
+    register: tmp_value
+  - set_fact:
+      target_objects_4554: '{{ target_objects }}'
+  - set_fact:
+      input_facts: '{{ target_objects_4554 }}'
+  - set_fact:
+      input_args_1372:
+      - - name
+        - properties
+      - type: cumulus
+  - set_fact:
+      input_args: '{{ input_args_1372 }}'
+  - include: artifacts/contains.yaml
+  - set_fact:
+      name: '{{ matched_object["name"] }}'
+    register: tmp_value
+  - set_fact:
+      name_9463: '{{ name }}'
+  - file:
+      path: '{{ playbook_dir }}/id_vars_example.yaml'
+      state: absent
+  - file:
+      path: '{{ playbook_dir }}/id_vars_example.yaml'
+      state: touch
+  - os_flavor_facts: {}
+    register: node_filter_facts_raw
+  - set_fact:
+      input_facts: '{{ node_filter_facts_raw["ansible_facts"]["openstack_flavors"]
+        }}'
+  - set_fact:
+      input_args:
+        vcpus: 1
+        disk: 50.0
+        ram: 2048.0
+  - include: artifacts/equals.yaml
+  - set_fact:
+      id_2901: '{{ matched_object["id"] }}'
+  - name: Create OpenStack component server
+    os_server:
+      config_drive: false
+      name: cumulus
+      nics:
+      - port-name: '{{ ext_swp_8991 }}'
+      - port-name: '{{ int_swp_5250 }}'
+      image: '{{ name_9463 }}'
+      flavor: '{{ id_2901 }}'
+    register: cumulus_server
+    ignore_errors: 'true'
+  - set_fact:
+      cumulus_server_list: '{{ cumulus_server_list | default([]) }} + [ "{{ item.id
+        }}" ]'
+    loop: '{{ cumulus_server.results | flatten(levels=1)  }}'
+    when: item.id  is defined
+  - set_fact:
+      cumulus_server_list:
+        cumulus_server_ids: '{{ cumulus_server_list }}'
+    when: cumulus_server_list is defined
+  - lineinfile:
+      path: '{{ playbook_dir }}/id_vars_example.yaml'
+      line: 'cumulus_server_delete: {{ cumulus_server.id }}'
+    when: cumulus_server.id is defined
+  - lineinfile:
+      path: '{{ playbook_dir }}/id_vars_example.yaml'
+      line: '{{ cumulus_server_list | to_nice_yaml }}'
+    when: cumulus_server_list is defined
+  - fail:
+      msg: Variable cumulus_server is undefined! So it will not be deleted
+    when: cumulus_server_list is undefined and cumulus_server.id is undefined
+    ignore_errors: true
+  - name: Create OpenStack component floating ip
+    os_floating_ip:
+      server: cumulus
+    register: cumulus_floating_ip
+    ignore_errors: 'true'
+  - set_fact:
+      cumulus_floating_ip_list: '{{ cumulus_floating_ip_list | default([]) }} + [
+        "{{ item.id }}" ]'
+    loop: '{{ cumulus_floating_ip.results | flatten(levels=1)  }}'
+    when: item.id  is defined
+  - set_fact:
+      cumulus_floating_ip_list:
+        cumulus_floating_ip_ids: '{{ cumulus_floating_ip_list }}'
+    when: cumulus_floating_ip_list is defined
+  - lineinfile:
+      path: '{{ playbook_dir }}/id_vars_example.yaml'
+      line: 'cumulus_floating_ip_delete: {{ cumulus_floating_ip.id }}'
+    when: cumulus_floating_ip.id is defined
+  - lineinfile:
+      path: '{{ playbook_dir }}/id_vars_example.yaml'
+      line: '{{ cumulus_floating_ip_list | to_nice_yaml }}'
+    when: cumulus_floating_ip_list is defined
+  - fail:
+      msg: Variable cumulus_floating_ip is undefined! So it will not be deleted
+    when: cumulus_floating_ip_list is undefined and cumulus_floating_ip.id is undefined
+    ignore_errors: true
+- name: Create OpenStack component cumulus_floating_ip server component
+  hosts: cumulus
+  tasks:
+  - include: artifacts/configure_router.yaml

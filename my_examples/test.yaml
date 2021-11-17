@@ -1,0 +1,119 @@
+- name: Create OpenStack component openstack cluster
+  hosts: localhost
+  tasks:
+  - file:
+      path: '{{ playbook_dir }}/id_vars_example.yaml'
+      state: absent
+  - file:
+      path: '{{ playbook_dir }}/id_vars_example.yaml'
+      state: touch
+  - name: Create OpenStack component network
+    os_network:
+      name: test_network
+      shared: false
+    register: my_network_network
+    ignore_errors: 1
+    async: true
+  - name: Checking my_network_network create openstack componentd
+    async_status: jid={{ my_network_network.ansible_job_id }}
+    register: async_result_status
+    until: async_result_status.finished
+    retries: '60'
+    delay: '5'
+    when: my_network_network.ansible_job_id is defined
+  - name: Checking my_network_network create openstack componentd
+    async_status: jid={{ my_network_network.results[item|int].ansible_job_id }}
+    register: async_result_status_list
+    until: async_result_status_list.finished or async_result_status_list.results[item].finished
+      | default(0)
+    retries: '60'
+    delay: '5'
+    with_sequence: start=0 end={{ my_network_network.results|length - 1 }}
+    when: my_network_network.results is defined
+  - name: Saving my_network_network result
+    set_fact:
+      my_network_network: '{{ async_result_status }}'
+    when: my_network_network.ansible_job_id is defined
+  - name: Saving my_network_network result
+    set_fact:
+      my_network_network: '{{ async_result_status_list }}'
+    when: my_network_network.results is defined
+  - set_fact:
+      my_network_network_list: '{{ my_network_network_list | default([]) }} + [ "{{
+        item.id }}" ]'
+    loop: '{{ my_network_network.results | flatten(levels=1)  }}'
+    when: item.id  is defined
+  - set_fact:
+      my_network_network_list:
+        my_network_network_ids: '{{ my_network_network_list }}'
+    when: my_network_network_list is defined
+  - lineinfile:
+      path: '{{ playbook_dir }}/id_vars_example.yaml'
+      line: 'my_network_network_delete: {{ my_network_network.id }}'
+    when: my_network_network.id is defined
+  - lineinfile:
+      path: '{{ playbook_dir }}/id_vars_example.yaml'
+      line: '{{ my_network_network_list | to_nice_yaml }}'
+    when: my_network_network_list is defined
+  - fail:
+      msg: Variable my_network_network is undefined! So it will not be deleted
+    when: my_network_network_list is undefined and my_network_network.id is undefined
+    ignore_errors: true
+  - name: Create OpenStack component subnet
+    os_subnet:
+      allocation_pool_end: 192.168.45.200
+      allocation_pool_start: 192.168.45.50
+      cidr: 192.168.45.0/24
+      enable_dhcp: true
+      gateway_ip: 192.168.45.1
+      ip_version: 4
+      name: test_network
+      network_name: test_network
+    register: my_network_subnet
+    ignore_errors: 1
+    async: true
+  - name: Checking my_network_subnet create openstack componentd
+    async_status: jid={{ my_network_subnet.ansible_job_id }}
+    register: async_result_status
+    until: async_result_status.finished
+    retries: '60'
+    delay: '5'
+    when: my_network_subnet.ansible_job_id is defined
+  - name: Checking my_network_subnet create openstack componentd
+    async_status: jid={{ my_network_subnet.results[item|int].ansible_job_id }}
+    register: async_result_status_list
+    until: async_result_status_list.finished or async_result_status_list.results[item].finished
+      | default(0)
+    retries: '60'
+    delay: '5'
+    with_sequence: start=0 end={{ my_network_subnet.results|length - 1 }}
+    when: my_network_subnet.results is defined
+  - name: Saving my_network_subnet result
+    set_fact:
+      my_network_subnet: '{{ async_result_status }}'
+    when: my_network_subnet.ansible_job_id is defined
+  - name: Saving my_network_subnet result
+    set_fact:
+      my_network_subnet: '{{ async_result_status_list }}'
+    when: my_network_subnet.results is defined
+  - set_fact:
+      my_network_subnet_list: '{{ my_network_subnet_list | default([]) }} + [ "{{
+        item.id }}" ]'
+    loop: '{{ my_network_subnet.results | flatten(levels=1)  }}'
+    when: item.id  is defined
+  - set_fact:
+      my_network_subnet_list:
+        my_network_subnet_ids: '{{ my_network_subnet_list }}'
+    when: my_network_subnet_list is defined
+  - lineinfile:
+      path: '{{ playbook_dir }}/id_vars_example.yaml'
+      line: 'my_network_subnet_delete: {{ my_network_subnet.id }}'
+    when: my_network_subnet.id is defined
+  - lineinfile:
+      path: '{{ playbook_dir }}/id_vars_example.yaml'
+      line: '{{ my_network_subnet_list | to_nice_yaml }}'
+    when: my_network_subnet_list is defined
+  - fail:
+      msg: Variable my_network_subnet is undefined! So it will not be deleted
+    when: my_network_subnet_list is undefined and my_network_subnet.id is undefined
+    ignore_errors: true
