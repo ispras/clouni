@@ -5,9 +5,14 @@ topology_template:
       type: tosca.nodes.network.Network
       properties:
         network_name: test_network
-        ip_version: 4
-        cidr: 192.168.45.0/24
-        start_ip: 192.168.45.50
-        end_ip: 192.168.45.200
-        gateway_ip: 192.168.45.1
-
+        cidr: 192.168.56.0/24
+        start_ip: 192.168.56.50
+        end_ip: 192.168.56.200
+        gateway_ip: 192.168.56.1
+        network_type: geneve
+    my_port:
+      type: tosca.nodes.network.Port
+      properties:
+        ip_address: 192.168.56.100
+      requirements:
+        - link: my_network
