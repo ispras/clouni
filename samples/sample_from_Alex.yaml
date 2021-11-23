@@ -1,0 +1,30 @@
+tosca_definitions_version: tosca_simple_yaml_1_0
+
+topology_template:
+  node_templates:
+    server_kube_master:
+      type: tosca.nodes.Compute
+      attributes:
+        private_address: 192.168.13.198
+        networks:
+          default:
+            network_name: net-for-intra-sandbox
+      capabilities:
+        host:
+          properties:
+            num_cpus: 1
+            disk_size: 10 GiB
+            mem_size: 1 GiB
+        endpoint:
+          properties:
+            protocol: tcp
+            port: 22
+            initiator: target
+          attributes:
+            ip_address: 0.0.0.0
+        os:
+          properties:
+            type: ubuntu
+            distribution: xenial
+            version: 16.04
+

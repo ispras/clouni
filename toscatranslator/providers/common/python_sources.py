@@ -18,7 +18,7 @@ SCALAR_UNIT_LIST_ALL = {'B': 1,
                         'EB': 7, 'E': 7, 'EIB': 7, 'EI': 7}
 
 
-def transform_units(source_value, target_unit=None, is_only_numb=False, is_without_b=False):
+def transform_units(source_value, target_unit=None, is_only_numb=False, is_without_b=False, is_floor_to_int=False):
     regex = re.compile(r'([0-9.]+)\s*(\w+)')
     result = regex.match(str(source_value)).groups()
     source_value = result[0]
@@ -30,7 +30,7 @@ def transform_units(source_value, target_unit=None, is_only_numb=False, is_witho
     else:
         target_value += source_value
     if is_only_numb:
-        return float(target_value)
+        return int(float(target_value)) if is_floor_to_int else float(target_value)
     if is_without_b:
         target_unit = target_unit[:-1] if target_unit is not None else source_unit[:-1]
     return target_value + ' ' + target_unit
