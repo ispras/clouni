@@ -408,11 +408,6 @@ tosca.nodes.network.Port:
           value: false
         - parameter: openstack.nodes.Port.properties.name
           value: "{self[value]}"
-  - attributes:
-      ip_address:
-        - parameter: openstack.nodes.Port.properties.fixed_ips
-          value:
-            - ip_address: "{self[value]}"
   - requirements:
     - link:
           parameter: openstack.nodes.Port.requirements.network

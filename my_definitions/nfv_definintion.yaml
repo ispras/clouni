@@ -1,0 +1,251 @@
+tosca_definitions_version: tosca_simple_yaml_1_0
+
+capability_types:
+
+node_types:
+  nfv.nodes.VDU:
+  
+data_types:
+  nfv.datatypes.virtualComputeDesc.VirtualMemoryData:
+    derived_from: tosca.datatypes.Root
+    properties:
+      virtualMemSize:
+        type: scalar-unit.size
+        default: 1024 MiB
+        
+  nfv.datatypes.virtualComputeDesc.VirtualCpuData:
+    derived_from: tosca.datatypes.Root
+    properties:
+      numVirtualCpu:
+        type: integer
+        default: 1
+      cpuArchitecture:
+        type: string
+        default: x86
+        constraints:
+          - valid_values: [ x86, x86_64, arm ]
+          
+  nfv.datatypes.virtualComputeDesc:
+    derived_from: tosca.datatypes.Root
+    properties:
+      virtualComputeDescId:
+        type: string
+        required: false
+      virtualCpu:
+        type: nfv.datatypes.VirtualCpuData
+        required: true
+      virtualMemory:
+        type: nfv.datatypes.VirtualMemoryData
+        required: true
+  
+  nfv.datatypes.VirtualStorageDesc.swImageDesc:
+    derived_from: tosca.datatypes.Root
+    properties:
+      id: 
+        type: string
+        required: false
+      version: 
+        type: string
+        required: true
+      checksum: 
+        type: string
+        required: true
+      minDisk: 
+        type: scalar-unit.size
+        default: 20 GiB
+      size:
+        type: scalar-unit.size
+        required: true
+      operatingSystem:
+        type: string
+        default: cumulus_vx
+      swImage:
+        type: string
+        required: true
+      diskFormat:
+        type: string
+        default: qcow2
+        constraints:
+          - valid_values: [ aki, ami, ari, iso, qcow2, raw, vdi, vhd, vhdx, vmdk ]
+      containerFormat:
+        type: string
+        default: BARE
+      
+  nfv.datatypes.VirtualStorageDesc:
+    derived_from: tosca.datatypes.Root
+    properties:
+      id: 
+        type: string
+        required: false
+      typeOfStorage: 
+        type: string
+        default: object
+        constraints:
+          - valid_values: [ object, volume ]
+      sizeOfStorage:
+        type: scalar-unit.size
+        default: 50 GiB
+        constraints: 
+           - in_range: [ 20 GiB, 200 GiB ]
+      swImageDesc:
+        type: nfv.datatypes.swImageDesc
+        required: false
+        
+  nfv.datatypes.addressData.L3AddressData:
+    derived_from: tosca.datatypes.Root
+    properties:
+      iPAddressAssignment:
+        type: boolean
+        default: true
+      iPAddress:
+        type: string
+        required: false
+      floatingIpActivated:
+        type: boolean
+        default: false
+      iPAddressType:
+        type: string
+        default: IPV4
+        constraints:
+          - valid_values: [ IPV4, IPV6 ]
+      numberOfIpAddress:
+        type: integer
+        default: 1
+          
+  nfv.datatypes.addressData.L2AddressData:
+    properties:
+      MaCAddressAssignment:
+        type: boolean
+        default: true
+      MaCAddress:
+        type: string
+        required: false
+          
+  nfv.datatypes.addressData:
+    derived_from: tosca.datatypes.Root
+    properties:
+      addressType: 
+        type: string
+        required: true
+        constraints:
+          - valid_values: [ IP, MAC ] # как сделать так чтобы при mac - l2 required true, при ip - l3?
+      l2AddressData:
+        type: nfv.datatypes.L2AddressData
+        required: false
+      l3AddressData:
+        type: nfv.datatypes.L3AddressData
+        required: false
+        
+  nfv.datatypes.virtualNetworkInterfaceRequirements:
+    derived_from: tosca.datatypes.Root
+    properties:
+      name: 
+        type: string
+        required: false
+      supportMandatory:
+        type: boolean
+        default: true
+      requirement:
+        type: string
+        required: true
+  
+  nfv.datatypes.VnfInfoModifiableAttributes:
+    derived_from: tosca.datatypes.Root
+    properties:
+      extension: 
+        type: string # придумать что тут должно быть?
+        required: false
+      metadata:
+        type: string
+        required: false
+    
+  nfv.datatypes.VNFDf.vduProfile:
+    derived_from: tosca.datatypes.Root
+    properties:
+      vduId:
+        type: string
+        required: false
+      minNumberOfInstances:
+        type: integer
+        default: 1
+      maxNumberOfInstances:
+        type: integer
+        default: 1
+  
+  nfv.datatypes.VNFDf.instantiationLevel:
+    derived_from: tosca.datatypes.Root
+    properties:
+      levelId:
+        type: string
+        required: false
+      description:
+        type: string
+        required: false
+      numberOfInstances:
+        type: integer
+        default: 1
+  
+  nfv.datatypes.VNFDf.vnfLcmOperationsConfiguration.instantiateVnfOpConfig:
+    derived_from: tosca.datatypes.Root
+    properties:
+      parameter: 
+        type: string
+        required: false
+
+  nfv.datatypes.VNFDf.vnfLcmOperationsConfiguration.terminateVnfOpConfig:
+    derived_from: tosca.datatypes.Root
+    properties:
+      parameter: 
+        type: string
+        required: false
+      minGracefulTerminationTimeout:
+        type: integer
+        default: 100
+      maxRecommendedGracefulTerminationTimeout:
+        type: integer
+        default: 100
+        
+  nfv.datatypes.VNFDf.vnfLcmOperationsConfiguration.operateVnfOpConfig:
+    derived_from: tosca.datatypes.Root
+    properties:
+      parameter: 
+        type: string
+        required: false
+      minGracefulStopTimeout:
+        type: integer
+        default: 100
+      maxRecommendedGracefulStopTimeout:
+        type: integer
+        default: 100
+  
+  nfv.datatypes.VNFDf.vnfLcmOperationsConfiguration:
+    derived_from: tosca.datatypes.Root
+    properties:
+      instantiateVnfOpConfig:
+        type: nfv.datatypes.instantiateVnfOpConfig
+        required: false
+      terminateVnfOpConfig:
+        type: nfv.datatypes.terminateVnfOpConfig
+        required: false
+      operateVnfOpConfig:
+        type: nfv.datatypes.operateVnfOpConfig
+        required: false
+  
+  nfv.datatypes.VNFDf: # нафиг он сдался не оч понятно, пусть будет как дататайп с required: false
+    derived_from: tosca.datatypes.Root
+    properties:
+      flavourId:
+        type: string
+        required: false
+      description:
+        type: string
+        required: false
+      vduProfile:
+        type: nfv.datatypes.vduProfile
+        required: true
+      instantiationLevel:
+        type: nfv.datatypes.instantiationLevel
+        required: true
+      vnfLcmOperationsConfiguration:
+      
+relationship_types:
