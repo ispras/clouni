@@ -1,8 +1,0 @@
----
-- name: openstack configuration
-  hosts: 10.100.160.42
-  tasks:
-      - name: Include a play after another play
-        include: configure_router.yaml
-      - name: Include a play after another play
-        include: configure_conn.yaml
