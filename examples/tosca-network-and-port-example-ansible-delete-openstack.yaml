@@ -1,0 +1,58 @@
+- name: Delete OpenStack component openstack cluster
+  hosts: localhost
+  tasks:
+  - include_vars: '{{ playbook_dir }}/id_vars_test.yaml'
+  - name: Delete OpenStack component port
+    os_port:
+      name: '{{ my_port_port_delete }}'
+      state: absent
+    when: my_port_port_delete is defined
+    register: my_port_port_var
+  - set_fact: my_port_port='{{ my_port_port_var }}'
+    when: my_port_port_var.changed
+  - name: Delete OpenStack component port
+    os_port:
+      name: '{{ item }}'
+      state: absent
+    when: my_port_port_ids is defined
+    loop: '{{ my_port_port_ids | flatten(levels=1) }}'
+    register: my_port_port_var
+  - set_fact: my_port_port='{{ my_port_port_var }}'
+    when: my_port_port_var.changed
+  - name: Delete OpenStack component subnet
+    os_subnet:
+      name: '{{ my_network_subnet_delete }}'
+      state: absent
+    when: my_network_subnet_delete is defined
+    register: my_network_subnet_var
+  - set_fact: my_network_subnet='{{ my_network_subnet_var }}'
+    when: my_network_subnet_var.changed
+  - name: Delete OpenStack component subnet
+    os_subnet:
+      name: '{{ item }}'
+      state: absent
+    when: my_network_subnet_ids is defined
+    loop: '{{ my_network_subnet_ids | flatten(levels=1) }}'
+    register: my_network_subnet_var
+  - set_fact: my_network_subnet='{{ my_network_subnet_var }}'
+    when: my_network_subnet_var.changed
+  - name: Delete OpenStack component network
+    os_network:
+      name: '{{ my_network_network_delete }}'
+      state: absent
+    when: my_network_network_delete is defined
+    register: my_network_network_var
+  - set_fact: my_network_network='{{ my_network_network_var }}'
+    when: my_network_network_var.changed
+  - name: Delete OpenStack component network
+    os_network:
+      name: '{{ item }}'
+      state: absent
+    when: my_network_network_ids is defined
+    loop: '{{ my_network_network_ids | flatten(levels=1) }}'
+    register: my_network_network_var
+  - set_fact: my_network_network='{{ my_network_network_var }}'
+    when: my_network_network_var.changed
+  - file:
+      path: '{{ playbook_dir }}/id_vars_test.yaml'
+      state: absent

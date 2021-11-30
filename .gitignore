@@ -20,6 +20,7 @@ ansible-hosts
 tosca-server-example-output*
 
 venv
-my_definitions 	my_definitions
+my_definitions
 my_examples
 my_templates
+
