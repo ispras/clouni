@@ -429,3 +429,7 @@ class TestAnsibleOpenStackOutput (unittest.TestCase, TestAnsibleProvider):
                 self.assertTrue(task['with_sequence'], 'start=1 end=' + str(default_instances) + ' format=')
                 server_name = task[SERVER_MODULE_NAME]['name']
         self.assertIsNotNone(server_name)
+
+    def test_volume_validation(self):
+        file_path = os.path.join('examples', 'tosca-aagg.yaml')
+        shell.main(['--template-file', file_path, '--cluster-name', 'test']) # --validate-only
