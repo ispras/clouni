@@ -4,7 +4,7 @@ import os
 
 from toscaparser.common.exception import MissingRequiredFieldError, ValidationError
 from testing.base import BaseAnsibleProvider
-from toscatranslator import shell
+from shell_clouni import shell
 from toscatranslator.common.tosca_reserved_keys import TOSCA_DEFINITIONS_VERSION, TOPOLOGY_TEMPLATE, NODE_TEMPLATES, TYPE
 
 from toscatranslator.common.utils import get_project_root_path
