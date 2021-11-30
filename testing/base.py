@@ -1,5 +1,5 @@
 from toscatranslator.common.translator_to_configuration_dsl import translate as common_translate
-from toscatranslator import shell
+from shell_clouni import shell
 import os
 import yaml
 import copy
@@ -73,7 +73,8 @@ class BaseAnsibleProvider:
         if not template_filename:
             template_filename = self.testing_template_filename()
         self.write_template(self.prepare_yaml(template))
-        r = common_translate(template_filename, False, self.PROVIDER, ANSIBLE, TEST, False, extra=extra)
+        r = common_translate(template_filename, False, self.PROVIDER, ANSIBLE, TEST, False, extra=extra,
+                             log_level='debug')
         print(r)
         self.delete_template(template_filename)
         playbook = self.parse_yaml(r)

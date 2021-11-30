@@ -46,6 +46,9 @@ class TestAnsibleAmazonOutput (unittest.TestCase, TestAnsibleProvider):
         server = tasks[2][INSTANCE_MODULE_NAME]
         self.assertEqual(server['name'], self.NODE_NAME)
 
+    def test_meta(self, extra=None):
+        super(TestAnsibleAmazonOutput, self).test_meta(extra=extra)
+
     def check_meta (self, tasks, testing_value=None):
         server_name = None
         for task in tasks:
@@ -57,6 +60,9 @@ class TestAnsibleAmazonOutput (unittest.TestCase, TestAnsibleProvider):
                 if testing_value:
                     self.assertEqual(server_meta, testing_value)
         self.assertIsNotNone(server_name)
+
+    def test_private_address(self):
+        super(TestAnsibleAmazonOutput, self).test_private_address()
 
     def check_private_address(self, tasks, testing_value=None):
         server_private_ip = None
@@ -73,6 +79,9 @@ class TestAnsibleAmazonOutput (unittest.TestCase, TestAnsibleProvider):
     def check_network_name(self, tasks, testing_value=None):
         # NOTE must be an error, but nothing happens
         pass
+
+    def test_host_capabilities(self):
+        super(TestAnsibleAmazonOutput, self).test_host_capabilities()
 
     def check_host_capabilities(self, tasks, testing_value=None):
         server_name = None
@@ -114,6 +123,9 @@ class TestAnsibleAmazonOutput (unittest.TestCase, TestAnsibleProvider):
                 self.assertIsNotNone(sec_group_name)
                 self.assertIn(sec_group_name, server_groups)
         self.assertIsNotNone(server_name)
+
+    def test_os_capabilities(self):
+        super(TestAnsibleAmazonOutput, self).test_os_capabilities()
 
     def check_os_capabilities(self, tasks, testing_value=None):
         server_name = None

@@ -1,3 +1,5 @@
+import sys
+
 try:
     # Python 3
     import configparser
@@ -5,12 +7,11 @@ except:
     # Python 2
     import ConfigParser
 
-import os
-from toscaparser.common.exception import ExceptionCollector
-from toscatranslator.common.exception import ConfigurationNotFound, ConfigurationParameterError
 from toscatranslator.common.tosca_reserved_keys import CLOUNI
 
 from toscatranslator.common import utils
+
+import logging, os, json
 
 CONFIG_FILE_EXT = '.cfg'
 
@@ -31,7 +32,8 @@ class Configuration:
             if os.path.isfile(file):
                 self.config_filename = file
             else:
-                ExceptionCollector.appendException(FileNotFoundError(file))
+                logging.error("Configuration file \'%s\' not found" % file)
+                sys.exit(1)
         else:
             cwd_config_filename = os.path.join(os.getcwd(), file)
             root_clouni_config_filename = os.path.join(utils.get_project_root_path(),
@@ -49,9 +51,10 @@ class Configuration:
                     break
 
             if self.config_filename is None:
-                ExceptionCollector.appendException(ConfigurationNotFound(
-                    what=filename_variants_priority
-                ))
+                logging.error("Configuration files were missing in possible locations: %s" % json.dumps(filename_variants_priority))
+                sys.exit(1)
+
+            logging.info("Configuration file \'%s\' is used" % self.config_filename)
 
         self.config_directory = os.path.dirname(self.config_filename)
 
@@ -60,9 +63,8 @@ class Configuration:
         self.config.read(self.config_filename)
 
         if not self.MAIN_SECTION in self.config.sections():
-            ExceptionCollector.appendException(ConfigurationParameterError(
-                what=self.MAIN_SECTION
-            ))
+            logging.error("Main section is missing in configuration file")
+            sys.exit(1)
 
     def parse_param(self, param):
         r = param

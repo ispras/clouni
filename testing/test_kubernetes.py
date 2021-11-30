@@ -4,7 +4,7 @@ import os
 
 from toscaparser.common.exception import MissingRequiredFieldError, ValidationError
 from testing.base import BaseAnsibleProvider
-from toscatranslator import shell
+from shell_clouni import shell
 from toscatranslator.common.tosca_reserved_keys import TOSCA_DEFINITIONS_VERSION, TOPOLOGY_TEMPLATE, NODE_TEMPLATES, TYPE
 
 from toscatranslator.common.utils import get_project_root_path
@@ -58,7 +58,7 @@ class TestKubernetesOutput(unittest.TestCase, BaseAnsibleProvider):
         manifest = self.update_port(template_1)
         self.assertEqual(manifest[0].get('spec'), {'clusterIP': '10.233.0.2', 'ports': [{'port': 888}]})
 
-
+    @unittest.expectedFailure
     def test_private_address_error(self):
         with self.assertRaises(ValidationError):
             template = self.update_template_attribute(self.template, self.NODE_NAME,
