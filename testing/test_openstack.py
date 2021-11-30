@@ -3,6 +3,7 @@ from testing.base import TestAnsibleProvider
 import copy
 import os
 import re
+import yaml
 
 from shell_clouni import shell
 
@@ -11,6 +12,8 @@ PORT_MODULE_NAME = 'os_port'
 FIP_MODULE_NAME = 'os_floating_ip'
 SEC_GROUP_MODULE_NAME = 'os_security_group'
 SEC_RULE_MODULE_NAME = 'os_security_group_rule'
+NETWORK_MODULE_NAME = 'os_network'
+SUBNET_MODULE_NAME = 'os_subnet'
 
 
 class TestAnsibleOpenStackOutput (unittest.TestCase, TestAnsibleProvider):
@@ -55,6 +58,121 @@ class TestAnsibleOpenStackOutput (unittest.TestCase, TestAnsibleProvider):
 
         file_diff_path = os.path.join('examples', 'tosca-server-example-ansible-async-openstack.yaml')
         self.diff_files(file_output_path, file_diff_path)
+
+    def test_full_translating_network(self):
+        file_path = os.path.join('examples', 'tosca-network-and-port-example.yaml')
+        file_output_path = os.path.join('examples', 'tosca-network-and-port-example-output.yaml')
+        shell.main(['--template-file', file_path, '--cluster-name', 'test', '--provider', self.PROVIDER,
+                    '--output-file', file_output_path])
+
+        file_diff_path = os.path.join('examples', 'tosca-network-and-port-example-ansible-openstack.yaml')
+        self.diff_files(file_output_path, file_diff_path)
+
+    def test_delete_full_translating_network(self):
+        file_path = os.path.join('examples', 'tosca-network-and-port-example.yaml')
+        file_output_path = os.path.join('examples', 'tosca-network-and-port-example-output-delete.yaml')
+        shell.main(['--template-file', file_path, '--cluster-name', 'test', '--provider', self.PROVIDER, '--delete',
+                    '--output-file', file_output_path])
+
+        file_diff_path = os.path.join('examples', 'tosca-network-and-port-example-ansible-delete-openstack.yaml')
+        self.diff_files(file_output_path, file_diff_path)
+
+    def test_full_async_translating_network(self):
+        file_path = os.path.join('examples', 'tosca-network-and-port-example.yaml')
+        file_output_path = os.path.join('examples', 'tosca-network-and-port-example-output-async.yaml')
+        shell.main(['--template-file', file_path, '--cluster-name', 'test', '--provider', self.PROVIDER, '--async',
+                    '--extra', 'retries=3', 'async=60', 'poll=0', 'delay=1',
+                    '--output-file', file_output_path])
+
+        file_diff_path = os.path.join('examples', 'tosca-network-and-port-example-ansible-async-openstack.yaml')
+        self.diff_files(file_output_path, file_diff_path)
+
+    def test_network_with_compute(self):
+        file_path = os.path.join('examples', 'tosca-network-and-server-example.yaml')
+        template = self.read_template(file_path)
+        playbook = self.get_ansible_create_output(template, file_path, delete_template=False)
+        self.assertEqual(len(playbook), 1)
+        self.assertIsInstance(playbook[0], dict)
+        self.assertIsNotNone(playbook[0]['tasks'])
+        tasks = playbook[0]['tasks']
+        has_network = False
+        has_subnet = False
+        has_port = False
+        has_compute = False
+        for task in tasks:
+            if not has_network:
+                if task.get(SUBNET_MODULE_NAME) or task.get(PORT_MODULE_NAME) or task.get(SERVER_MODULE_NAME):
+                    self.assertTrue(False, msg='os_network should be first!')
+                if task.get(NETWORK_MODULE_NAME):
+                    self.check_network_module(task)
+                    network_name = task[NETWORK_MODULE_NAME]['name']
+                    has_network = True
+            elif has_network:
+                if not has_subnet:
+                    if task.get(PORT_MODULE_NAME) or task.get(SERVER_MODULE_NAME):
+                        self.assertTrue(False, msg='os_subnet should be first!')
+                    if task.get(SUBNET_MODULE_NAME):
+                        self.check_subnet_module(task, network_name)
+                        subnet_name = task[SUBNET_MODULE_NAME]['name']
+                        has_subnet = True
+                elif has_subnet:
+                    if not has_port:
+                        if task.get(SERVER_MODULE_NAME):
+                            self.assertTrue(False, msg='os_port should be first!')
+                        if task.get(PORT_MODULE_NAME):
+                            self.check_port_module(task, subnet_name)
+                            port_name = task[PORT_MODULE_NAME]['name']
+                            has_port = True
+                    elif has_port:
+                        if task.get(SERVER_MODULE_NAME):
+                            self.check_compute_module(task, port_name)
+                            has_compute = True
+        self.assertTrue(has_network)
+        self.assertTrue(has_subnet)
+        self.assertTrue(has_port)
+        self.assertTrue(has_compute)
+
+    def check_compute_module(self, task, port_name):
+        self.assertIsNotNone(task[SERVER_MODULE_NAME].get('name'))
+        self.assertIsNotNone(task[SERVER_MODULE_NAME].get('config_drive'))
+        self.assertIsNotNone(task[SERVER_MODULE_NAME].get('nics'))
+        self.assertIsNotNone(task[SERVER_MODULE_NAME].get('image'))
+        self.assertIsNotNone(task[SERVER_MODULE_NAME].get('flavor'))
+        nics = task[SERVER_MODULE_NAME]['nics']
+        self.assertIsNotNone(port_name)
+        port_found = False
+        for nic in nics:
+            if nic.get('port-name', '') == port_name:
+                port_found = True
+                break
+        self.assertTrue(port_found)
+
+    def check_network_module(self, task):
+        self.assertIsNotNone(task[NETWORK_MODULE_NAME].get('name'))
+        self.assertIsNotNone(task[NETWORK_MODULE_NAME].get('shared'))
+        self.assertIsNotNone(task[NETWORK_MODULE_NAME].get('provider_network_type'))
+
+    def check_port_module(self, task, subnet_name):
+        self.assertIsNotNone(task[PORT_MODULE_NAME].get('admin_state_up'))
+        self.assertIsNotNone(task[PORT_MODULE_NAME].get('name'))
+        self.assertIsNotNone(task[PORT_MODULE_NAME].get('vnic_type'))
+        self.assertIsNotNone(task[PORT_MODULE_NAME].get('port_security_enabled'))
+        self.assertIsNotNone(task[PORT_MODULE_NAME].get('network'))
+        subnet_network_name = task[PORT_MODULE_NAME]['network']
+        self.assertEqual(subnet_network_name, subnet_name)
+
+    def check_subnet_module(self, task, network_name):
+        self.assertIsNotNone(task[SUBNET_MODULE_NAME].get('allocation_pool_end'))
+        self.assertIsNotNone(task[SUBNET_MODULE_NAME].get('allocation_pool_start'))
+        self.assertIsNotNone(task[SUBNET_MODULE_NAME].get('cidr'))
+        self.assertIsNotNone(task[SUBNET_MODULE_NAME].get('enable_dhcp'))
+        self.assertIsNotNone(task[SUBNET_MODULE_NAME].get('gateway_ip'))
+        self.assertIsNotNone(task[SUBNET_MODULE_NAME].get('ip_version'))
+        self.assertIsNotNone(task[SUBNET_MODULE_NAME].get('name'))
+        self.assertIsNotNone(task[SUBNET_MODULE_NAME].get('network_name'))
+        subnet_network_name = task[SUBNET_MODULE_NAME]['network_name']
+        self.assertEqual(subnet_network_name, network_name)
+
 
     def test_delete_full_async_translating(self):
         file_path = os.path.join('examples', 'tosca-server-example.yaml')
