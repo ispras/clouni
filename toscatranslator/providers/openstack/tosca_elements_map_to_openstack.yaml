@@ -361,16 +361,6 @@ tosca.nodes.network.Network:
             value: "{self[value]}"
           - parameter: openstack.nodes.Subnet.requirements.network_name
             value: "{self[name]}_network"
-         # - parameter: openstack.nodes.Subnet.requirements.network_name
-         #   value:
-         #       parameter: node
-         #       value: "{self[name]}_network"
-         # - parameter: openstack.relationships.DependsOn.description
-         #   value: "{self[value]}"
-         # - parameter: openstack.nodes.Subnet.requirements.network_name
-         #   value:
-         #     parameter: relationship
-         #     value: "{self[name]}_depends_on"
       network_id:
           parameter: openstack.nodes.Subnet.properties.id
           value: "{self[value]}"
@@ -406,7 +396,27 @@ tosca.nodes.network.Network:
           parameter: openstack.nodes.Network.attributes.provider_segmentation_id
           value: "{self[value]}"
 
-
+tosca.nodes.network.Port:
+  - properties:
+      ip_address:
+        - parameter: openstack.nodes.Port.properties.fixed_ips
+          value:
+            - ip_address: "{self[value]}"
+        - parameter: openstack.nodes.Port.properties.admin_state_up
+          value: true
+        - parameter: openstack.nodes.Port.properties.port_security_enabled
+          value: false
+        - parameter: openstack.nodes.Port.properties.name
+          value: "{self[value]}"
+  - attributes:
+      ip_address:
+        - parameter: openstack.nodes.Port.properties.fixed_ips
+          value:
+            - ip_address: "{self[value]}"
+  - requirements:
+    - link:
+          parameter: openstack.nodes.Port.requirements.network
+          value: "{self[value]}_subnet"
 
 tosca.relationships.DependsOn:
   - requirements: openstack.relationships.DependsOn.requirements
