@@ -1,7 +1,6 @@
 import os
 import copy
 import json
-import yaml
 
 from toscaparser.common.exception import ExceptionCollector, ValidationError
 from toscaparser.imports import ImportsLoader
