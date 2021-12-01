@@ -22,7 +22,7 @@ topology_template:
         name: tosca_server_example
         network:
           assign_public_ip: true
-          private_ip_address: 192.168.12.26
+          private_ip_address: 192.168.12.27
         instance_type:
           get_operation_output:
             - tosca_server_example_server_instance_type
