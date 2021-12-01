@@ -32,7 +32,7 @@ tosca.nodes.Compute:
         name: "{{{{ host_ip }}}}"
         key: "{{{{ host_key.stdout }}}}"
       value: temp_value
-  - attributes:
+  - properties:
       tosca_name:
         parameter: "{self[name]}"
         value: "{self[value]}"
@@ -85,11 +85,11 @@ tosca.nodes.Compute:
           value:
           - port-name: "{self[name]}_port_0"
       public_address:
-        - parameter: openstack.nodes.Server.attributes.auto_ip
+        - parameter: openstack.nodes.Server.properties.auto_ip
           value: false
         - parameter: openstack.nodes.FloatingIp
           value:
-            - attributes.floating_ip_address
+            - properties.floating_ip_address
             - parameter: requirements.network.node_filter.properties
               value:
                 - parameter: name
@@ -220,8 +220,8 @@ tosca.nodes.Compute:
                 is_only_numb: true
               value: default_tmp
       endpoint:
-        attributes.ip_address:
-          - openstack.nodes.SecurityGroupRule.attributes.remote_ip_prefix
+        properties.ip_address:
+          - openstack.nodes.SecurityGroupRule.properties.remote_ip_prefix
           - parameter: openstack.nodes.SecurityGroup.properties.name
             value: "{self[name]}_security_group"
           - parameter: openstack.nodes.Server.requirements.security_groups
@@ -234,11 +234,11 @@ tosca.nodes.Compute:
           - parameter: "{self[buffer][endpoint][protocol]}"
             value:
               - "{self[value]}"
-          - parameter: openstack.nodes.SecurityGroupRule.attributes.protocol
+          - parameter: openstack.nodes.SecurityGroupRule.properties.protocol
             value: "{{{{ {self[keyname]}_protocols[item | int] | default(omit) }}}}"
-          - parameter: openstack.nodes.SecurityGroupRule.attributes.port_range_min
+          - parameter: openstack.nodes.SecurityGroupRule.properties.port_range_min
             value: "{{{{ {self[keyname]}_ports[item | int] | default(omit) }}}}"
-          - parameter: openstack.nodes.SecurityGroupRule.attributes.port_range_max
+          - parameter: openstack.nodes.SecurityGroupRule.properties.port_range_max
             value: "{{{{ {self[keyname]}_ports[item | int] | default(omit) }}}}"
           - parameter: openstack.nodes.SecurityGroupRule.interfaces.Prepare.preconfigure.implementation
             value:
@@ -269,13 +269,13 @@ tosca.nodes.Compute:
           error: true
           reason: Not supported by OpenStack
         properties.initiator.target:
-          parameter: openstack.nodes.SecurityGroupRule.attributes.direction
+          parameter: openstack.nodes.SecurityGroupRule.properties.direction
           value: ingress
         properties.initiator.source:
-          parameter: openstack.nodes.SecurityGroupRule.attributes.direction
+          parameter: openstack.nodes.SecurityGroupRule.properties.direction
           value: egress
         properties.initiator.peer:
-          parameter: openstack.nodes.SecurityGroupRule.attributes.direction
+          parameter: openstack.nodes.SecurityGroupRule.properties.direction
           value: peer
         properties.ports.*.protocol:
           - parameter: "{self[buffer][endpoint][protocol]}"
@@ -347,7 +347,7 @@ tosca.nodes.SoftwareComponent:
   - requirements.host:
       parameter: tosca.nodes.SoftwareComponent.requirements.host
       value: "{self[value]}_server"
-  - attributes: tosca.nodes.SoftwareComponent.attributes
+  - properties: tosca.nodes.SoftwareComponent.properties
   - properties: tosca.nodes.SoftwareComponent.properties
   - capabilities: tosca.nodes.SoftwareComponent.capabilities
   - interfaces: tosca.nodes.SoftwareComponent.interfaces

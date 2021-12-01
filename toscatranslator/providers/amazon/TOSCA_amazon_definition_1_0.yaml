@@ -188,7 +188,7 @@ node_types:
 
   amazon.nodes.Ami: # ec2_ami, ec2_ami_facts
     derived_from: amazon.nodes.Root
-    attributes:
+    properties:
       description:
         type: string
         required: false
@@ -201,7 +201,6 @@ node_types:
       ramdisk_id:
         type: string
         required: false
-    properties:
       architecture:
         type: string
         required: false
@@ -226,7 +225,7 @@ node_types:
 
   amazon.nodes.Instance: # ec2_instance, ec2_instance_facts
     derived_from: amazon.nodes.Root
-    attributes:
+    properties:
       image: # parameters to override for image when create
         type: amazon.datatypes.Image
         required: false
@@ -236,7 +235,6 @@ node_types:
       name:
         type: string
         required: false
-    properties:
       instance_id: # not used when create
         type: string
         required: false
@@ -280,11 +278,10 @@ node_types:
 
   amazon.nodes.Group: # ec2_group, ec2_group_facts
     derived_from: amazon.nodes.Root
-    attributes:
+    properties:
       description:
         type: string
         required: false
-    properties:
       group_id: # not used with create
         type: string
         required: false
@@ -355,30 +352,30 @@ node_types:
 relationship_types:
   amazon.relationships.DependsOn:
     description: This type results in ordering of initializing objects.
-    derived_from: tosca.relationships.DependsOn
+    derived_from: provider.relationships.DependsOn
     valid_target_types: [ amazon.capabilities.Node ]
 
   amazon.relationships.HostedOn:
     description: This type represents the object to be the part of another object.
-    derived_from: tosca.relationships.HostedOn
+    derived_from: provider.relationships.HostedOn
 
   amazon.relationships.ConnectsTo:
     description: This type represents the network connection between to instances or two software components.
-    derived_from: tosca.relationships.Root
+    derived_from: provider.relationships.Root
 
   amazon.relationships.AttachesTo:
     description: This type represents the attachment of volume to the server
-    derived_from: tosca.relationships.Root
+    derived_from: provider.relationships.Root
     valid_target_types: [ amazon.capabilities.Attachment ]
 
   amazon.relationships.network.LinksTo:
     description: This type appears between FloatingIp and Network
-    derived_from: tosca.relationships.network.LinksTo
+    derived_from: provider.relationships.network.LinksTo
     valid_target_types: [ amazon.capabilities.network.Linkable ]
 
   amazon.relationships.network.BindsTo:
     description: This type appears between FloatingIp and Server
-    derived_from: tosca.relationships.network.BindsTo
+    derived_from: provider.relationships.network.BindsTo
     valid_target_types: [ amazon.capabilities.network.Bindable ]
 
 ##########################################################################

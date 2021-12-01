@@ -1,13 +1,7 @@
-import os
-
-from toscaparser.common.exception import ExceptionCollector
-from toscaparser.utils.yamlparser import simple_parse as yaml_parse
+import six
 from toscaparser.tosca_template import ToscaTemplate
 
-from toscatranslator.common.exception import UnspecifiedParameter, ProviderConfigurationParameterError, \
-    UnsupportedExecutorType
 from toscatranslator.providers.common.tosca_template import ProviderToscaTemplate
-
 from toscatranslator.common.tosca_reserved_keys import IMPORTS, TOSCA_DEFINITION_FILE, DEFAULT_ARTIFACTS_DIRECTORY,\
     EXECUTOR, NAME
 from toscatranslator.common import utils
@@ -15,11 +9,15 @@ from toscatranslator.common.configuration import Configuration
 from toscatranslator.configuration_tools.combined.combine_configuration_tools import get_configuration_tool_class
 
 
+import logging
+import json, os, sys, yaml
+
+
 REQUIRED_CONFIGURATION_PARAMS = (TOSCA_DEFINITION_FILE, DEFAULT_ARTIFACTS_DIRECTORY)
 
 
 def translate(template_file, validate_only, provider, configuration_tool, cluster_name, is_delete=False, a_file=True,
-              extra=None):
+              extra=None, log_level='info'):
     """
     Main function, is called by different shells, i.e. bash, Ansible module, grpc
     :param template_file: filename of TOSCA template or TOSCA template data if a_file is False
@@ -32,13 +30,29 @@ def translate(template_file, validate_only, provider, configuration_tool, cluste
     :param extra: extra for template
     :return: string that is a script to deploy or delete infrastructure
     """
+    log_map = dict(
+        debug=logging.DEBUG,
+        info=logging.INFO,
+        warning=logging.WARNING,
+        error=logging.ERROR,
+        critical=logging.ERROR
+    )
+
+    logging_format = "%(asctime)s %(levelname)s %(message)s"
+    logging.basicConfig(filename=os.path.join(os.getenv('HOME'), '.clouni.log'), filemode='a', level=log_map[log_level],
+                        format=logging_format, datefmt='%Y-%m-%d %H:%M:%S')
+    logging.info("Started translation of TOSCA template \'%s\' for provider \'%s\' and configuration tool \'%s\'" %
+                 (template_file if a_file else 'raw', provider, configuration_tool))
+    logging.info("Cluster name set to \'%s\'" % cluster_name)
+    logging.info("Deploying script for cluster %s will be created" % 'deletion' if is_delete else 'creation')
+    logging.info("Extra parameters to the unit of deployment scripts will be added: %s" % json.dumps(extra))
+    logging.info("Log level is set to %s" % log_level)
 
     config = Configuration()
     for sec in REQUIRED_CONFIGURATION_PARAMS:
         if sec not in config.get_section(config.MAIN_SECTION).keys():
-            raise ProviderConfigurationParameterError(
-                what=sec
-            )
+            logging.error('Provider configuration parameter "%s" is missing in configuration file' % sec)
+            sys.exit(1)
 
     if a_file:
         template_file = os.path.join(os.getcwd(), template_file)
@@ -46,32 +60,42 @@ def translate(template_file, validate_only, provider, configuration_tool, cluste
             template_content = f.read()
     else:
         template_content = template_file
-    template = yaml_parse(template_content)
 
-    def_file = config.get_section(config.MAIN_SECTION).get(TOSCA_DEFINITION_FILE)
+    try:
+        template = yaml.load(template_content, Loader=yaml.SafeLoader)
+    except yaml.scanner.ScannerError as e:
+        logging.error("Error parsing TOSCA template: %s%s" % (e.problem, e.context_mark))
+        sys.exit(1)
 
-    default_import_file = os.path.join(utils.get_project_root_path(), def_file)
+    def_files = config.get_section(config.MAIN_SECTION).get(TOSCA_DEFINITION_FILE)
+    if isinstance(def_files, six.string_types):
+        def_files = [ def_files ]
+    default_import_files = []
+    for def_file in def_files:
+        default_import_files.append(os.path.join(utils.get_project_root_path(), def_file))
+    logging.info("Default TOSCA template definition file to be imported \'%s\'" % json.dumps(default_import_files))
 
     # Add default import of normative TOSCA types to the template
     if not template.get(IMPORTS):
-        template[IMPORTS] = [
-            default_import_file
-        ]
-    else:
-        for i in range(len(template[IMPORTS])):
-            template[IMPORTS][i] = os.path.abspath(template[IMPORTS][i])
-        template[IMPORTS].append(default_import_file)
-    tosca_parser_template_object = ToscaTemplate(yaml_dict_tpl=template, a_file=a_file)
+        template[IMPORTS] = []
+    for i in range(len(template[IMPORTS])):
+        template[IMPORTS][i] = os.path.abspath(template[IMPORTS][i])
+    template[IMPORTS].extend(default_import_files)
+
+    try:
+        tosca_parser_template_object = ToscaTemplate(yaml_dict_tpl=template, a_file=a_file)
+    except:
+        logging.exception("Got exception from OpenStack tosca-parser")
+        sys.exit(1)
 
     if validate_only:
         msg = 'The input "%(template_file)s" successfully passed validation.' \
-              % {'template_file': template_file if a_file else 'template'}
+              % {'template_file': template_file if a_file else 'TOSCA template'}
         return msg
 
     if not provider:
-        ExceptionCollector.appendException(UnspecifiedParameter(
-            what=('validate-only', 'provider')
-        ))
+        logging.error("Provider must be specified unless \'validate-only\' flag is used")
+        sys.exit(1)
 
     # Parse and generate new TOSCA service template with only provider specific TOSCA types from normative types
     tosca = ProviderToscaTemplate(tosca_parser_template_object, provider, cluster_name)
@@ -118,9 +142,7 @@ def generate_artifacts(new_artifacts, directory):
         filename = os.path.join(directory, art[NAME])
         configuration_class = get_configuration_tool_class(art[EXECUTOR])()
         if not configuration_class:
-            ExceptionCollector.appendException(UnsupportedExecutorType(
-                what=art[EXECUTOR]
-            ))
+            sys.exit(1)
         configuration_class.create_artifact(filename, art)
         r_artifacts.append(filename)
 

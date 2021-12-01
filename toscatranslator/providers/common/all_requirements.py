@@ -1,10 +1,9 @@
-from toscaparser.common.exception import ExceptionCollector
-
-from toscatranslator.common.exception import UnsupportedRequirementError
 from toscatranslator.providers.common.requirement import ProviderRequirement
 
 from toscatranslator.common import utils
 from toscatranslator.common.tosca_reserved_keys import OCCURRENCES, NODE, NAME
+
+import logging, sys
 
 
 class ProviderRequirements (object):
@@ -62,9 +61,8 @@ class ProviderRequirements (object):
             req_name = next(iter(req.keys()))
             req_key = self.node_name_by_requirement_name.get(req_name)
             if not req_key:
-                ExceptionCollector.appendException(UnsupportedRequirementError(
-                    what=req_name
-                ))
+                logging.error("Requirement \'%s\' is not supported." % req_name)
+                sys.exit(1)
             requirement = ProviderRequirement(self.provider, req_name, req_key, req[req_name], req_key)
             if req_name in self.requirement_names_of_type_list:
                 if requirements.get(req_name) is not None:

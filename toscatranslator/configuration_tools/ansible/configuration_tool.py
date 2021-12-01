@@ -1,14 +1,3 @@
-import copy
-import yaml
-import os
-import itertools
-import six
-from shutil import copyfile
-
-from toscaparser.common.exception import ExceptionCollector
-from toscatranslator.common.exception import ProviderConfigurationParameterError, ConditionFileError, \
-    ConfigurationParameterError
-
 from toscatranslator.common import utils
 from toscatranslator.common.tosca_reserved_keys import PARAMETERS, VALUE, EXTRA, SOURCE, INPUTS, NODE_FILTER, NAME, \
     NODES, GET_OPERATION_OUTPUT, IMPLEMENTATION, ANSIBLE, GET_INPUT
@@ -16,6 +5,9 @@ from toscatranslator.common.tosca_reserved_keys import PARAMETERS, VALUE, EXTRA,
 from toscatranslator.providers.common.provider_configuration import ProviderConfiguration
 from toscatranslator.configuration_tools.common.configuration_tool import ConfigurationTool, \
     OUTPUT_IDS, OUTPUT_ID_RANGE_START, OUTPUT_ID_RANGE_END
+
+import copy, sys, yaml, os, itertools, six, logging
+from shutil import copyfile
 
 ANSIBLE_RESERVED_KEYS = \
     (REGISTER, PATH, FILE, STATE, LINEINFILE, SET_FACT, IS_DEFINED, IS_UNDEFINED, IMPORT_TASKS_MODULE) = \
@@ -38,9 +30,8 @@ class AnsibleConfigurationTool(ConfigurationTool):
         main_config = self.tool_config.get_section('main')
         for param in REQUIRED_CONFIG_PARAMS:
             if not param in main_config.keys():
-                raise ConfigurationParameterError(
-                    what=param
-                )
+                logging.error("Configuration parameter \'%s\' is missing in Ansible configuration" % param)
+                sys.exit(1)
 
         for param in REQUIRED_CONFIG_PARAMS:
             setattr(self, param, main_config[param])
@@ -276,9 +267,10 @@ class AnsibleConfigurationTool(ConfigurationTool):
                             for v in node_filter_inner_variable:
                                 NODE_FILTER_FACTS_VALUE += '[\"' + v + '\"]'
                         else:
-                            ExceptionCollector.appendException(ProviderConfigurationParameterError(
-                                what='ansible.node_filter: node_filter_inner_variable'
-                            ))
+                            logging.error("Provider configuration parameter "
+                                          "\'ansible.node_filter: node_filter_inner_variable\' is missing "
+                                          "or has unsupported value \'%s\'" % node_filter_inner_variable)
+                            sys.exit(1)
 
                     include_path = self.copy_condition_to_the_directory('equals', target_directory)
                     ansible_tasks_temp = [
@@ -388,10 +380,10 @@ class AnsibleConfigurationTool(ConfigurationTool):
                     implementations = [interface.implementation]
                 scripts.extend(implementations)
                 for script in implementations:
-                    import_file = os.path.join(target_directory, script)
+                    import_file = os.path.join(target_directory, os.path.basename(script))
                     os.makedirs(os.path.dirname(import_file), exist_ok=True)
                     copyfile(script, import_file)
-                    if interface.inputs != None:
+                    if interface.inputs is not None:
                         for input_name, input_value in interface.inputs.items():
                             ansible_tasks.append({
                                 SET_FACT: {
@@ -498,6 +490,7 @@ class AnsibleConfigurationTool(ConfigurationTool):
         ]
         if extra:
             task_data.update(extra)
+        logging.debug("New artifact was created: \n%s" % yaml.dump(tasks))
         return tasks
 
     def create_artifact(self, filename, data):
@@ -506,15 +499,15 @@ class AnsibleConfigurationTool(ConfigurationTool):
         with open(filename, "w") as f:
             filedata = yaml.dump(tasks, default_flow_style=False, sort_keys=False)
             f.write(filedata)
+            logging.info("Artifact for executor %s was created: %s" % (self.TOOL_NAME, filename))
 
     def copy_condition_to_the_directory(self, cond, target_directory):
         os.makedirs(target_directory, exist_ok=True)
         tool_artifacts_dir = os.path.join(os.path.dirname(os.path.realpath(__file__)), self.initial_artifacts_directory)
         filename = os.path.join(tool_artifacts_dir, cond + self.get_artifact_extension())
         if not os.path.isfile(filename):
-            ExceptionCollector.appendException(ConditionFileError(
-                what=filename
-            ))
+            logging.error("File containing condition \'%s\' not found in \'%s\'" % (cond, filename))
+            sys.exit(1)
         target_filename = os.path.join(target_directory, cond + self.get_artifact_extension())
         copyfile(filename, target_filename)
         return target_filename
@@ -525,11 +518,11 @@ class AnsibleConfigurationTool(ConfigurationTool):
         for cond in conditions_set:
             filename = os.path.join(tool_artifacts_dir, cond + self.get_artifact_extension())
             if not os.path.isfile(filename):
-                ExceptionCollector.appendException(ConditionFileError(
-                    what=filename
-                ))
-            target_filename = os.path.join(target_directory, cond + self.get_artifact_extension())
-            copyfile(filename, target_filename)
+                logging.error("Error loading condition file \'%s\'" % filename)
+            else:
+                target_filename = os.path.join(target_directory, cond + self.get_artifact_extension())
+                copyfile(filename, target_filename)
+                logging.info("File \'%s\' was successfully copied to the directory \'%s\'" % (filename, target_directory))
 
     def get_ansible_tasks_for_async(self, element_object, description_prefix, retries=None, delay=None):
         jid = '.'.join([element_object.name, 'ansible_job_id'])

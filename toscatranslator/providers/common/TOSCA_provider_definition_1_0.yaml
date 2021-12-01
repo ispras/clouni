@@ -44,10 +44,7 @@ relationship_types:
     derived_from: tosca.relationships.Root
     interfaces:
       Target:
-        total:
-          description: Total objects
-        choose:
-          description: Choose one object, use predefined artifacts from nodes.Root
+        type: provider.interfaces.relationships.Target
           
   
   provider.relationships.DependsOn:
@@ -82,3 +79,20 @@ relationship_types:
     description: This type appears between FloatingIp and Server
     derived_from: provider.relationships.network.BindsTo
     valid_target_types: [ tosca.capabilities.network.Bindable ]
+
+
+  ##########################################################################
+  # Interfaces Type.
+  # The Interfaces element describes a list of one or more interface
+  # definitions for a modelable entity (e.g., a Node or Relationship Type)
+  # as defined within the TOSCA Simple Profile specification.
+##########################################################################
+interface_types:
+  provider.interfaces.relationships.Target:
+    description: >
+      The relationship to use scripts before target or source is created in relationship
+    derived_from: tosca.interfaces.Root
+    total:
+      description: Total objects
+    choose:
+      description: Choose one object, use predefined artifacts from nodes.Root
