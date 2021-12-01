@@ -161,7 +161,6 @@ node_types:
       meta:
         type: string
         required: false
-    attributes:
       private_address:
         type: string
         required: false

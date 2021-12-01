@@ -4,7 +4,7 @@ import copy
 import os
 import re
 
-from toscatranslator import shell
+from shell_clouni import shell
 
 SERVER_MODULE_NAME = 'os_server'
 PORT_MODULE_NAME = 'os_port'
