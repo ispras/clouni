@@ -1,17 +1,8 @@
-import os
-import copy
-import json
-import yaml
-
-from toscaparser.common.exception import ExceptionCollector, ValidationError
 from toscaparser.imports import ImportsLoader
 from toscaparser.topology_template import TopologyTemplate
 from toscaparser.functions import GetProperty
 from toscaparser.functions import GetAttribute
 from toscaparser.functions import GetInput
-
-from toscatranslator.common.exception import ProviderFileError, TemplateDependencyError, \
-    ProviderConfigurationParameterError
 
 from toscatranslator.common.tosca_reserved_keys import *
 from toscatranslator.common import utils
@@ -20,7 +11,8 @@ from toscatranslator.providers.common.provider_configuration import ProviderConf
 from toscatranslator.providers.common.translator_to_provider import translate as translate_to_provider
 from toscatranslator.providers.common.provider_resource import ProviderResource
 
-import yaml
+import os, copy, json, yaml, logging, sys
+
 SEPARATOR = '.'
 
 
@@ -35,18 +27,11 @@ class ProviderToscaTemplate(object):
         self.provider = provider
         self.provider_config = ProviderConfiguration(self.provider)
         self.cluster_name = cluster_name
-        ExceptionCollector.start()
         for sec in self.REQUIRED_CONFIG_PARAMS:
             if not self.provider_config.config[self.provider_config.MAIN_SECTION].get(sec):
-                ExceptionCollector.appendException(ProviderConfigurationParameterError(
-                    what=sec
-                ))
-        ExceptionCollector.stop()
-        if ExceptionCollector.exceptionsCaught():
-            raise ValidationError(
-                message='\nTranslating to provider failed: '
-                    .join(ExceptionCollector.getExceptionsReport())
-            )
+                logging.error("Provider configuration parameter \'%s\' has missing value" % sec )
+                logging.error("Translating failed")
+                sys.exit(1)
 
         # toscaparser.tosca_template:ToscaTemplate
         self.tosca_parser_template = tosca_parser_template
@@ -64,6 +49,7 @@ class ProviderToscaTemplate(object):
         self.extra_configuration_tool_params = dict()
         self.inputs = self.tosca_topology_template.inputs
         self.outputs = self.tosca_topology_template.outputs
+        # TODO use get property functions
         node_templates = self.resolve_get_property_functions(self.tosca_topology_template.nodetemplates)
         node_templates = self.resolve_get_attribute_functions(self.tosca_topology_template.nodetemplates)
         node_templates = self.resolve_get_input_functions(self.tosca_topology_template.nodetemplates)
@@ -86,6 +72,7 @@ class ProviderToscaTemplate(object):
         for node in self.node_templates:
             if self._is_software_component(node):
                 self.software_component_names.append(node.name)
+        logging.debug("Software components are used: %s" % json.dumps(self.software_component_names))
         self.provider_nodes = self._provider_nodes()
         self.provider_nodes_by_name = self._provider_nodes_by_name()
         self.relationship_templates_by_name = self._relationship_templates_by_name()
@@ -103,10 +90,12 @@ class ProviderToscaTemplate(object):
             (namespace, category, type_name) = utils.tosca_type_parse(node.type)
             is_software_component = node.name in self.software_component_names
             if namespace != self.provider and not is_software_component or category != NODES:
-                ExceptionCollector.appendException(Exception('Unexpected values'))
-            provider_node_instance = ProviderResource(self.provider, node, self.relationship_templates,
-                                                      is_software_component)
-            provider_nodes.append(provider_node_instance)
+                logging.error('Unexpected values: node \'%s\' not a software component and has a provider \'%s\'. '
+                              'Node will be ignored' % (node.name, namespace))
+            else:
+                provider_node_instance = ProviderResource(self.provider, node, self.relationship_templates,
+                                                          is_software_component)
+                provider_nodes.append(provider_node_instance)
 
         return provider_nodes
 
@@ -174,53 +163,46 @@ class ProviderToscaTemplate(object):
         :param self.provider_nodes_by_name
         :return: List of nodes sorted by priority
         """
-        template_names = []
-        relation_names = list(self.relationship_templates_by_name.keys())
 
         group_by_templ_name = dict()
         group = 0
-        for priority in range(0, len(self.provider_node_names_by_priority)):
-            nodes_in_priority = []
-            nodes_left_next = set(self.provider_node_names_by_priority[priority])
-            infinite_error = False
-            while len(nodes_left_next) or infinite_error > 0:
-                nodes_left = copy.copy(nodes_left_next)
-                infinite_error = True
-                for templ_name in nodes_left:
-                    set_intersection = nodes_left_next.intersection(self.template_dependencies.get(templ_name, set()))
-                    if len(set_intersection) == 0:
-                        infinite_error = False
-                        nodes_in_priority.append(templ_name)
-                        nodes_left_next.remove(templ_name)
-                        group_by_templ_name[templ_name] = group
-                group += 1
-            # Here we added nodes of the same priority
-            if infinite_error:
-                ExceptionCollector.appendException(TemplateDependencyError(
-                    what="of priority " + str(priority)
-                ))
-            for templ_name in nodes_in_priority:
-                # Add relationships for every node
-                node_dependencies = self.template_dependencies.get(templ_name, set())
+        template_names = []
+        deps_extended_with_priority = copy.copy(self.template_dependencies)
+        for priority in range(len(self.provider_node_names_by_priority)):
+            if priority == 0:
+                continue
+            for node_name in self.provider_node_names_by_priority[priority]:
+                for i in range(priority):
+                    deps_extended_with_priority[node_name] = \
+                        deps_extended_with_priority.get(node_name, set()).union(set(self.provider_node_names_by_priority[i]))
 
-                for dep_name in node_dependencies:
-                    if dep_name in relation_names and not dep_name in template_names:
-                        template_names.append(dep_name)
-                    elif dep_name in template_names:
-                        pass
-                    else:
-                        ExceptionCollector.appendException(TemplateDependencyError(
-                            what=dep_name
-                        ))
-                template_names.append(templ_name)
+        nodes_left_next = set(self.provider_nodes_by_name.keys())
+        nodes_left_next = nodes_left_next.union(set(self.relationship_templates_by_name.keys()))
+        infinite_error = False
+        while len(nodes_left_next) > 0 and not infinite_error:
+            nodes_left = copy.copy(nodes_left_next)
+            infinite_error = True
+            for templ_name in nodes_left:
+                set_intersection = nodes_left_next.intersection(deps_extended_with_priority.get(templ_name, set()))
+                if len(set_intersection) == 0:
+                    infinite_error = False
+                    template_names.append(templ_name)
+                    nodes_left_next.remove(templ_name)
+                    group_by_templ_name[templ_name] = group
+            group += 1
+        # Here we added nodes of the same priority
+        if infinite_error:
+            logging.error('Resolving dependencies for nodes by priority failed for nodes: %s'
+                          % json.dumps(nodes_left_next))
+            sys.exit(1)
 
         templates = []
         for templ_name in template_names:
             templ = self.provider_nodes_by_name.get(templ_name, self.relationship_templates_by_name.get(templ_name))
             if templ is None:
-                ExceptionCollector.appendException(TemplateDependencyError(
-                    what=templ_name
-                ))
+                logging.critical("Failed to resolve dependencies in intermediate non-normative TOSCA template. "
+                                 "Template \'%s\' is missing." % templ_name)
+                sys.exit(1)
             if group_by_templ_name.get(templ_name):
                 templ.dependency_order = group_by_templ_name[templ_name]
             templates.append(templ)
@@ -335,9 +317,8 @@ class ProviderToscaTemplate(object):
             file_definition = os.path.join(self.provider_config.config_directory, file_definition)
 
         if not os.path.isfile(file_definition):
-            ExceptionCollector.appendException(ProviderFileError(
-                what=file_definition
-            ))
+            logging.error("TOSCA definition file not found: %s" % file_definition)
+            sys.exit(1)
 
         return file_definition
 
@@ -347,24 +328,20 @@ class ProviderToscaTemplate(object):
             tosca_elements_map_file = os.path.join(self.provider_config.config_directory, tosca_elements_map_file)
 
         if not os.path.isfile(tosca_elements_map_file):
-            ExceptionCollector.appendException(ProviderFileError(
-                what=tosca_elements_map_file
-            ))
+            logging.error("Mapping file for provider %s not found: %s" % (self.provider, tosca_elements_map_file))
+            sys.exit(1)
 
         with open(tosca_elements_map_file, 'r') as file_obj:
             data = file_obj.read()
-            data_dict = {}
             try:
                 data_dict = json.loads(data)
             except:
                 try:
                     data_dict = yaml.safe_load(data)
-                except:
-                    pass
-        if 0 == len(data_dict):
-            ExceptionCollector.appendException(ProviderFileError(
-                what=tosca_elements_map_file
-            ))
+                except yaml.scanner.ScannerError as e:
+                    logging.error("Mapping file \'%s\' must be of type JSON or YAMl" % tosca_elements_map_file)
+                    logging.error("Error parsing TOSCA template: %s%s" % (e.problem, e.context_mark))
+                    sys.exit(1)
         return data_dict
 
     def translate_to_provider(self):
@@ -378,18 +355,20 @@ class ProviderToscaTemplate(object):
         if new_element_templates.get(RELATIONSHIPS):
             dict_tpl[RELATIONSHIP_TEMPLATES] = new_element_templates[RELATIONSHIPS]
 
-        rel_types = []
-        for k, v in self.provider_defs.items():
+        rel_types = {}
+        for k, v in self.full_provider_defs.items():
             (_, element_type, _) = utils.tosca_type_parse(k)
-            if element_type == RELATIONSHIP_TYPES:
-                rel_types.append(v)
-        if self.debug:
-            print('Topology template raw')
-            print(yaml.dump(dict_tpl))
-            print('\n\n\n')
+            if element_type == RELATIONSHIPS:
+                rel_types[k] = v
 
+        logging.debug("TOSCA template with non normative types for provider %s was generated: \n%s"
+                      % (self.provider, yaml.dump(dict_tpl)))
 
-        topology_tpl = TopologyTemplate(dict_tpl, self.full_provider_defs, rel_types)
+        try:
+            topology_tpl = TopologyTemplate(dict_tpl, self.full_provider_defs, rel_types=rel_types)
+        except:
+            logging.exception("Failed to parse intermidiate non-normative TOSCA template with OpenStack tosca-parser")
+            sys.exit(1)
         self.artifacts.extend(new_artifacts)
         self.extra_configuration_tool_params = utils.deep_update_dict(self.extra_configuration_tool_params, new_extra)
 

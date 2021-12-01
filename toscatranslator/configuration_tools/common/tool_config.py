@@ -1,3 +1,5 @@
+import json
+
 try:
     # Python 3
     import configparser
@@ -5,13 +7,10 @@ except:
     # Python 2
     import ConfigParser
 
-import os
-from toscaparser.common.exception import ExceptionCollector
-from toscatranslator.common.exception import ConfigurationNotFound
-
 from toscatranslator.common import utils
-
 from toscatranslator.common.configuration import Configuration, CONFIG_FILE_EXT
+
+import logging, sys, os
 
 
 class ConfigurationToolConfiguration (Configuration):
@@ -39,8 +38,8 @@ class ConfigurationToolConfiguration (Configuration):
                 self.config_filename = filename
                 break
         if self.config_filename is None:
-            ExceptionCollector.appendException(ConfigurationNotFound(
-                what=filename_variants_priority
-            ))
+            logging.error("Configuration file was not found. It must be one of the variants: %s"
+                          % json.dumps(filename_variants_priority))
+            sys.exit(1)
 
         super(ConfigurationToolConfiguration, self).__init__(self.config_filename)

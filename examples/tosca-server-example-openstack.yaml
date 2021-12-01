@@ -7,7 +7,7 @@ topology_template:
   node_templates:
     server_kube_master_floating_ip:
       type: openstack.nodes.FloatingIp
-      attributes:
+      properties:
         floating_ip_address: 10.100.115.15
       requirements:
         - network:
@@ -36,7 +36,7 @@ topology_template:
         name: server_kube_master_security_group
     server_kube_master_security_group_rule:
       type: openstack.nodes.SecurityGroupRule
-      attributes:
+      properties:
         direction: ingress
         port_range_max: 1000
         port_range_min: 1000

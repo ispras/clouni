@@ -179,12 +179,6 @@ class TestAnsibleOpenStackOutput (unittest.TestCase, TestAnsibleProvider):
         shell.main(['--template-file', file_path, '--cluster-name', 'test', '--provider', self.PROVIDER, '--async',
                     '--delete', '--extra', 'retries=3', 'async=60', 'poll=0', 'delay=1'])
 
-    def test_full_translating_hostedon(self):
-        file_path = os.path.join('examples', 'tosca-server-example-hostedon.yaml')
-        file_output_path = os.path.join('examples', 'tosca-server-example-hostedon-output.yaml')
-        shell.main(['--template-file', file_path, '--cluster-name', 'test', '--provider', self.PROVIDER,
-                    '--output-file', file_output_path])
-
     def test_server_name(self):
         template = copy.deepcopy(self.DEFAULT_TEMPLATE)
         playbook = self.get_ansible_create_output(template)
@@ -406,12 +400,27 @@ class TestAnsibleOpenStackOutput (unittest.TestCase, TestAnsibleProvider):
     def test_scalable_capabilities(self):
         super(TestAnsibleOpenStackOutput, self).test_scalable_capabilities()
 
+    def check_scalable_capabilities(self, tasks, testing_value=None):
+        server_name = None
+        default_instances = 2
+        if testing_value:
+            default_instances = testing_value.get('default_instances', default_instances)
+        for task in tasks:
+            if task.get(SERVER_MODULE_NAME):
+                self.assertIsNotNone(task.get('with_sequence'))
+                self.assertIsNotNone(task[SERVER_MODULE_NAME].get('name'))
+                self.assertTrue(task['with_sequence'], 'start=1 end=' + str(default_instances) + ' format=')
+                server_name = task[SERVER_MODULE_NAME]['name']
+        self.assertIsNotNone(server_name)
+
     def test_host_of_software_component(self):
         template = copy.deepcopy(self.DEFAULT_TEMPLATE)
         testing_parameter = {
             "public_address": "10.100.149.15",
-            "network": {
-                "default": "net-for-intra-sandbox"
+            "networks": {
+                "default": {
+                    "network_name": "net-for-intra-sandbox"
+                }
             }
         }
         template = self.update_template_attribute(template, self.NODE_NAME, testing_parameter)
@@ -480,7 +489,7 @@ class TestAnsibleOpenStackOutput (unittest.TestCase, TestAnsibleProvider):
         tasks = playbook[1]['tasks']
         self.assertEqual(len(tasks), 2)
         self.assertEqual(tasks[0].get('set_fact', {}).get('version', None), 0.1)
-        self.assertEqual(tasks[1].get('include', None), "artifacts/examples/ansible-server-example.yaml")
+        self.assertEqual(tasks[1].get('include', None), "artifacts/ansible-server-example.yaml")
 
     def test_get_input(self):
         template = copy.deepcopy(self.DEFAULT_TEMPLATE)
@@ -534,16 +543,3 @@ class TestAnsibleOpenStackOutput (unittest.TestCase, TestAnsibleProvider):
             if os_server_task != None and os_server_task.get('meta', None) != testing_value:
                 checked = False
         self.assertTrue(checked)
-
-    def check_scalable_capabilities(self, tasks, testing_value=None):
-        server_name = None
-        default_instances = 2
-        if testing_value:
-            default_instances = testing_value.get('default_instances', default_instances)
-        for task in tasks:
-            if task.get(SERVER_MODULE_NAME):
-                self.assertIsNotNone(task.get('with_sequence'))
-                self.assertIsNotNone(task[SERVER_MODULE_NAME].get('name'))
-                self.assertTrue(task['with_sequence'], 'start=1 end=' + str(default_instances) + ' format=')
-                server_name = task[SERVER_MODULE_NAME]['name']
-        self.assertIsNotNone(server_name)
