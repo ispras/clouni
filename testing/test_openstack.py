@@ -431,5 +431,5 @@ class TestAnsibleOpenStackOutput (unittest.TestCase, TestAnsibleProvider):
         self.assertIsNotNone(server_name)
 
     def test_volume_validation(self):
-        file_path = os.path.join('examples', 'tosca-aagg.yaml')
-        shell.main(['--template-file', file_path, '--cluster-name', 'test']) # --validate-only
+        file_path = os.path.join('samples', 'sample.yaml')
+        shell.main(['--template-file', file_path, '--cluster-name', 'test', '--provider', self.PROVIDER]) # --validate-only

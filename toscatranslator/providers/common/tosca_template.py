@@ -417,3 +417,16 @@ class ProviderToscaTemplate(object):
                     tpl = tpl[f_name_splitted[i]]
                 tpl[f_name_splitted[-1]] = f_body
         return nodes
+
+    def __repr__(self):
+        s = "tosca_definitions_version: tosca_simple_yaml_1_0\n\n" + "topology_template:\n" + "  node_templates:\n"
+        if len(self.node_templates) == 0:
+            return s
+
+        for (k, v) in self.node_templates[0].templates.items():
+            s += "    - " + k + ":\n        "
+            one = yaml.dump(v)
+            one = one.replace('\n', '\n        ')
+            s += one + "\n"
+        return s
+

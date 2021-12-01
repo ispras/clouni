@@ -19,14 +19,14 @@ topology_template:
             type: ubuntu
             distribution: xenial
             version: 16.04
-    disk_dd:
+      requirements:
+        - required_storage:
+            node: disk_c
+            relationship:
+              type: tosca.nodes.AttachesTo
+              properties:
+                location: /mnt/c
+    disk_c:
       type: tosca.nodes.BlockStorage
       properties:
         size: 10 GiB
-#      requirements:
-#        - local_storage:
-#            node: disk_c
-#            relationship:
-#              type: tosca.nodes.AttachesTo
-#              properties:
-#                location: /mnt/c
