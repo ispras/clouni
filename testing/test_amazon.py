@@ -20,7 +20,7 @@ class TestAnsibleAmazonOutput (unittest.TestCase, TestAnsibleProvider):
     def test_full_translating_no_public(self):
         file_path = os.path.join('examples', 'tosca-server-example.yaml')
         template_raw = self.read_template(file_path)
-        template = yaml.load(template_raw)
+        template = yaml.load(template_raw, Loader=yaml.Loader)
         template[TOPOLOGY_TEMPLATE][NODE_TEMPLATES][self.NODE_NAME][PROPERTIES].pop(PUBLIC_ADDRESS)
         playbook = self.get_ansible_create_output(template)
         self.assertIsNotNone(playbook)
