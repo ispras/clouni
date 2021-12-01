@@ -1,5 +1,5 @@
 import unittest
-from toscatranslator import shell
+from shell_clouni import shell
 
 import os
 

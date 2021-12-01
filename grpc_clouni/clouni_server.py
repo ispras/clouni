@@ -15,10 +15,12 @@ import signal
 from time import sleep
 from functools import partial
 
+
 def exit_gracefully(server, logger, x, y):
     server.stop(None)
     logger.info("Server stopped")
     sys.exit(0)
+
 
 class TranslatorServer(object):
     def __init__(self, argv):
@@ -45,6 +47,7 @@ class TranslatorServer(object):
 
         self.output = translate(self.template_file, self.validate_only, self.provider, self.configuration_tool, self.cluster_name, self.is_delete,
                            extra={'global': self.extra}, a_file=False)
+
 
 class ClouniServicer(api_pb2_grpc.ClouniServicer):
     def __init__(self, logger):

@@ -1,12 +1,8 @@
-import six
-import copy
-
 from toscatranslator.common import utils
 from toscatranslator.common.tosca_reserved_keys import NODES, RELATIONSHIPS, INTERFACES, GET_OPERATION_OUTPUT, SELF, \
     IMPLEMENTATION
 
-from toscaparser.common.exception import ExceptionCollector
-from toscatranslator.common.exception import TemplateDependencyError
+import logging, sys, six, copy
 
 from toscatranslator.configuration_tools.common.tool_config import ConfigurationToolConfiguration
 
@@ -115,9 +111,8 @@ class ConfigurationTool(object):
                     operations.pop(op_name)
 
         if len(operations) > 0:
-            ExceptionCollector.appendException(TemplateDependencyError(
-                what=element_template_name
-            ))
+            logging.critical("Resolving dependencies in template failed on element \'%s\'" % element_template_name)
+            sys.exit(1)
 
     def get_interfaces_from_node(self, node):
         # TODO
