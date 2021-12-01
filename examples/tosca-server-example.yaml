@@ -20,7 +20,7 @@ topology_template:
         endpoint:
           properties:
             protocol: tcp
-            port: 22
+            port: 23
             initiator: target
           attributes:
             ip_address: 0.0.0.0
