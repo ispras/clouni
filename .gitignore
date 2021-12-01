@@ -18,6 +18,7 @@ ansible-hosts
 
 # Testing examples
 tosca-server-example-output*
+tosca-network-and-port-example-output*
 
 venv
 my_definitions
