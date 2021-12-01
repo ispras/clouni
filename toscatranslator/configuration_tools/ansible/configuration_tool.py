@@ -63,8 +63,6 @@ class AnsibleConfigurationTool(ConfigurationTool):
         self.init_global_variables(inputs)
         elements_queue, software_queue = self.init_queue(nodes_relationships_queue)
         ansible_task_list = self.get_ansible_tasks_for_inputs(inputs)
-        ansible_post_task_list = []
-        host_list = []
 
         if not is_delete:
             for v in self.global_operations_queue:
@@ -91,7 +89,7 @@ class AnsibleConfigurationTool(ConfigurationTool):
                                                             additional_args=extra)
             if len(ansible_tasks) == 0:
                 if not is_delete:
-                    ansible_tasks, post_tasks, host = self.get_ansible_tasks_for_create(v, target_directory, node_filter_config,
+                    ansible_tasks = self.get_ansible_tasks_for_create(v, target_directory, node_filter_config,
                                                                       description_by_type, module_by_type,
                                                                       additional_args=extra)
                 else:
@@ -108,10 +106,6 @@ class AnsibleConfigurationTool(ConfigurationTool):
                         prev_dep_order = v.dependency_order
                     check_async_tasks.extend(tasks_for_async)
                 ansible_task_list.extend(ansible_tasks)
-                if not is_delete:
-                    if 'name' in host and post_tasks != []:
-                        ansible_post_task_list.append(post_tasks)
-                        host_list.append(host['name'])
 
             if not is_delete:
                 if extra_async != False:
@@ -142,16 +136,6 @@ class AnsibleConfigurationTool(ConfigurationTool):
                 tasks=ansible_tasks
             )
             ansible_playbook.append(software_playbook)
-
-        if ansible_post_task_list is not None:
-            for i in range(len(host_list)):
-                configure_playbook = dict(
-                    name=description_prefix + ' ' + v.name + ' ' + 'server component',
-                    hosts=host_list[i],
-                    tasks=ansible_post_task_list[i]
-                )
-                ansible_playbook.append(configure_playbook)
-
 
         return yaml.dump(ansible_playbook, default_flow_style=False, sort_keys=False)
 
@@ -306,12 +290,12 @@ class AnsibleConfigurationTool(ConfigurationTool):
         post_tasks = []
         for i in element_object.nodetemplate.interfaces:
             if i.name == 'preconfigure':
-                op_name = '_'.join([element_object.name, i.interfacetype.split('.')[::-1][0].lower() , 'preconfigure'])
+                op_name = '_'.join([element_object.name, 'prepare', 'preconfigure'])
                 if not self.global_operations_info.get(op_name, {}).get(OUTPUT_IDS):
                     ansible_tasks.extend(
                         self.get_ansible_tasks_from_operation(op_name, target_directory, True))
             if i.name == 'configure':
-                op_name = '_'.join([element_object.name, i.interfacetype.split('.')[::-1][0].lower(), 'configure'])
+                op_name = '_'.join([element_object.name, 'prepare', 'configure'])
                 if not self.global_operations_info.get(op_name, {}).get(OUTPUT_IDS):
                     post_tasks.extend(
                         self.get_ansible_tasks_from_operation(op_name, target_directory, True))
@@ -324,8 +308,8 @@ class AnsibleConfigurationTool(ConfigurationTool):
         ansible_task_as_dict[REGISTER] = task_name
         ansible_task_as_dict.update(additional_args)
         ansible_tasks.append(ansible_task_as_dict)
-        #ansible_tasks.extend(post_tasks)
-        return ansible_tasks, post_tasks, configuration_args
+        ansible_tasks.extend(post_tasks)
+        return ansible_tasks
 
     def get_ansible_tasks_for_delete(self, element_object, description_by_type, module_by_type, additional_args=None):
         """
@@ -374,7 +358,6 @@ class AnsibleConfigurationTool(ConfigurationTool):
         scripts = []
         for interface in element_object.nodetemplate.interfaces:
             if not is_delete and interface.name == 'create' or is_delete and interface.name == 'delete':
-                #if not is_delete and interface.name == 'create' or is_delete and interface.name == 'delete' or interface.name == 'configure' and interface.type == 'Standard':
                 implementations = interface.implementation
                 if isinstance(interface.implementation, six.string_types):
                     implementations = [interface.implementation]
@@ -423,6 +406,7 @@ class AnsibleConfigurationTool(ConfigurationTool):
 
     def get_ansible_tasks_from_operation(self, op_name, target_directory, if_required=False):
         tasks = []
+
         op_info = self.global_operations_info[op_name]
         if not if_required and not op_info.get(OUTPUT_IDS) or not op_info.get(IMPLEMENTATION):
             return []
@@ -625,3 +609,4 @@ class AnsibleConfigurationTool(ConfigurationTool):
                 }
             })
         return ansible_tasks
+
