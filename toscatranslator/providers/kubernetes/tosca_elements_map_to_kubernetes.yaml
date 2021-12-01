@@ -1,5 +1,5 @@
 tosca.nodes.Compute:
-  attributes:
+  properties:
     private_address:
       - parameter: "kubernetes.nodes.Service.properties.spec.clusterIP"
         value: "{self[value]}"
@@ -46,15 +46,15 @@ tosca.nodes.Compute:
                   value: default
     endpoint.properties:
       - protocol:
-          parameter: "{self[buffer][protocol]}"
+          parameter: "{self[buffer][endpoint][protocol]}"
           value: "{self[value]}"
         port:
-          - parameter: "{self[buffer][port]}"
+          - parameter: "{self[buffer][endpoint][port]}"
             value: "{self[value]}"
           - parameter: "kubernetes.nodes.Service.properties.metadata.name"
             value: "{self[name]}-service"
         port_name:
-          - parameter: "{self[buffer][targetPort]}"
+          - parameter: "{self[buffer][endpoint][targetPort]}"
             value: "{self[value]}"
           - parameter: "kubernetes.nodes.Deployment.properties.spec.template.spec.containers"
             value:
@@ -87,7 +87,7 @@ tosca.nodes.Compute:
           reason: "ports not supported in Kubernetes"
       - parameter: "kubernetes.nodes.Service.properties.spec.ports"
         value:
-          - "{self[buffer]}"
+          - "{self[buffer][endpoint]}"
     os.properties:
       - architecture:
           error: true

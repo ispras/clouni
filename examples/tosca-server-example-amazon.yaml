@@ -18,14 +18,11 @@ topology_template:
             proto: tcp
     tosca_server_example_instance:
       type: amazon.nodes.Instance
-      attributes:
+      properties:
         name: tosca_server_example
         network:
-          interface:
-            properties:
-              assign_public_ip: true
-              private_ip_address: 192.168.12.26
-      properties:
+          assign_public_ip: true
+          private_ip_address: 192.168.12.26
         instance_type:
           get_operation_output:
             - tosca_server_example_server_instance_type

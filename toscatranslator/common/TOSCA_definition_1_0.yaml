@@ -54,10 +54,13 @@ data_types:
     properties:
       network_name:
         type: string
+        required: false
       network_id:
         type: string
+        required: false
       addresses:
         type: list
+        required: false
         entry_schema:
           type: string
 
@@ -161,7 +164,6 @@ node_types:
       meta:
         type: string
         required: false
-    attributes:
       private_address:
         type: string
         required: false
@@ -569,12 +571,13 @@ relationship_types:
       tosca_id:
         type: string
         required: true
-      tosca_name:
-        type: string
-        required: true
       state: 
         type: string
         required: false
+    properties:
+      tosca_name:
+        type: string
+        required: true
     interfaces:
       Configure:
         type: tosca.interfaces.relationship.Configure
@@ -717,10 +720,9 @@ capability_types:
           - min_length: 1
         entry_schema:
           type: tosca.datatypes.network.PortSpec
-    attributes:
       ip_address:
         type: string
-        required: true
+        default: 0.0.0.0/0
 
   tosca.capabilities.Endpoint.Admin:
     description: >

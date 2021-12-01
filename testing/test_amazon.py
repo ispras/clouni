@@ -6,7 +6,7 @@ import os, yaml
 
 INSTANCE_MODULE_NAME = 'ec2_instance'
 SEC_GROUP_MODULE_NAME = 'ec2_group'
-from toscatranslator.common.tosca_reserved_keys import TOPOLOGY_TEMPLATE, NODE_TEMPLATES, ATTRIBUTES
+from toscatranslator.common.tosca_reserved_keys import TOPOLOGY_TEMPLATE, NODE_TEMPLATES, PROPERTIES
 PUBLIC_ADDRESS = 'public_address'
 
 
@@ -21,7 +21,7 @@ class TestAnsibleAmazonOutput (unittest.TestCase, TestAnsibleProvider):
         file_path = os.path.join('examples', 'tosca-server-example.yaml')
         template_raw = self.read_template(file_path)
         template = yaml.load(template_raw)
-        template[TOPOLOGY_TEMPLATE][NODE_TEMPLATES][self.NODE_NAME][ATTRIBUTES].pop(PUBLIC_ADDRESS)
+        template[TOPOLOGY_TEMPLATE][NODE_TEMPLATES][self.NODE_NAME][PROPERTIES].pop(PUBLIC_ADDRESS)
         playbook = self.get_ansible_create_output(template)
         self.assertIsNotNone(playbook)
 
@@ -69,9 +69,8 @@ class TestAnsibleAmazonOutput (unittest.TestCase, TestAnsibleProvider):
         for task in tasks:
             if task.get(INSTANCE_MODULE_NAME):
                 self.assertIsNotNone(task[INSTANCE_MODULE_NAME].get('name'))
-                self.assertIsNotNone(task[INSTANCE_MODULE_NAME].get("network", {}).get('interface', {})
-                                     .get('properties', {}).get('private_ip_address'))
-                server_private_ip = task[INSTANCE_MODULE_NAME]['network']['interface']['properties']['private_ip_address']
+                self.assertIsNotNone(task[INSTANCE_MODULE_NAME].get("network", {}).get('private_ip_address'))
+                server_private_ip = task[INSTANCE_MODULE_NAME]['network']['private_ip_address']
                 if testing_value:
                     self.assertEqual(server_private_ip, testing_value)
         self.assertIsNotNone(server_private_ip)

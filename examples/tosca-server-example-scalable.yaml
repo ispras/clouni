@@ -4,7 +4,7 @@ topology_template:
   node_templates:
     testing_tosca:
       type: tosca.nodes.Compute
-      attributes:
+      properties:
         meta: "cube_master=true"
         networks:
           default:
@@ -20,7 +20,6 @@ topology_template:
             protocol: tcp
             port: 22
             initiator: target
-          attributes:
             ip_address: 0.0.0.0
         os:
           properties:

@@ -299,8 +299,10 @@ class TestAnsibleOpenStackOutput (unittest.TestCase, TestAnsibleProvider):
         template = copy.deepcopy(self.DEFAULT_TEMPLATE)
         testing_parameter = {
             "public_address": "10.100.149.15",
-            "network": {
-                "default": "net-for-intra-sandbox"
+            "networks": {
+                "default": {
+                    "network_name": "net-for-intra-sandbox"
+                }
             }
         }
         template = self.update_template_attribute(template, self.NODE_NAME, testing_parameter)

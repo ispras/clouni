@@ -4,7 +4,7 @@ topology_template:
   node_templates:
     tosca_server_example:
       type: tosca.nodes.Compute
-      attributes:
+      properties:
         meta: "cube_master=true"
         public_address: 10.100.157.77
         networks:
@@ -21,7 +21,6 @@ topology_template:
             protocol: tcp
             port: 22
             initiator: target
-          attributes:
             ip_address: 0.0.0.0
         os:
           properties:
