@@ -19,7 +19,6 @@ class TranslatorShell(object):
         self.output_file = args.output_file
         self.configuration_tool = args.configuration_tool
         self.cluster_name = args.cluster_name
-        self.debug = args.debug
         self.extra = {}
         for i in args.extra:
             i_splitted = [j.strip() for j in i.split('=', 1)]
@@ -39,7 +38,7 @@ class TranslatorShell(object):
 
         self.working_dir = os.getcwd()
 
-        output = translate(self.template_file, self.validate_only, self.provider, self.configuration_tool, self.cluster_name, self.is_delete, debug = self.debug,
+        output = translate(self.template_file, self.validate_only, self.provider, self.configuration_tool, self.cluster_name, self.is_delete,
                            extra={'global': self.extra})
         self.output_print(output)
 
@@ -81,11 +80,6 @@ class TranslatorShell(object):
                             metavar="KEY=VALUE",
                             nargs='+',
                             help='Extra arguments for configuration tool scripts')
-        parser.add_argument('--debug',
-                            action='store_true',
-                            default=False,
-                            help='Debug mode')
-
         return parser
 
     def output_print(self, output_msg):

@@ -1,7 +1,6 @@
 import os
 import copy
 import json
-import yaml
 
 from toscaparser.common.exception import ExceptionCollector, ValidationError
 from toscaparser.imports import ImportsLoader
@@ -30,8 +29,7 @@ class ProviderToscaTemplate(object):
     DEPENDENCY_FUNCTIONS = (GET_PROPERTY, GET_ATTRIBUTE, GET_OPERATION_OUTPUT)
     DEFAULT_ARTIFACTS_DIRECTOR = ARTIFACTS
 
-    def __init__(self, tosca_parser_template, provider, cluster_name, debug):
-        self.debug = debug
+    def __init__(self, tosca_parser_template, provider, cluster_name):
         self.provider = provider
         self.provider_config = ProviderConfiguration(self.provider)
         self.cluster_name = cluster_name
@@ -383,11 +381,6 @@ class ProviderToscaTemplate(object):
             (_, element_type, _) = utils.tosca_type_parse(k)
             if element_type == RELATIONSHIP_TYPES:
                 rel_types.append(v)
-        if self.debug:
-            print('Topology template raw')
-            print(yaml.dump(dict_tpl))
-            print('\n\n\n')
-
 
         topology_tpl = TopologyTemplate(dict_tpl, self.full_provider_defs, rel_types)
         self.artifacts.extend(new_artifacts)

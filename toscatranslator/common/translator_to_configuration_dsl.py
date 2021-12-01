@@ -18,7 +18,7 @@ from toscatranslator.configuration_tools.combined.combine_configuration_tools im
 REQUIRED_CONFIGURATION_PARAMS = (TOSCA_DEFINITION_FILE, DEFAULT_ARTIFACTS_DIRECTORY)
 
 
-def translate(template_file, validate_only, provider, configuration_tool, cluster_name, is_delete=False, a_file=True, debug=False,
+def translate(template_file, validate_only, provider, configuration_tool, cluster_name, is_delete=False, a_file=True,
               extra=None):
     """
     Main function, is called by different shells, i.e. bash, Ansible module, grpc
@@ -74,7 +74,7 @@ def translate(template_file, validate_only, provider, configuration_tool, cluste
         ))
 
     # Parse and generate new TOSCA service template with only provider specific TOSCA types from normative types
-    tosca = ProviderToscaTemplate(tosca_parser_template_object, provider, cluster_name, debug)
+    tosca = ProviderToscaTemplate(tosca_parser_template_object, provider, cluster_name)
 
     # Init configuration tool class
     tool = get_configuration_tool_class(configuration_tool)()
