@@ -183,7 +183,6 @@ class AnsibleConfigurationTool(ConfigurationTool):
         software_queue = []
         for v in nodes_relationships_queue:
             self.gather_global_operations(v)
-        #print(self.global_operations_info.items())
         for op_name, op in self.global_operations_info.items():
             self.global_operations_info[op_name] = self.replace_all_get_functions(op)
         for v in nodes_relationships_queue:
@@ -432,7 +431,6 @@ class AnsibleConfigurationTool(ConfigurationTool):
 
     def get_ansible_tasks_from_operation(self, op_name, target_directory, if_required=False):
         tasks = []
-        #print(self.global_operations_info[op_name])
         op_info = self.global_operations_info[op_name]
         if not if_required and not op_info.get(OUTPUT_IDS) or not op_info.get(IMPLEMENTATION):
             return []
