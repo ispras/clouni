@@ -1,8 +1,6 @@
 from toscaparser.imports import ImportsLoader
 from toscaparser.topology_template import TopologyTemplate
 from toscaparser.functions import GetProperty
-from toscaparser.functions import GetAttribute
-from toscaparser.functions import GetInput
 
 from toscatranslator.common.tosca_reserved_keys import *
 from toscatranslator.common import utils
