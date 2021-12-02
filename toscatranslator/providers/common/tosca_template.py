@@ -416,8 +416,8 @@ class ProviderToscaTemplate(object):
         elif isinstance(data, list):
             for i in range(len(data)):
                 r.extend(self._get_all_get_attributes(data[i], SEPARATOR.join([path, str(i)])))
-        elif isinstance(data, GetAttribute):
-            r.append({path: data.args})
+        # elif isinstance(data, GetAttribute):
+        #     r.append({path: data.args})
         return r
 
     def resolve_get_attribute_functions(self, nodes):
