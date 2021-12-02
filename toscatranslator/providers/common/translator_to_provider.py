@@ -300,6 +300,7 @@ def get_resulted_mapping_values(parameter, mapping_value, value, self):
                             map=mapping_value,
                             value=value
                         )
+
             if isinstance(mapping_value_value, dict):
                 # NOTE the only valid case when the value is parameter-value structure
                 mapping_value_value_parameter = mapping_value_value.get(PARAMETER)

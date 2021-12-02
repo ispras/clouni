@@ -1,0 +1,99 @@
+- name: Create OpenStack component openstack cluster
+  hosts: localhost
+  tasks:
+  - file:
+      path: '{{ playbook_dir }}/id_vars_test.yaml'
+      state: absent
+  - file:
+      path: '{{ playbook_dir }}/id_vars_test.yaml'
+      state: touch
+  - name: Create OpenStack component network
+    os_network:
+      name: test_network
+      shared: false
+      provider_network_type: geneve
+    register: my_network_network
+  - set_fact:
+      my_network_network_list: '{{ my_network_network_list | default([]) }} + [ "{{
+        item.id }}" ]'
+    loop: '{{ my_network_network.results | flatten(levels=1)  }}'
+    when: item.id  is defined
+  - set_fact:
+      my_network_network_list:
+        my_network_network_ids: '{{ my_network_network_list }}'
+    when: my_network_network_list is defined
+  - lineinfile:
+      path: '{{ playbook_dir }}/id_vars_test.yaml'
+      line: 'my_network_network_delete: {{ my_network_network.id }}'
+    when: my_network_network.id is defined
+  - lineinfile:
+      path: '{{ playbook_dir }}/id_vars_test.yaml'
+      line: '{{ my_network_network_list | to_nice_yaml }}'
+    when: my_network_network_list is defined
+  - fail:
+      msg: Variable my_network_network is undefined! So it will not be deleted
+    when: my_network_network_list is undefined and my_network_network.id is undefined
+    ignore_errors: true
+  - name: Create OpenStack component subnet
+    os_subnet:
+      allocation_pool_end: 192.168.56.200
+      allocation_pool_start: 192.168.56.50
+      cidr: 192.168.56.0/24
+      enable_dhcp: true
+      gateway_ip: 192.168.56.1
+      ip_version: 4
+      name: test_network
+      network_name: test_network
+    register: my_network_subnet
+  - set_fact:
+      my_network_subnet_list: '{{ my_network_subnet_list | default([]) }} + [ "{{
+        item.id }}" ]'
+    loop: '{{ my_network_subnet.results | flatten(levels=1)  }}'
+    when: item.id  is defined
+  - set_fact:
+      my_network_subnet_list:
+        my_network_subnet_ids: '{{ my_network_subnet_list }}'
+    when: my_network_subnet_list is defined
+  - lineinfile:
+      path: '{{ playbook_dir }}/id_vars_test.yaml'
+      line: 'my_network_subnet_delete: {{ my_network_subnet.id }}'
+    when: my_network_subnet.id is defined
+  - lineinfile:
+      path: '{{ playbook_dir }}/id_vars_test.yaml'
+      line: '{{ my_network_subnet_list | to_nice_yaml }}'
+    when: my_network_subnet_list is defined
+  - fail:
+      msg: Variable my_network_subnet is undefined! So it will not be deleted
+    when: my_network_subnet_list is undefined and my_network_subnet.id is undefined
+    ignore_errors: true
+  - name: Create OpenStack component port
+    os_port:
+      admin_state_up: true
+      fixed_ips:
+      - ip_address: 192.168.56.100
+      name: 192.168.56.100
+      port_security_enabled: false
+      vnic_type: normal
+      network: test_network
+    register: my_port_port
+  - set_fact:
+      my_port_port_list: '{{ my_port_port_list | default([]) }} + [ "{{ item.id }}"
+        ]'
+    loop: '{{ my_port_port.results | flatten(levels=1)  }}'
+    when: item.id  is defined
+  - set_fact:
+      my_port_port_list:
+        my_port_port_ids: '{{ my_port_port_list }}'
+    when: my_port_port_list is defined
+  - lineinfile:
+      path: '{{ playbook_dir }}/id_vars_test.yaml'
+      line: 'my_port_port_delete: {{ my_port_port.id }}'
+    when: my_port_port.id is defined
+  - lineinfile:
+      path: '{{ playbook_dir }}/id_vars_test.yaml'
+      line: '{{ my_port_port_list | to_nice_yaml }}'
+    when: my_port_port_list is defined
+  - fail:
+      msg: Variable my_port_port is undefined! So it will not be deleted
+    when: my_port_port_list is undefined and my_port_port.id is undefined
+    ignore_errors: true

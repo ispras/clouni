@@ -92,7 +92,6 @@ class TranslatorShell(object):
                             default='info',
                             choices=['debug', 'info', 'warning', 'error', 'critical'],
                             help='Set log level for tool')
-
         return parser
 
     def output_print(self, output_msg):

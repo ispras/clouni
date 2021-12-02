@@ -21,7 +21,6 @@ class ProviderToscaTemplate(object):
     DEFAULT_ARTIFACTS_DIRECTOR = ARTIFACTS
 
     def __init__(self, tosca_parser_template, provider, cluster_name):
-
         self.provider = provider
         self.provider_config = ProviderConfiguration(self.provider)
         self.cluster_name = cluster_name
@@ -49,6 +48,8 @@ class ProviderToscaTemplate(object):
         self.outputs = self.tosca_topology_template.outputs
         # TODO use get property functions
         node_templates = self.resolve_get_property_functions(self.tosca_topology_template.nodetemplates)
+        node_templates = self.resolve_get_attribute_functions(self.tosca_topology_template.nodetemplates)
+        node_templates = self.resolve_get_input_functions(self.tosca_topology_template.nodetemplates)
 
         self.topology_template = self.translate_to_provider()
 
@@ -394,6 +395,8 @@ class ProviderToscaTemplate(object):
             for f_name, f_body in function.items():
                 dep_node = nodes_by_name[f_body[0]]
                 function[f_name] = dep_node.entity_tpl[PROPERTIES][f_body[1]]
+            for i in range(2, len(f_body)):
+                function[f_name] = function[f_name][f_body[i]]
         for function in functions:
             for f_name, f_body in function.items():
                 f_name_splitted = f_name.split(SEPARATOR)
@@ -402,3 +405,44 @@ class ProviderToscaTemplate(object):
                     tpl = tpl[f_name_splitted[i]]
                 tpl[f_name_splitted[-1]] = f_body
         return nodes
+
+    def _get_all_get_attributes(self, data, path=''):
+        r = []
+        if isinstance(data, dict):
+            for k, v in data.items():
+                if k == GET_ATTRIBUTE:
+                    r.append({path: v})
+                r.extend(self._get_all_get_attributes(v, SEPARATOR.join([path, k])))
+        elif isinstance(data, list):
+            for i in range(len(data)):
+                r.extend(self._get_all_get_attributes(data[i], SEPARATOR.join([path, str(i)])))
+        elif isinstance(data, GetAttribute):
+            r.append({path: data.args})
+        return r
+
+    def resolve_get_attribute_functions(self, nodes):
+        functions = []
+        nodes_by_name = {}
+        for node in nodes:
+            functions.extend(self._get_all_get_attributes(node.entity_tpl, node.name))
+            nodes_by_name[node.name] = node
+        for function in functions:
+            for f_name, f_body in function.items():
+                dep_node = nodes_by_name[f_body[0]]
+                function[f_name] = dep_node.entity_tpl[ATTRIBUTES][f_body[1]]
+            for i in range(2, len(f_body)):
+                function[f_name] = function[f_name][f_body[i]]
+        for function in functions:
+            for f_name, f_body in function.items():
+                f_name_splitted = f_name.split(SEPARATOR)
+                tpl = nodes_by_name[f_name_splitted[0]].entity_tpl
+                for i in range(1, len(f_name_splitted)-1):
+                    tpl = tpl[f_name_splitted[i]]
+                tpl[f_name_splitted[-1]] = f_body
+        return nodes
+
+    def _get_all_get_inputs(self, data, path=''):
+        pass
+
+    def resolve_get_input_functions(self, nodes):
+        pass

@@ -54,7 +54,7 @@ class BaseAnsibleProvider:
             os.remove(filename)
 
     def parse_yaml(self, content):
-        r = yaml.load(content)
+        r = yaml.load(content, Loader=yaml.Loader)
         return r
 
     def parse_all_yaml(self, content):
@@ -69,24 +69,26 @@ class BaseAnsibleProvider:
         assert hasattr(self, 'PROVIDER') is not None
         assert self.PROVIDER in PROVIDERS
 
-    def get_ansible_create_output(self, template, template_filename=None, extra=None):
+    def get_ansible_create_output(self, template, template_filename=None, extra=None, delete_template=True):
         if not template_filename:
             template_filename = self.testing_template_filename()
         self.write_template(self.prepare_yaml(template))
         r = common_translate(template_filename, False, self.PROVIDER, ANSIBLE, TEST, False, extra=extra,
                              log_level='debug')
         print(r)
-        self.delete_template(template_filename)
+        if delete_template:
+            self.delete_template(template_filename)
         playbook = self.parse_yaml(r)
         return playbook
 
-    def get_ansible_delete_output(self, template, template_filename=None, extra=None):
+    def get_ansible_delete_output(self, template, template_filename=None, extra=None, delete_template=True):
         if not template_filename:
             template_filename = self.testing_template_filename()
         self.write_template(self.prepare_yaml(template))
         r = common_translate(template_filename, False, self.PROVIDER, ANSIBLE, TEST, True, extra=extra)
         print(r)
-        self.delete_template(template_filename)
+        if delete_template:
+            self.delete_template(template_filename)
         playbook = self.parse_yaml(r)
         return playbook
 

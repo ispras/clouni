@@ -609,3 +609,4 @@ class AnsibleConfigurationTool(ConfigurationTool):
                 }
             })
         return ansible_tasks
+
