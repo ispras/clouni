@@ -69,14 +69,19 @@ data_types:
     properties:
       port_name:
         type: string
+        required: false
       port_id:
         type: string
+        required: false
       network_id:
         type: string
+        required: false
       mac_address:
         type: string
+        required: false
       addresses:
         type: list
+        required: false
         entry_schema:
           type: string
 

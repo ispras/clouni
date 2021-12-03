@@ -368,13 +368,13 @@ tosca.nodes.network.Network:
           parameter: openstack.nodes.Subnet.properties.enable_dhcp
           value: "{self[value]}"
       physical_network:
-          parameter: openstack.nodes.Network.attributes.provider_physical_network
+          parameter: openstack.nodes.Network.properties.provider_physical_network
           value: "{self[value]}"
       network_type:
-          parameter: openstack.nodes.Network.attributes.provider_network_type
+          parameter: openstack.nodes.Network.properties.provider_network_type
           value: "{self[value]}"
       segmentation_id:
-          parameter: openstack.nodes.Network.attributes.provider_segmentation_id
+          parameter: openstack.nodes.Network.properties.provider_segmentation_id
           value: "{self[value]}"
       start_ip:
           parameter: openstack.nodes.Subnet.properties.allocation_pool_start
@@ -391,10 +391,6 @@ tosca.nodes.network.Network:
       gateway_ip:
           parameter: openstack.nodes.Subnet.properties.gateway_ip
           value: "{self[value]}"
-  - attributes:
-      segmentation_id:
-          parameter: openstack.nodes.Network.attributes.provider_segmentation_id
-          value: "{self[value]}"
 
 tosca.nodes.network.Port:
   - properties:
@@ -408,11 +404,6 @@ tosca.nodes.network.Port:
           value: false
         - parameter: openstack.nodes.Port.properties.name
           value: "{self[value]}"
-  - attributes:
-      ip_address:
-        - parameter: openstack.nodes.Port.properties.fixed_ips
-          value:
-            - ip_address: "{self[value]}"
   - requirements:
     - link:
           parameter: openstack.nodes.Port.requirements.network

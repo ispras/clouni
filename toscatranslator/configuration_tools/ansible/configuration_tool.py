@@ -290,12 +290,12 @@ class AnsibleConfigurationTool(ConfigurationTool):
         post_tasks = []
         for i in element_object.nodetemplate.interfaces:
             if i.name == 'preconfigure':
-                op_name = '_'.join([element_object.name, 'prepare', 'preconfigure'])
+                op_name = '_'.join([element_object.name, i.interfacetype.split('.')[::-1][0].lower(), 'preconfigure'])
                 if not self.global_operations_info.get(op_name, {}).get(OUTPUT_IDS):
                     ansible_tasks.extend(
                         self.get_ansible_tasks_from_operation(op_name, target_directory, True))
             if i.name == 'configure':
-                op_name = '_'.join([element_object.name, 'prepare', 'configure'])
+                op_name = '_'.join([element_object.name, i.interfacetype.split('.')[::-1][0].lower(), 'configure'])
                 if not self.global_operations_info.get(op_name, {}).get(OUTPUT_IDS):
                     post_tasks.extend(
                         self.get_ansible_tasks_from_operation(op_name, target_directory, True))
