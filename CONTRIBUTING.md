@@ -1,4 +1,4 @@
-# Contributing to Lingvodoc
+# Contributing to Clouni
 
 ## Table of contents
 * [Repositories responsibility](#repositories-responsibility)
