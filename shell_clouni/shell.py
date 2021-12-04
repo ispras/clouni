@@ -20,6 +20,8 @@ class TranslatorShell(object):
         self.configuration_tool = args.configuration_tool
         self.cluster_name = args.cluster_name
         self.extra = {}
+        self.log_level = args.log_level
+
         for i in args.extra:
             i_splitted = [j.strip() for j in i.split('=', 1)]
             if len(i_splitted) < 2:
@@ -27,6 +29,8 @@ class TranslatorShell(object):
             self.extra.update({i_splitted[0]: i_splitted[1]})
         if args.async and not self.extra.get('async'):
             self.extra['async'] = args.async
+        if args.debug:
+            self.log_level = 'debug'
 
         for k, v in self.extra.items():
             if isinstance(v, six.string_types):
@@ -39,7 +43,7 @@ class TranslatorShell(object):
         self.working_dir = os.getcwd()
 
         output = translate(self.template_file, self.validate_only, self.provider, self.configuration_tool, self.cluster_name, self.is_delete,
-                           extra={'global': self.extra})
+                           extra={'global': self.extra}, log_level=self.log_level)
         self.output_print(output)
 
     def get_parser(self):
@@ -80,7 +84,14 @@ class TranslatorShell(object):
                             metavar="KEY=VALUE",
                             nargs='+',
                             help='Extra arguments for configuration tool scripts')
-
+        parser.add_argument('--debug',
+                            default=False,
+                            action='store_true',
+                            help='Set debug level for tool')
+        parser.add_argument('--log-level',
+                            default='info',
+                            choices=['debug', 'info', 'warning', 'error', 'critical'],
+                            help='Set log level for tool')
         return parser
 
     def output_print(self, output_msg):

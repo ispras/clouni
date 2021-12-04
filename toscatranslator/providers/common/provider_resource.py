@@ -42,7 +42,8 @@ class ProviderResource(object):
         self.configuration_args = dict()
         # NOTE: node is NodeTemplate instance
         for key in self.property_keys:
-            value = node.get_property_value(key)
+            # value = node.get_property_value(key)
+            value = node.entity_tpl.get(PROPERTIES, {}).get(key, None)
             if value is not None:
                 self.configuration_args[key] = value
 
@@ -171,6 +172,12 @@ class ProviderResource(object):
             requirements=requirement_defs_dict,
             interfaces=node_type.get_value(INTERFACES) or {},
             artifacts=node_type.get_value(ARTIFACTS) or {}
+            # attributes=node_type.custom_def[node_type.ntype].get(ATTRIBUTES, {}),
+            # properties=node_type.custom_def[node_type.ntype].get(PROPERTIES, {}),
+            # capabilities=node_type.custom_def[node_type.ntype].get(CAPABILITIES, {}),
+            # requirements=requirement_defs_dict,
+            # interfaces=node_type.interfaces if node_type.interfaces is not None else {},
+            # artifacts=node_type.custom_def[node_type.ntype].get(ARTIFACTS, {})
         )
         self.requirement_definitions = requirement_defs_list_with_name_added
 

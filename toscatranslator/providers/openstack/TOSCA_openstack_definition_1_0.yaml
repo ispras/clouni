@@ -86,7 +86,7 @@ node_types:
 
   openstack.nodes.FloatingIp: # os_floating_ip, no facts
     derived_from: openstack.nodes.Root
-    attributes:
+    properties:
       fixed_address:
         type: string
         required: false
@@ -110,7 +110,11 @@ node_types:
 
   openstack.nodes.Image: # os_image, os_image_facts
     derived_from: openstack.nodes.Root
-    attributes:
+    artifacts:
+      filename:
+        type: openstack.artifacts.Deployment.Image
+        required: false
+    properties:
       kernel:
         type: string
         required: false
@@ -119,11 +123,6 @@ node_types:
           The name of an existing ramdisk image that will be associated with this image
         type: string
         required: false
-    artifacts:
-      filename:
-        type: openstack.artifacts.Deployment.Image
-        required: false
-    properties:
       checksum:
         type: string
         required: false
@@ -171,7 +170,7 @@ node_types:
 
   openstack.nodes.Keypair: # os_keypair
     derived_from: openstack.nodes.Root
-    attributes:
+    properties:
       name:
         type: string
         required: true
@@ -188,7 +187,7 @@ node_types:
 
   openstack.nodes.Network: # os_network, os_networks_facts
     derived_from: openstack.nodes.Root
-    attributes:
+    properties:
       admin_state_up:
         type: boolean
         default: true
@@ -207,11 +206,6 @@ node_types:
       provider_segmentation_id: # provider:segmentation_id after create
         type: string
         required: false
-    capabilities:
-      link:
-        type: openstack.capabilities.network.Linkable
-        occurrences: [0, UNBOUNDED ]
-    properties:
       id:
         type: string
         required: false
@@ -221,6 +215,10 @@ node_types:
       shared:
         type: boolean
         default: false
+    capabilities:
+      link:
+        type: openstack.capabilities.network.Linkable
+        occurrences: [0, UNBOUNDED ]
 
   openstack.nodes.Port: # os_port, os_port_facts
     derived_from: openstack.nodes.Root
@@ -309,7 +307,7 @@ node_types:
 
   openstack.nodes.Router: # os_router
     derived_from: openstack.nodes.Root
-    attributes:
+    properties:
       admin_state_up:
         type: boolean
         default: true
@@ -348,7 +346,6 @@ node_types:
       name:
         type: string
         required: true
-    attributes:
       description:
         type: string
         required: false
@@ -359,7 +356,7 @@ node_types:
 
   openstack.nodes.SecurityGroupRule: # os_security_group_rule
     derived_from: openstack.nodes.Root
-    attributes:
+    properties:
       direction:
         type: string
         default: ingress
@@ -374,15 +371,15 @@ node_types:
         type: string
         required: false
       port_range_max:
-        type: integer
+        type: string
         required: false
       port_range_min:
-        type: integer
+        type: string
         required: false
       protocol:
         type: string
-        constraints:
-          - valid_values: [ tcp, udp, icmp, 112, None ]
+#        constraints:
+#          - valid_values: [ tcp, udp, icmp, 112, None ]
         required: false
       remote_ip_prefix:
         type: string
@@ -396,7 +393,7 @@ node_types:
 
   openstack.nodes.Server: # os_server, os_server_facts
     derived_from: openstack.nodes.Root
-    attributes:
+    properties:
       auto_ip:
         type: boolean
         required: false
@@ -414,7 +411,6 @@ node_types:
       reuse_ips:
         type: boolean
         default: true
-    properties:
       config_drive:
         type: boolean
         default: false
@@ -503,7 +499,7 @@ node_types:
 
   openstack.nodes.Subnet: # os_subnet, os_subnets_facts
     derived_from: openstack.nodes.Root
-    attributes:
+    properties:
       extra_specs:
         type: map
         entry_schema:
@@ -533,7 +529,6 @@ node_types:
       use_default_subnetpool:
         type: boolean
         default: false
-    properties:
       allocation_pool_end: # in facts allocation_pools
         type: string
         required: false
@@ -572,7 +567,7 @@ node_types:
 
   openstack.nodes.Volume: # os_volume
     derived_from: openstack.nodes.Root
-    attributes:
+    properties:
       display_description:
         type: string
         required: false

@@ -1,16 +1,11 @@
-import copy
-import six
-
-from toscaparser.common.exception import ExceptionCollector, ValidationError
-from toscatranslator.common.exception import UnsupportedToscaParameterUsage, ToscaParametersMappingFailed, \
-    UnsupportedExecutorType
-
 from toscatranslator.common import utils
 from toscatranslator.common.tosca_reserved_keys import *
 from toscatranslator.configuration_tools.combined.combine_configuration_tools import get_configuration_tool_class
 
 from random import randint, seed
 from time import time
+
+import copy, six, logging, sys, json
 
 SEPARATOR = '.'
 MAP_KEY = "map"
@@ -106,9 +101,8 @@ def get_structure_of_mapped_param(mapped_param, value, input_value=None, indivis
             # TODO find the cases
             assert False
 
-    ExceptionCollector.appendException(ToscaParametersMappingFailed(
-        what=mapped_param
-    ))
+    logging.critical("Unable to parse the following parameter: %s" % json.dumps(mapped_param))
+    sys.exit(1)
 
 
 def restructure_value(mapping_value, self, if_format_str=True, if_upper=True):
@@ -127,17 +121,15 @@ def restructure_value(mapping_value, self, if_format_str=True, if_upper=True):
             if mapping_sub_value is not None:
                 restructured_value = restructure_value(mapping_sub_value, self, key != PARAMETER, False)
                 if restructured_value is None:
-                    ExceptionCollector.appendException(ToscaParametersMappingFailed(
-                        what=mapping_value
-                    ))
-                    return
+                    logging.critical("Unable to parse the following parameter: %s" % json.dumps(mapping_value))
+                    sys.exit(1)
                 flat_mapping_value[key] = restructured_value
 
         # NOTE: the case when value has keys ERROR and REASON
         if flat_mapping_value.get(ERROR, False):
-            ExceptionCollector.appendException(UnsupportedToscaParameterUsage(
-                what=flat_mapping_value.get(REASON).format(self=self)
-            ))
+            logging.exception('Unable to use unsupported TOSCA parameter: %s'
+                              % flat_mapping_value.get(REASON).format(self=self))
+            sys.exit(1)
 
         # NOTE: the case when value has keys PARAMETER, VALUE, KEYNAME
         parameter = flat_mapping_value.get(PARAMETER)
@@ -154,13 +146,11 @@ def restructure_value(mapping_value, self, if_format_str=True, if_upper=True):
             return filled_value
         if parameter is not None:
             if not isinstance(parameter, six.string_types):
-                ExceptionCollector.appendException(ToscaParametersMappingFailed(
-                    what=parameter
-                ))
+                logging.critical("Unable to parse the following parameter: %s" % json.dumps(parameter))
+                sys.exit(1)
             if parameter[:6] == '{self[' and parameter[-1] == '}':
-                ExceptionCollector.appendException(ToscaParametersMappingFailed(
-                    what=parameter
-                ))
+                logging.critical("Unable to parse the following parameter: %s" % json.dumps(parameter))
+                sys.exit(1)
             r = dict()
             r[parameter] = value
 
@@ -179,9 +169,8 @@ def restructure_value(mapping_value, self, if_format_str=True, if_upper=True):
             if executor_name == PYTHON_EXECUTOR:
                 return utils.execute_function(PYTHON_SOURCE_DIRECTORY, source_name, parameters_dict)
             if not get_configuration_tool_class(executor_name):
-                ExceptionCollector.appendException(UnsupportedExecutorType(
-                    what=executor_name
-                ))
+                logging.critical('Unsupported executor/configuration tool name: %s' % executor_name)
+                sys.exit(1)
             if self.get(ARTIFACTS) is None:
                 self[ARTIFACTS] = []
 
@@ -199,10 +188,8 @@ def restructure_value(mapping_value, self, if_format_str=True, if_upper=True):
             # return the name of artifact
             return artifact_name
 
-        ExceptionCollector.appendException(ToscaParametersMappingFailed(
-            what=mapping_value
-        ))
-        return
+        logging.error("Unable to parse the following parameter: %s" % json.dumps(mapping_value))
+        sys.exit(1)
 
     elif isinstance(mapping_value, list):
         return [restructure_value(v, self, if_upper=False) for v in mapping_value]
@@ -313,6 +300,7 @@ def get_resulted_mapping_values(parameter, mapping_value, value, self):
                             map=mapping_value,
                             value=value
                         )
+
             if isinstance(mapping_value_value, dict):
                 # NOTE the only valid case when the value is parameter-value structure
                 mapping_value_value_parameter = mapping_value_value.get(PARAMETER)
@@ -326,9 +314,8 @@ def get_resulted_mapping_values(parameter, mapping_value, value, self):
                     r = get_resulted_mapping_values(parameter, mapping_value, value, self)
                     return r
 
-            ExceptionCollector.appendException(ToscaParametersMappingFailed(
-                what=mapping_value
-            ))
+            logging.critical("Unable to parse the following parameter: %s" % json.dumps(mapping_value))
+            sys.exit(1)
 
     return dict(
         parameter=parameter,
@@ -519,19 +506,12 @@ def translate_node_from_tosca(restructured_mapping, tpl_name, self):
     resulted_structure = {}
 
     for item in restructured_mapping:
-        ExceptionCollector.start()
         self[PARAMETER] = item[PARAMETER]
         self[VALUE] = item[VALUE]
         mapped_param = restructure_value(
             mapping_value=item[MAP_KEY],
             self=self
         )
-        ExceptionCollector.stop()
-        if ExceptionCollector.exceptionsCaught():
-            raise ValidationError(
-                message='\nTranslating to provider failed: '
-                    .join(ExceptionCollector.getExceptionsReport())
-            )
         structures, keyname = get_structure_of_mapped_param(mapped_param, item[VALUE])
 
         for structure in structures:
@@ -540,7 +520,8 @@ def translate_node_from_tosca(restructured_mapping, tpl_name, self):
                 if not keyname:
                     (_, _, type_name) = utils.tosca_type_parse(node_type)
                     if not type_name:
-                        ExceptionCollector.appendException()
+                        logging.critical("Unable to parse type name: %s" % json.dumps(node_type))
+                        sys.exit(1)
                     keyname = self[KEYNAME] + "_" + utils.snake_case(type_name)
                 node_tpl_with_name = {keyname: {node_type: tpl}}
                 resulted_structure = utils.deep_update_dict(resulted_structure, node_tpl_with_name)
@@ -599,25 +580,6 @@ def get_source_structure_from_facts(condition, fact_name, value, arguments, exec
     else:
         new_global_elements_map_total_implementation = fact_name
 
-    target_parameter_splitted = target_parameter.split(SEPARATOR)
-    relationship_name = "{self[name]}_server_" + utils.snake_case(target_parameter_splitted[-1])
-
-    provider = target_parameter_splitted[0]
-    target_interface_name = "Target"
-    target_relationship_type = SEPARATOR.join([provider, RELATIONSHIPS, "DependsOn"])
-
-    target_type = None
-    target_short_parameter = None
-    for i in range(len(target_parameter_splitted)):
-        if target_parameter_splitted[i] in NODE_TEMPLATE_KEYS:
-            target_type = SEPARATOR.join(target_parameter_splitted[:i])
-            target_short_parameter = '_'.join(target_parameter_splitted[i:])
-            break
-    if not target_type or not target_short_parameter:
-        ExceptionCollector.appendException(ToscaParametersMappingFailed(
-            what=target_parameter
-        ))
-
     tag_operation_name = None
     if isinstance(fact_name, six.string_types):
         tag_operation_name = fact_name.replace(SEPARATOR, '_')
@@ -635,8 +597,29 @@ def get_source_structure_from_facts(condition, fact_name, value, arguments, exec
     else:
         tag_operation_name = str(fact_name).replace(SEPARATOR, '_')
 
-    choose_operation_name = "choose_" + tag_operation_name
-    total_operation_name = "total_" + tag_operation_name
+    target_parameter_splitted = target_parameter.split(SEPARATOR)
+    relationship_name = '_'.join(["{self[name]}_server", utils.snake_case(target_parameter_splitted[-1]),
+                                  tag_operation_name])
+
+    provider = target_parameter_splitted[0]
+    target_interface_name = "Target"
+    target_relationship_type = SEPARATOR.join([provider, RELATIONSHIPS, "DependsOn"])
+
+    target_type = None
+    target_short_parameter = None
+    for i in range(len(target_parameter_splitted)):
+        if target_parameter_splitted[i] in NODE_TEMPLATE_KEYS:
+            target_type = SEPARATOR.join(target_parameter_splitted[:i])
+            target_short_parameter = '_'.join(target_parameter_splitted[i:])
+            break
+    if not target_type or not target_short_parameter:
+        logging.critical("Unable to parse the following parameter: %s" % json.dumps(target_parameter))
+        sys.exit(1)
+
+    # choose_operation_name = "choose_" + tag_operation_name
+    # total_operation_name = "total_" + tag_operation_name
+    choose_operation_name = "choose"
+    total_operation_name = "total"
 
     target_total_parameter_new = SEPARATOR.join([target_relationship_type, INTERFACES, target_interface_name,
                                                  total_operation_name])
@@ -746,9 +729,8 @@ def restructure_mapping_facts(elements_map, extra_elements_map=None, target_para
                     target_short_parameter = '_'.join(separated_target_parameter[i:])
                     break
             if not target_short_parameter or not target_type:
-                ExceptionCollector.appendException(ToscaParametersMappingFailed(
-                    what=target_parameter
-                ))
+                logging.critical("Unable to parse the following parameter: %s" % json.dumps(target_parameter))
+                sys.exit(1)
 
             input_parameter = new_elements_map[PARAMETER]
             input_value = new_elements_map[VALUE]
@@ -813,9 +795,8 @@ def restructure_mapping_facts(elements_map, extra_elements_map=None, target_para
             arguments = new_elements_map[ARGUMENTS]
             executor = new_elements_map[EXECUTOR]
             if not get_configuration_tool_class(executor):
-                ExceptionCollector.appendException(UnsupportedExecutorType(
-                    what=executor
-                ))
+                logging.critical("Unsupported executor name \'%s\'" % json.dumps(executor))
+                sys.exit(1)
             new_elements_map, cur_extra_elements = get_source_structure_from_facts(condition, fact_name, value,
                                                                                    arguments,
                                                                                    executor,

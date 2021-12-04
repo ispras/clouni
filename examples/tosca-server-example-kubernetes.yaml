@@ -7,7 +7,7 @@ topology_template:
   node_templates:
     app:
       type: tosca.nodes.Compute
-      attributes:
+      properties:
         private_address: 10.233.0.2
         public_address: 80.11.12.10
       capabilities:

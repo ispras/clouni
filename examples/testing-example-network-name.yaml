@@ -1,7 +1,7 @@
 topology_template:
   node_templates:
     server_master:
-      attributes:
+      properties:
         networks:
           default:
             network_name: test-two-routers

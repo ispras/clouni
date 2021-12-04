@@ -7,7 +7,7 @@ import difflib
 
 from toscatranslator.common.utils import deep_update_dict
 from toscatranslator.common.tosca_reserved_keys import PROVIDERS, ANSIBLE, TYPE, \
-    TOSCA_DEFINITIONS_VERSION, ATTRIBUTES, PROPERTIES, CAPABILITIES, REQUIREMENTS, TOPOLOGY_TEMPLATE, NODE_TEMPLATES
+    TOSCA_DEFINITIONS_VERSION, PROPERTIES, CAPABILITIES, REQUIREMENTS, TOPOLOGY_TEMPLATE, NODE_TEMPLATES
 
 TEST = 'test'
 
@@ -54,7 +54,7 @@ class BaseAnsibleProvider:
             os.remove(filename)
 
     def parse_yaml(self, content):
-        r = yaml.load(content)
+        r = yaml.load(content, Loader=yaml.Loader)
         return r
 
     def parse_all_yaml(self, content):
@@ -69,23 +69,26 @@ class BaseAnsibleProvider:
         assert hasattr(self, 'PROVIDER') is not None
         assert self.PROVIDER in PROVIDERS
 
-    def get_ansible_create_output(self, template, template_filename=None, extra=None):
+    def get_ansible_create_output(self, template, template_filename=None, extra=None, delete_template=True):
         if not template_filename:
             template_filename = self.testing_template_filename()
         self.write_template(self.prepare_yaml(template))
-        r = common_translate(template_filename, False, self.PROVIDER, ANSIBLE, TEST, False, extra=extra)
+        r = common_translate(template_filename, False, self.PROVIDER, ANSIBLE, TEST, False, extra=extra,
+                             log_level='debug')
         print(r)
-        self.delete_template(template_filename)
+        if delete_template:
+            self.delete_template(template_filename)
         playbook = self.parse_yaml(r)
         return playbook
 
-    def get_ansible_delete_output(self, template, template_filename=None, extra=None):
+    def get_ansible_delete_output(self, template, template_filename=None, extra=None, delete_template=True):
         if not template_filename:
             template_filename = self.testing_template_filename()
         self.write_template(self.prepare_yaml(template))
         r = common_translate(template_filename, False, self.PROVIDER, ANSIBLE, TEST, True, extra=extra)
         print(r)
-        self.delete_template(template_filename)
+        if delete_template:
+            self.delete_template(template_filename)
         playbook = self.parse_yaml(r)
         return playbook
 
@@ -122,7 +125,7 @@ class BaseAnsibleProvider:
         return self.update_node_template(template, node_name, update_value, PROPERTIES)
 
     def update_template_attribute(self, template, node_name, update_value):
-        return self.update_node_template(template, node_name, update_value, ATTRIBUTES)
+        return self.update_node_template(template, node_name, update_value, PROPERTIES)
 
     def update_template_capability(self, template, node_name, update_value):
         return self.update_node_template(template, node_name, update_value, CAPABILITIES)
@@ -135,13 +138,13 @@ class BaseAnsibleProvider:
         }
         return self.update_template_capability(template, node_name, uupdate_value)
 
-    def update_template_capability_attributes(self, template, node_name, capability_name, update_value):
-        uupdate_value = {
-            capability_name: {
-                ATTRIBUTES: update_value
-            }
-        }
-        return self.update_node_template(template, node_name, uupdate_value, CAPABILITIES)
+    # def update_template_capability_attributes(self, template, node_name, capability_name, update_value):
+    #     uupdate_value = {
+    #         capability_name: {
+    #             ATTRIBUTES: update_value
+    #         }
+    #     }
+    #     return self.update_node_template(template, node_name, uupdate_value, CAPABILITIES)
 
     def update_template_requirement(self, template, node_name, update_value):
         return self.update_node_template(template, node_name, update_value, REQUIREMENTS)
@@ -253,9 +256,7 @@ class TestAnsibleProvider(BaseAnsibleProvider):
                     "properties": {
                         "protocol": "tcp",
                         "port": 22,
-                        "initiator": "target"
-                    },
-                    "attributes": {
+                        "initiator": "target",
                         "ip_address": "0.0.0.0"
                     }
                 }

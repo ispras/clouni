@@ -1,74 +1,54 @@
 tosca_definitions_version: tosca_simple_yaml_1_0
 
 imports:
+  - toscatranslator/providers/common/TOSCA_provider_definition_1_0.yaml
   - toscatranslator/providers/amazon/TOSCA_amazon_definition_1_0.yaml
-
-relationship_types:
-  amazon.relationships.ServerKubeMasterServerImageId:
-    derived_from: amazon.relationships.DependsOn
-    interfaces:
-      Target:
-        choose_ec2_ami_facts:
-          description: Operation
-        total_ec2_ami_facts:
-          description: Operation
-  amazon.relationships.ServerKubeMasterServerInstanceType:
-    derived_from: amazon.relationships.DependsOn
-    interfaces:
-      Target:
-        choose_ec2_instance_type_facts:
-          description: Operation
-        total_ec2_instance_type_facts:
-          description: Operation
 
 
 topology_template:
   node_templates:
-    server_kube_master_group:
+    tosca_server_example_group:
       type: amazon.nodes.Group
       properties:
-        name: server_kube_master_group
+        name: tosca_server_example_group
         rules:
-          - proto: tcp
-          - ports:
-              - 1000
-    server_kube_master_instance:
+          - cidr_ip: 0.0.0.0
+            ports:
+              - 22
+            proto: tcp
+    tosca_server_example_instance:
       type: amazon.nodes.Instance
-      attributes:
-        name: server_kube_master
-        network:
-          interface:
-            properties:
-              assign_public_ip: true
-              private_ip_address: 192.168.12.25
       properties:
+        name: tosca_server_example
+        network:
+          assign_public_ip: true
+          private_ip_address: 192.168.12.27
         instance_type:
           get_operation_output:
-            - server_kube_master_server_instance_type
+            - tosca_server_example_server_instance_type
             - Target
-            - choose_ec2_instance_type_facts
+            - choose
             - apiname
-        tags:
-          metadata:
-            - cube_master=true
       requirements:
-        - security_groups: server_kube_master_group
+        - security_groups: tosca_server_example_group
         - image_id:
             node_filter:
               properties:
                 - image_id:
                     get_operation_output:
-                      - server_kube_master_server_image_id
+                      - tosca_server_example_server_image_id
                       - Target
-                      - choose_ec2_ami_facts
+                      - choose
                       - image_id
   relationship_templates:
-    server_kube_master_server_image_id:
-      type: amazon.relationships.ServerKubeMasterServerImageId
+    tosca_server_example_server_image_id:
+      type: amazon.relationships.DependsOn
       interfaces:
         Target:
-          choose_ec2_ami_facts:
-            implementation: contains.yaml
+          choose:
+            implementation:
+              - contains.yaml
+              - tosca_server_example_ansible_set_fact.yaml
             inputs:
               input_args:
                 - - architecture
@@ -81,21 +61,23 @@ topology_template:
                 get_operation_output:
                   - SELF
                   - Target
-                  - total_ec2_ami_facts
+                  - total
                   - target_objects
-          total_ec2_ami_facts:
+          total:
             implementation:
-              - server_kube_master_ansible_ec2_ami_facts.yaml
-              - server_kube_master_ansible_set_fact.yaml
-    server_kube_master_server_instance_type:
-      type: amazon.relationships.ServerKubeMasterServerInstanceType
+              - tosca_server_example_ansible_ec2_ami_facts.yaml
+              - tosca_server_example_ansible_set_fact.yaml
+    tosca_server_example_server_instance_type:
+      type: amazon.relationships.DependsOn
       interfaces:
         Target:
-          choose_ec2_instance_type_facts:
-            implementation: contains.yaml
+          choose:
+            implementation:
+              - contains.yaml
+              - tosca_server_example_ansible_set_fact.yaml
             inputs:
               input_args:
-                - disk_size: 160 MiB
+                - disk_size: 5 GiB
                   mem_size: 1024 MiB
                   num_cpus: 1
                 - - vcpus
@@ -105,9 +87,9 @@ topology_template:
                 get_operation_output:
                   - SELF
                   - Target
-                  - total_ec2_instance_type_facts
+                  - total
                   - target_objects
-          total_ec2_instance_type_facts:
+          total:
             implementation:
-              - server_kube_master_ansible_ec2_instance_type_facts.yaml
-              - server_kube_master_ansible_set_fact.yaml
+              - tosca_server_example_ansible_ec2_instance_type_facts.yaml
+              - tosca_server_example_ansible_set_fact.yaml

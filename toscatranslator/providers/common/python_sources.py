@@ -1,8 +1,5 @@
-import re
-
-from toscaparser.common.exception import ExceptionCollector
-
-from toscatranslator.common.exception import UnsupportedUnit
+import re, logging
+import sys
 
 SCALAR_UNIT_DEFAULT = 'B'
 SCALAR_UNIT_LIST_B = {'B': 1, 'KB': 2, 'K': 2, 'MB': 3, 'M': 3, 'GB': 4, 'G': 4, 'TB': 5, 'T': 5, 'PB': 6, 'P': 6,
@@ -45,9 +42,8 @@ def get_unit_numb(source_value, source_unit, target_unit):
     grade = SCALAR_UNIT_LIST_ALL.get(source_unit)
     target_grade = SCALAR_UNIT_LIST_ALL.get(target_unit_up)
     if (target_grade is None):
-        ExceptionCollector.appendException(UnsupportedUnit(
-            what=target_unit
-        ))
+        logging.error("Unsupported unit \'%s\'" % target_unit)
+        sys.exit(1)
         return
     if is_bibyte_source and is_bibyte_target:
         digit = 1024

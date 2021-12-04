@@ -1,0 +1,102 @@
+tosca.nodes.Compute:
+  - parameter: amazon.nodes.Instance.properties.name
+    value: "{self[name]}"
+  - properties:
+      meta:
+        parameter: amazon.nodes.Instance.properties.tags
+        value:
+          metadata: "{self[value]}"
+      private_address:
+        parameter: amazon.nodes.Instance.properties.network
+        value:
+##          parameter: network.interface.properties
+#          parameters: network
+#          value:
+            assign_public_ip: true
+            private_ip_address: "{self[value]}"
+      public_address:
+        error: true
+        reason: Unable to specify {self[parameter]} in AWS
+    networks:
+      error: true
+      reason: Not implemented yet
+    ports:
+      error: true
+      reason: Not implemented yet
+    capabilities:
+      host.properties:
+        parameter: amazon.nodes.Instance.properties.instance_type
+        value:
+          value: apiname
+          facts: ec2_instance_type_facts
+          executor: ansible
+          condition: contains
+          arguments:
+            - "{self[value]}"
+            - - vcpus
+              - memory
+              - storage
+      endpoint.properties.ip_address:
+        - parameter: "{self[buffer][security_group_rule][cidr_ip]}"
+          value: "{self[value]}"
+        - parameter: amazon.nodes.Group.properties.name
+          value: "{self[name]}_group"
+        - parameter: amazon.nodes.Instance.requirements.security_groups
+          value: "{self[name]}_group"
+      endpoint.properties.protocol:
+        parameter: "{self[buffer][security_group_rule][proto]}"
+        value: "{self[value]}"
+      endpoint.properties.port:
+        parameter: "{self[buffer][security_group_rule][ports]}"
+        value:
+          - "{self[value]}"
+      endpoint.properties.secure:
+        error: true
+        reason: Not supported in AWS
+      endpoint.properties.url_path:
+        error: true
+        reason: Not supported in AWS
+      endpoint.properties.port_name:
+        error: true
+        reason: Not supported in AWS
+      endpoint.properties.network_name:
+        facts: ec2_vpc_net_facts
+        executor: ansible
+        condition: equals
+      endpoint.properties.initiator.target:
+        parameter: amazon.nodes.Group.properties.rules
+        value:
+          - "{self[buffer][security_group_rule]}"
+      endpoint.properties.initiator.source:
+        parameter: amazon.nodes.Group.properties.rules_egress
+        value:
+          - "{self[buffer][security_group_rule]}"
+      endpoint.properties.initiator.peer:
+        - parameter: amazon.nodes.Group.properties.rules
+          value:
+            - "{self[buffer][security_group_rule]}"
+        - parameter: amazon.nodes.Group.properties.rules_egress
+          value:
+            - "{self[buffer][security_group_rule]}"
+      endpoint.properties.ports:
+        error: true
+        reason: Not implemented yet
+      os.properties:
+        parameter: amazon.nodes.Instance.requirements.image_id.node_filter.properties
+        value:
+          - parameter: image_id
+            value:
+              value: image_id
+              facts: ec2_ami_facts
+              executor: ansible
+              condition: contains
+              arguments:
+                - - architecture
+                  - name
+                - "{self[value]}"
+      scalable:
+        error: true
+        reason: Not described in TOSCA Profile YAML v1.0
+    requirements.local_storage:
+      error: true
+      reason: Bad description in TOSCA Profile YAML v1.0

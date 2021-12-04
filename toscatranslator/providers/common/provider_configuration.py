@@ -5,13 +5,11 @@ except:
     # Python 2
     import ConfigParser
 
-import os
-from toscaparser.common.exception import ExceptionCollector
-from toscatranslator.common.exception import ProviderConfigurationNotFound
-
 from toscatranslator.common import utils
 
 from toscatranslator.common.configuration import Configuration, CONFIG_FILE_EXT
+
+import logging, sys, json, os
 
 
 class ProviderConfiguration (Configuration):
@@ -40,8 +38,7 @@ class ProviderConfiguration (Configuration):
                 self.config_filename = filename
                 break
         if self.config_filename is None:
-            ExceptionCollector.appendException(ProviderConfigurationNotFound(
-                what=filename_variants_priority
-            ))
+            logging.error("Configuration files were missing in possible locations: %s" % json.dumps(filename_variants_priority))
+            sys.exit(1)
 
         super(ProviderConfiguration, self).__init__(self.config_filename)
