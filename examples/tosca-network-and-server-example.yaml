@@ -3,7 +3,7 @@ topology_template:
   node_templates:
     cumulus:
       type: tosca.nodes.Compute
-      attributes:
+      properties:
         ports:
           external:
             port_name: { get_property: [ my_port, ip_address ] }

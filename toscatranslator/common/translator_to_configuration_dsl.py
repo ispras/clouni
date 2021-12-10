@@ -99,7 +99,6 @@ def translate(template_file, validate_only, provider, configuration_tool, cluste
 
     # Parse and generate new TOSCA service template with only provider specific TOSCA types from normative types
     tosca = ProviderToscaTemplate(tosca_parser_template_object, provider, cluster_name)
-
     # Init configuration tool class
     tool = get_configuration_tool_class(configuration_tool)()
 

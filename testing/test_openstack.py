@@ -134,7 +134,6 @@ class TestAnsibleOpenStackOutput (unittest.TestCase, TestAnsibleProvider):
 
     def check_compute_module(self, task, port_name):
         self.assertIsNotNone(task[SERVER_MODULE_NAME].get('name'))
-        self.assertIsNotNone(task[SERVER_MODULE_NAME].get('config_drive'))
         self.assertIsNotNone(task[SERVER_MODULE_NAME].get('nics'))
         self.assertIsNotNone(task[SERVER_MODULE_NAME].get('image'))
         self.assertIsNotNone(task[SERVER_MODULE_NAME].get('flavor'))
@@ -149,13 +148,11 @@ class TestAnsibleOpenStackOutput (unittest.TestCase, TestAnsibleProvider):
 
     def check_network_module(self, task):
         self.assertIsNotNone(task[NETWORK_MODULE_NAME].get('name'))
-        self.assertIsNotNone(task[NETWORK_MODULE_NAME].get('shared'))
         self.assertIsNotNone(task[NETWORK_MODULE_NAME].get('provider_network_type'))
 
     def check_port_module(self, task, subnet_name):
         self.assertIsNotNone(task[PORT_MODULE_NAME].get('admin_state_up'))
         self.assertIsNotNone(task[PORT_MODULE_NAME].get('name'))
-        self.assertIsNotNone(task[PORT_MODULE_NAME].get('vnic_type'))
         self.assertIsNotNone(task[PORT_MODULE_NAME].get('port_security_enabled'))
         self.assertIsNotNone(task[PORT_MODULE_NAME].get('network'))
         subnet_network_name = task[PORT_MODULE_NAME]['network']
@@ -165,9 +162,7 @@ class TestAnsibleOpenStackOutput (unittest.TestCase, TestAnsibleProvider):
         self.assertIsNotNone(task[SUBNET_MODULE_NAME].get('allocation_pool_end'))
         self.assertIsNotNone(task[SUBNET_MODULE_NAME].get('allocation_pool_start'))
         self.assertIsNotNone(task[SUBNET_MODULE_NAME].get('cidr'))
-        self.assertIsNotNone(task[SUBNET_MODULE_NAME].get('enable_dhcp'))
         self.assertIsNotNone(task[SUBNET_MODULE_NAME].get('gateway_ip'))
-        self.assertIsNotNone(task[SUBNET_MODULE_NAME].get('ip_version'))
         self.assertIsNotNone(task[SUBNET_MODULE_NAME].get('name'))
         self.assertIsNotNone(task[SUBNET_MODULE_NAME].get('network_name'))
         subnet_network_name = task[SUBNET_MODULE_NAME]['network_name']
