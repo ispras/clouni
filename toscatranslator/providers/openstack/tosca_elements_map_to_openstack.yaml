@@ -9,7 +9,8 @@ tosca.nodes.Compute:
   - parameter: openstack.nodes.FloatingIp.requirements
     value:
       parameter: server
-      value: "{self[keyname]}_server"
+      value:
+        node: "{self[keyname]}_server"
   - parameter:  openstack.nodes.FloatingIp.interfaces.Prepare.configure.implementation
     value:
     - executor: ansible
@@ -225,9 +226,11 @@ tosca.nodes.Compute:
           - parameter: openstack.nodes.SecurityGroup.properties.name
             value: "{self[name]}_security_group"
           - parameter: openstack.nodes.Server.requirements.security_groups
-            value: "{self[keyname]}_security_group"
+            value:
+              node: "{self[keyname]}_security_group"
           - parameter: openstack.nodes.SecurityGroupRule.requirements.security_group
-            value: "{self[keyname]}_security_group"
+            value:
+              node: "{self[keyname]}_security_group"
           - parameter: "{self[extra][ansible][{self[keyname]}_security_group_rule][with_sequence]}"
             value: "start=0 end={{{{ [{self[keyname]}_protocols | length, {self[keyname]}_ports | length] | max - 1 }}}} format=%d"
         properties.protocol:
@@ -341,17 +344,6 @@ tosca.nodes.Compute:
       reason: Bad description in TOSCA Profile YAML v1.0
     interfaces: openstack.nodes.Server.interfaces
 
-tosca.nodes.SoftwareComponent:
-#  - tosca.nodes.SoftwareComponent
-  - requirements: tosca.nodes.SoftwareComponent.requirements
-  - requirements.host:
-      parameter: tosca.nodes.SoftwareComponent.requirements.host
-      value: "{self[value]}_server"
-  - properties: tosca.nodes.SoftwareComponent.properties
-  - properties: tosca.nodes.SoftwareComponent.properties
-  - capabilities: tosca.nodes.SoftwareComponent.capabilities
-  - interfaces: tosca.nodes.SoftwareComponent.interfaces
-
 tosca.nodes.network.Network:
   - properties:
       network_name:
@@ -359,7 +351,7 @@ tosca.nodes.network.Network:
             value: "{self[value]}"
           - parameter: openstack.nodes.Subnet.properties.name
             value: "{self[value]}"
-          - parameter: openstack.nodes.Subnet.requirements.network_name
+          - parameter: openstack.nodes.Subnet.requirements.network_name.node
             value: "{self[name]}_network"
       network_id:
           parameter: openstack.nodes.Subnet.properties.id
@@ -405,8 +397,8 @@ tosca.nodes.network.Port:
         - parameter: openstack.nodes.Port.properties.name
           value: "{self[value]}"
   - requirements:
-    - link:
-          parameter: openstack.nodes.Port.requirements.network
+    - link.node:
+          parameter: openstack.nodes.Port.requirements.network.node
           value: "{self[value]}_subnet"
 
 tosca.relationships.DependsOn:
@@ -415,9 +407,3 @@ tosca.relationships.DependsOn:
   - properties: openstack.relationships.DependsOn.properties
   - capabilities: openstack.relationships.DependsOn.capabilities
   - interfaces: openstack.relationships.DependsOn.interfaces
-
-tosca.relationships.HostedOn: openstack.relationships.HostedOn
-tosca.relationships.ConnectsTo: openstack.relationships.ConnectsTo
-tosca.relationships.AttachesTo: openstack.relationships.AttachesTo
-tosca.relationships.network.LinksTo: openstack.relationships.network.LinksTo
-tosca.relationships.network.BindsTo: openstack.relationships.network.BindsTo

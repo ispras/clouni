@@ -72,12 +72,12 @@ relationship_types:
 
   provider.relationships.network.LinksTo:
     description: This type appears between FloatingIp and Network
-    derived_from: provider.relationships.network.LinksTo
+    derived_from: tosca.relationships.network.LinksTo
     valid_target_types: [ tosca.capabilities.network.Linkable ]
 
   provider.relationships.network.BindsTo:
     description: This type appears between FloatingIp and Server
-    derived_from: provider.relationships.network.BindsTo
+    derived_from: tosca.relationships.network.BindsTo
     valid_target_types: [ tosca.capabilities.network.Bindable ]
 
 
