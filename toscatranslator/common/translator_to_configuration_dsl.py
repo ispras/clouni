@@ -2,8 +2,8 @@ import six
 from toscaparser.tosca_template import ToscaTemplate
 
 from toscatranslator.providers.common.tosca_template import ProviderToscaTemplate
-from toscatranslator.common.tosca_reserved_keys import IMPORTS, TOSCA_DEFINITION_FILE, DEFAULT_ARTIFACTS_DIRECTORY,\
-    EXECUTOR, NAME
+from toscatranslator.common.tosca_reserved_keys import IMPORTS, DEFAULT_ARTIFACTS_DIRECTORY,\
+    EXECUTOR, NAME, TOSCA_ELEMENTS_MAP_FILE, TOSCA_ELEMENTS_DEFINITION_FILE
 from toscatranslator.common import utils
 from toscatranslator.common.configuration import Configuration
 from toscatranslator.configuration_tools.combined.combine_configuration_tools import get_configuration_tool_class
@@ -13,7 +13,7 @@ import logging
 import json, os, sys, yaml
 
 
-REQUIRED_CONFIGURATION_PARAMS = (TOSCA_DEFINITION_FILE, DEFAULT_ARTIFACTS_DIRECTORY)
+REQUIRED_CONFIGURATION_PARAMS = (TOSCA_ELEMENTS_DEFINITION_FILE, DEFAULT_ARTIFACTS_DIRECTORY, TOSCA_ELEMENTS_MAP_FILE)
 
 
 def translate(template_file, validate_only, provider, configuration_tool, cluster_name, is_delete=False, a_file=True,
@@ -67,7 +67,7 @@ def translate(template_file, validate_only, provider, configuration_tool, cluste
         logging.error("Error parsing TOSCA template: %s%s" % (e.problem, e.context_mark))
         sys.exit(1)
 
-    def_files = config.get_section(config.MAIN_SECTION).get(TOSCA_DEFINITION_FILE)
+    def_files = config.get_section(config.MAIN_SECTION).get(TOSCA_ELEMENTS_DEFINITION_FILE)
     if isinstance(def_files, six.string_types):
         def_files = [ def_files ]
     default_import_files = []
@@ -76,11 +76,23 @@ def translate(template_file, validate_only, provider, configuration_tool, cluste
     logging.info("Default TOSCA template definition file to be imported \'%s\'" % json.dumps(default_import_files))
 
     # Add default import of normative TOSCA types to the template
-    if not template.get(IMPORTS):
-        template[IMPORTS] = []
+    template[IMPORTS] = template.get(IMPORTS, [])
+    for i in range(len(template[IMPORTS])):
+        if isinstance(template[IMPORTS][i], dict):
+            for import_key, import_value in template[IMPORTS][i].items():
+                if isinstance(import_value, six.string_types):
+                    template[IMPORTS][i] = import_value
+                elif isinstance(import_value, dict):
+                    if import_value.get('file', None) is None:
+                        logging.error("Imports %s doesn't contain \'file\' key" % import_key)
+                        sys.exit(1)
+                    else:
+                        template[IMPORTS][i] = import_value['file']
+                    if import_value.get('repository', None) is not None:
+                        logging.warning("Clouni doesn't support imports \'repository\'")
+    template[IMPORTS].extend(default_import_files)
     for i in range(len(template[IMPORTS])):
         template[IMPORTS][i] = os.path.abspath(template[IMPORTS][i])
-    template[IMPORTS].extend(default_import_files)
 
     try:
         tosca_parser_template_object = ToscaTemplate(yaml_dict_tpl=template, a_file=a_file)
@@ -88,6 +100,7 @@ def translate(template_file, validate_only, provider, configuration_tool, cluste
         logging.exception("Got exception from OpenStack tosca-parser")
         sys.exit(1)
 
+    # After validation, all templates are imported
     if validate_only:
         msg = 'The input "%(template_file)s" successfully passed validation.' \
               % {'template_file': template_file if a_file else 'TOSCA template'}
@@ -97,8 +110,18 @@ def translate(template_file, validate_only, provider, configuration_tool, cluste
         logging.error("Provider must be specified unless \'validate-only\' flag is used")
         sys.exit(1)
 
+    map_files = config.get_section(config.MAIN_SECTION).get(TOSCA_ELEMENTS_MAP_FILE)
+    if isinstance(map_files, six.string_types):
+        map_files = [ map_files ]
+    default_map_files = []
+    for map_file in map_files:
+        default_map_files.append(os.path.join(utils.get_project_root_path(), map_file))
+    logging.info("Default TOSCA template map file to be used \'%s\'" % json.dumps(default_map_files))
+
     # Parse and generate new TOSCA service template with only provider specific TOSCA types from normative types
-    tosca = ProviderToscaTemplate(tosca_parser_template_object, provider, cluster_name)
+    tosca = ProviderToscaTemplate(tosca_parser_template_object, provider, cluster_name,
+                                  common_map_files=default_map_files)
+
     # Init configuration tool class
     tool = get_configuration_tool_class(configuration_tool)()
 

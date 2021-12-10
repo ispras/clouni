@@ -288,17 +288,17 @@ class AnsibleConfigurationTool(ConfigurationTool):
             configuration_args[arg_key] = arg
 
         post_tasks = []
-        for i in element_object.nodetemplate.interfaces:
-            if i.name == 'preconfigure':
-                op_name = '_'.join([element_object.name, i.interfacetype.split('.')[::-1][0].lower(), 'preconfigure'])
-                if not self.global_operations_info.get(op_name, {}).get(OUTPUT_IDS):
-                    ansible_tasks.extend(
-                        self.get_ansible_tasks_from_operation(op_name, target_directory, True))
-            if i.name == 'configure':
-                op_name = '_'.join([element_object.name, i.interfacetype.split('.')[::-1][0].lower(), 'configure'])
-                if not self.global_operations_info.get(op_name, {}).get(OUTPUT_IDS):
-                    post_tasks.extend(
-                        self.get_ansible_tasks_from_operation(op_name, target_directory, True))
+        for interface_name, interface in self.get_interfaces_from_node(element_object).items():
+            if interface_name == 'Prepare':
+                for op_name, op in interface.items():
+                    if op_name == 'preconfigure' or op_name == 'configure':
+                        op_key = '_'.join([element_object.name, interface_name.lower(), op_name])
+                        if not self.global_operations_info.get(op_key, {}).get(OUTPUT_IDS):
+                            tasks_from_op = self.get_ansible_tasks_from_operation(op_key, target_directory, True)
+                            if op_name == 'preconfigure':
+                                ansible_tasks.extend(tasks_from_op)
+                            else:
+                                post_tasks.extend(tasks_from_op)
         ansible_args = copy.copy(element_object.configuration_args)
         ansible_args[STATE] = 'present'
         task_name = element_object.name.replace('-', '_')
@@ -356,18 +356,19 @@ class AnsibleConfigurationTool(ConfigurationTool):
                                                      additional_args_element)
         ansible_tasks = []
         scripts = []
-        for interface in element_object.nodetemplate.interfaces:
-            if not is_delete and interface.name == 'create' or is_delete and interface.name == 'delete':
-                implementations = interface.implementation
-                if isinstance(interface.implementation, six.string_types):
-                    implementations = [interface.implementation]
+        for interface_name, interface in self.get_interfaces_from_node(element_object).items():
+            interface_operation = interface.get('delete', {}) if is_delete else interface.get('create', {})
+            implementations = interface_operation.get(IMPLEMENTATION)
+            if interface_name == 'Standard' and implementations is not None:
+                if isinstance(implementations, six.string_types):
+                    implementations = [implementations]
                 scripts.extend(implementations)
                 for script in implementations:
                     import_file = os.path.join(target_directory, os.path.basename(script))
                     os.makedirs(os.path.dirname(import_file), exist_ok=True)
                     copyfile(script, import_file)
-                    if interface.inputs is not None:
-                        for input_name, input_value in interface.inputs.items():
+                    if interface_operation.get(INPUTS) is not None:
+                        for input_name, input_value in interface_operation[INPUTS].items():
                             ansible_tasks.append({
                                 SET_FACT: {
                                     input_name: input_value
@@ -586,26 +587,26 @@ class AnsibleConfigurationTool(ConfigurationTool):
         return '.yaml'
 
     def init_global_variables(self, inputs):
-        if inputs == None:
+        if inputs is None:
             return
-        for input in inputs:
-            self.global_variables['input_' + input.name] = \
-                input.name + '_' + str(utils.get_random_int(OUTPUT_ID_RANGE_START, OUTPUT_ID_RANGE_END))
+        for input_name, input in inputs.items():
+            self.global_variables['input_' + input_name] = \
+                input_name + '_' + str(utils.get_random_int(OUTPUT_ID_RANGE_START, OUTPUT_ID_RANGE_END))
         return
 
     def get_ansible_tasks_for_inputs(self, inputs):
         ansible_tasks = []
-        for input in inputs:
-            if input.default != None:
+        for input_name, input in inputs.items():
+            if input.get('default') is not None:
                 ansible_tasks.append({
                     SET_FACT: {
-                        input.name: input.default
+                        input_name: input['default']
                     },
-                    'when': input.name + IS_UNDEFINED
+                    'when': input_name + IS_UNDEFINED
                 })
             ansible_tasks.append({
                 SET_FACT: {
-                    self.global_variables['input_' + input.name]: self.rap_ansible_variable(input.name)
+                    self.global_variables['input_' + input_name]: self.rap_ansible_variable(input_name)
                 }
             })
         return ansible_tasks

@@ -294,6 +294,37 @@ class TestAnsibleOpenStackOutput (unittest.TestCase, TestAnsibleProvider):
     def test_endpoint_capabilities(self):
         super(TestAnsibleOpenStackOutput, self).test_endpoint_capabilities()
 
+    def check_endpoint_capabilities(self, tasks, testing_value=None):
+        sec_group_name = None
+        if_sec_rule = False
+        server_name = None
+        for task in tasks:
+            if task.get(SEC_GROUP_MODULE_NAME):
+                self.assertIsNotNone(task[SEC_GROUP_MODULE_NAME].get('name'))
+                sec_group_name = task[SEC_GROUP_MODULE_NAME]['name']
+                self.assertFalse(if_sec_rule)
+                self.assertIsNone(server_name)
+            if task.get(SEC_RULE_MODULE_NAME):
+                self.assertIsNotNone(task[SEC_RULE_MODULE_NAME].get('direction'))
+                self.assertIsNotNone(task[SEC_RULE_MODULE_NAME].get('port_range_min'))
+                self.assertIsNotNone(task[SEC_RULE_MODULE_NAME].get('port_range_max'))
+                self.assertIsNotNone(task[SEC_RULE_MODULE_NAME].get('protocol'))
+                self.assertIsNotNone(task[SEC_RULE_MODULE_NAME].get('remote_ip_prefix'))
+                self.assertIsNotNone(task[SEC_RULE_MODULE_NAME].get('security_group'))
+                if_sec_rule = True
+                self.assertIsNotNone(sec_group_name)
+                rule_group_name = task[SEC_RULE_MODULE_NAME]['security_group']
+                self.assertEqual(rule_group_name, sec_group_name)
+                # self.assertIsNone(server_name)
+            if task.get(SERVER_MODULE_NAME):
+                self.assertIsNotNone(task[SERVER_MODULE_NAME].get('name'))
+                self.assertIsNotNone(task[SERVER_MODULE_NAME].get('security_groups'))
+                server_name = task[SERVER_MODULE_NAME]['name']
+                server_groups = task[SERVER_MODULE_NAME]['security_groups']
+                self.assertIsNotNone(sec_group_name)
+                self.assertIn(sec_group_name, server_groups)
+        self.assertIsNotNone(server_name)
+
     def test_delete_full_modules(self):
         playbook = self.get_ansible_delete_output_from_file(copy.deepcopy(self.DEFAULT_TEMPLATE),
                                                   template_filename='examples/tosca-server-example-scalable.yaml')
@@ -330,37 +361,6 @@ class TestAnsibleOpenStackOutput (unittest.TestCase, TestAnsibleProvider):
                 else:
                     async_task_counter+=1
         self.assertEqual(async_task_counter, delete_task_counter*2)
-
-    def check_endpoint_capabilities(self, tasks, testing_value=None):
-        sec_group_name = None
-        if_sec_rule = False
-        server_name = None
-        for task in tasks:
-            if task.get(SEC_GROUP_MODULE_NAME):
-                self.assertIsNotNone(task[SEC_GROUP_MODULE_NAME].get('name'))
-                sec_group_name = task[SEC_GROUP_MODULE_NAME]['name']
-                self.assertFalse(if_sec_rule)
-                self.assertIsNone(server_name)
-            if task.get(SEC_RULE_MODULE_NAME):
-                self.assertIsNotNone(task[SEC_RULE_MODULE_NAME].get('direction'))
-                self.assertIsNotNone(task[SEC_RULE_MODULE_NAME].get('port_range_min'))
-                self.assertIsNotNone(task[SEC_RULE_MODULE_NAME].get('port_range_max'))
-                self.assertIsNotNone(task[SEC_RULE_MODULE_NAME].get('protocol'))
-                self.assertIsNotNone(task[SEC_RULE_MODULE_NAME].get('remote_ip_prefix'))
-                self.assertIsNotNone(task[SEC_RULE_MODULE_NAME].get('security_group'))
-                if_sec_rule = True
-                self.assertIsNotNone(sec_group_name)
-                rule_group_name = task[SEC_RULE_MODULE_NAME]['security_group']
-                self.assertEqual(rule_group_name, sec_group_name)
-                self.assertIsNone(server_name)
-            if task.get(SERVER_MODULE_NAME):
-                self.assertIsNotNone(task[SERVER_MODULE_NAME].get('name'))
-                self.assertIsNotNone(task[SERVER_MODULE_NAME].get('security_groups'))
-                server_name = task[SERVER_MODULE_NAME]['name']
-                server_groups = task[SERVER_MODULE_NAME]['security_groups']
-                self.assertIsNotNone(sec_group_name)
-                self.assertIn(sec_group_name, server_groups)
-        self.assertIsNotNone(server_name)
 
     def test_os_capabilities(self):
         super(TestAnsibleOpenStackOutput, self).test_os_capabilities()
