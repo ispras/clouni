@@ -138,14 +138,6 @@ class BaseAnsibleProvider:
         }
         return self.update_template_capability(template, node_name, uupdate_value)
 
-    # def update_template_capability_attributes(self, template, node_name, capability_name, update_value):
-    #     uupdate_value = {
-    #         capability_name: {
-    #             ATTRIBUTES: update_value
-    #         }
-    #     }
-    #     return self.update_node_template(template, node_name, uupdate_value, CAPABILITIES)
-
     def update_template_requirement(self, template, node_name, update_value):
         return self.update_node_template(template, node_name, update_value, REQUIREMENTS)
 
@@ -298,3 +290,144 @@ class TestAnsibleProvider(BaseAnsibleProvider):
 
             tasks = playbook[0]['tasks']
             self.check_scalable_capabilities(tasks)
+
+    def test_host_of_software_component(self):
+        if hasattr(self, "check_host_of_software_component"):
+            template = copy.deepcopy(self.DEFAULT_TEMPLATE)
+            testing_parameter = {
+                "public_address": "10.100.149.15",
+                "networks": {
+                    "default": {
+                        "network_name": "net-for-intra-sandbox"
+                    }
+                }
+            }
+            template = self.update_template_property(template, self.NODE_NAME, testing_parameter)
+            template['node_types'] = {
+                'clouni.nodes.ServerExample': {
+                    'derived_from': 'tosca.nodes.SoftwareComponent'
+                }
+            }
+            template['topology_template']['node_templates']['service_1'] = {
+                'type': 'clouni.nodes.ServerExample',
+                'properties': {
+                    'component_version': 0.1
+                },
+                'requirements': [{
+                    'host': self.NODE_NAME
+                }],
+                'interfaces':{
+                    'Standard': {
+                        'create': {
+                            'implementation': 'examples/ansible-server-example.yaml',
+                            'inputs': {
+                                'version': { 'get_property': ['service_1', 'component_version'] }
+                            }
+                        }
+                    }
+                }
+            }
+            playbook = self.get_ansible_create_output(template)
+
+            self.assertEqual(len(playbook), 2)
+            self.assertIsNotNone(playbook[0].get('tasks'))
+            self.assertIsNotNone(playbook[1].get('tasks'))
+            self.assertEqual(playbook[1].get('hosts'), self.NODE_NAME)
+
+            tasks1 = playbook[0]['tasks']
+            tasks2 = playbook[1]['tasks']
+            self.check_host_of_software_component(tasks1, tasks2)
+
+    def test_get_input(self):
+        if hasattr(self, 'check_get_input'):
+            testing_value = "10.100.157.20"
+            template = copy.deepcopy(self.DEFAULT_TEMPLATE)
+            template['topology_template']['inputs'] = {
+                'public_address': {
+                    'type': 'string',
+                    'default': testing_value
+                }
+            }
+            testing_parameter = {
+                "public_address": {
+                    "get_input": "public_address"
+                }
+            }
+            template = self.update_template_property(template, self.NODE_NAME, testing_parameter)
+            playbook = self.get_ansible_create_output(template)
+            self.assertIsNotNone(next(iter(playbook), {}).get('tasks'))
+
+            tasks = playbook[0]['tasks']
+            self.check_get_input(tasks, testing_value)
+
+    def test_get_property(self):
+        if hasattr(self, 'check_get_property'):
+            template = copy.deepcopy(self.DEFAULT_TEMPLATE)
+            testing_value = "master=true"
+            testing_parameter = {
+                "meta": testing_value
+            }
+            template = self.update_template_property(template, self.NODE_NAME, testing_parameter)
+            template['topology_template']['node_templates'][self.NODE_NAME + '_2'] = {
+                'type': 'tosca.nodes.Compute',
+                'properties': {
+                    'meta': {
+                        'get_property': [
+                            self.NODE_NAME,
+                            'meta'
+                        ]
+                    }
+                }
+            }
+            playbook = self.get_ansible_create_output(template)
+            self.assertIsNotNone(next(iter(playbook), {}).get('tasks'))
+
+            tasks = playbook[0]['tasks']
+            self.check_get_property(tasks, testing_value)
+
+    def test_get_attribute(self):
+        if hasattr(self, 'check_get_attribute'):
+            template = copy.deepcopy(self.DEFAULT_TEMPLATE)
+            testing_value = "master=true"
+            testing_parameter = {
+                "meta": testing_value
+            }
+            template = self.update_template_property(template, self.NODE_NAME, testing_parameter)
+            template['topology_template']['node_templates'][self.NODE_NAME + '_2'] = {
+                'type': 'tosca.nodes.Compute',
+                'properties': {
+                    'meta': {
+                        'get_attribute': [
+                            self.NODE_NAME,
+                            'meta'
+                        ]
+                    }
+                }
+            }
+            playbook = self.get_ansible_create_output(template)
+            self.assertIsNotNone(next(iter(playbook), {}).get('tasks'))
+
+            tasks = playbook[0]['tasks']
+            self.check_get_attribute(tasks, testing_value)
+
+    def test_outputs(self):
+        if hasattr(self, "check_outputs"):
+            template = copy.deepcopy(self.DEFAULT_TEMPLATE)
+            testing_value = "10.10.18.217"
+            testing_parameter = {
+                "public_address": testing_value
+            }
+            template = self.update_template_property(template, self.NODE_NAME, testing_parameter)
+            template['topology_template']['outputs'] = {
+                "server_address": {
+                    "description": "Public IP address for the provisioned server.",
+                    "value": {
+                        "get_attribute": [ self.NODE_NAME, "public_address" ] }
+                }
+            }
+            playbook = self.get_ansible_create_output(template)
+
+            assert next(iter(playbook), {}).get('tasks')
+
+            tasks = playbook[0]['tasks']
+            self.check_outputs(tasks, testing_value)
