@@ -2,11 +2,7 @@ import unittest
 
 from testing.base import TestAnsibleProvider
 
-import copy
-import os
-import re
-import yaml
-
+import copy, os, re, yaml
 from shell_clouni import shell
 
 SERVER_MODULE_NAME = 'os_server'
@@ -169,7 +165,6 @@ class TestAnsibleOpenStackOutput (unittest.TestCase, TestAnsibleProvider):
         self.assertIsNotNone(task[SUBNET_MODULE_NAME].get('network_name'))
         subnet_network_name = task[SUBNET_MODULE_NAME]['network_name']
         self.assertEqual(subnet_network_name, network_name)
-
 
     def test_delete_full_async_translating(self):
         file_path = os.path.join('examples', 'tosca-server-example.yaml')
@@ -411,49 +406,11 @@ class TestAnsibleOpenStackOutput (unittest.TestCase, TestAnsibleProvider):
         self.assertIsNotNone(server_name)
 
     def test_host_of_software_component(self):
-        template = copy.deepcopy(self.DEFAULT_TEMPLATE)
-        testing_parameter = {
-            "public_address": "10.100.149.15",
-            "networks": {
-                "default": {
-                    "network_name": "net-for-intra-sandbox"
-                }
-            }
-        }
-        template = self.update_template_property(template, self.NODE_NAME, testing_parameter)
-        template['node_types'] = {
-            'clouni.nodes.ServerExample': {
-                'derived_from': 'tosca.nodes.SoftwareComponent'
-            }
-        }
-        template['topology_template']['node_templates']['service_1'] = {
-            'type': 'clouni.nodes.ServerExample',
-            'properties': {
-                'component_version': 0.1
-            },
-            'requirements': [{
-                'host': self.NODE_NAME
-            }],
-            'interfaces':{
-                'Standard': {
-                    'create': {
-                        'implementation': 'examples/ansible-server-example.yaml',
-                        'inputs': {
-                            'version': { 'get_property': ['service_1', 'component_version'] }
-                        }
-                    }
-                }
-            }
-        }
-        playbook = self.get_ansible_create_output(template)
+        super(TestAnsibleOpenStackOutput, self).test_host_of_software_component()
 
-        self.assertEqual(len(playbook), 2)
-        self.assertIsNotNone(playbook[0].get('tasks'))
-        self.assertIsNotNone(playbook[1].get('tasks'))
-        self.assertEqual(playbook[1].get('hosts'), self.NODE_NAME)
-
+    def check_host_of_software_component(self, tasks1, tasks2):
+        tasks = tasks1
         checked = False
-        tasks = playbook[0]['tasks']
         for i in range(len(tasks)):
             if tasks[i].get('os_floating_ip', None) != None:
                 fip_var = tasks[i]['register']
@@ -483,29 +440,15 @@ class TestAnsibleOpenStackOutput (unittest.TestCase, TestAnsibleProvider):
                 checked = True
         self.assertTrue(checked)
 
-        tasks = playbook[1]['tasks']
+        tasks = tasks2
         self.assertEqual(len(tasks), 2)
         self.assertEqual(tasks[0].get('set_fact', {}).get('version', None), 0.1)
         self.assertEqual(tasks[1].get('include', None), "artifacts/ansible-server-example.yaml")
 
     def test_get_input(self):
-        template = copy.deepcopy(self.DEFAULT_TEMPLATE)
-        template['topology_template']['inputs'] = {
-            'public_address': {
-                'type': 'string',
-                'default': '10.100.157.20'
-            }
-        }
-        testing_parameter = {
-            "public_address": {
-                "get_input": "public_address"
-            }
-        }
-        template = self.update_template_property(template, self.NODE_NAME, testing_parameter)
-        playbook = self.get_ansible_create_output(template)
-        self.assertIsNotNone(next(iter(playbook), {}).get('tasks'))
+        super(TestAnsibleOpenStackOutput, self).test_get_input()
 
-        tasks = playbook[0]['tasks']
+    def check_get_input(self, tasks, testing_value=None):
         checked = False
         for task in tasks:
             if re.match('{{ public_address_[0-9]+ }}', task.get('os_floating_ip', {}).get('floating_ip_address', '')):
@@ -513,27 +456,17 @@ class TestAnsibleOpenStackOutput (unittest.TestCase, TestAnsibleProvider):
         self.assertTrue(checked)
 
     def test_get_property(self):
-        template = copy.deepcopy(self.DEFAULT_TEMPLATE)
-        testing_value = "master=true"
-        testing_parameter = {
-            "meta": testing_value
-        }
-        template = self.update_template_property(template, self.NODE_NAME, testing_parameter)
-        template['topology_template']['node_templates'][self.NODE_NAME + '_2'] = {
-            'type': 'tosca.nodes.Compute',
-            'properties': {
-                'meta': {
-                    'get_property': [
-                        self.NODE_NAME,
-                        'meta'
-                    ]
-                }
-            }
-        }
-        playbook = self.get_ansible_create_output(template)
-        self.assertIsNotNone(next(iter(playbook), {}).get('tasks'))
+        super(TestAnsibleOpenStackOutput, self).test_get_property()
 
-        tasks = playbook[0]['tasks']
+    def check_get_property(self, tasks, testing_value=None):
+        checked = True
+        for task in tasks:
+            os_server_task = task.get('os_server', None)
+            if os_server_task != None and os_server_task.get('meta', None) != testing_value:
+                checked = False
+        self.assertTrue(checked)
+
+    def check_get_attribute(self, tasks, testing_value=None):
         checked = True
         for task in tasks:
             os_server_task = task.get('os_server', None)
