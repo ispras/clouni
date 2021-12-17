@@ -1,5 +1,7 @@
 import unittest
+
 from testing.base import TestAnsibleProvider
+
 import copy
 import os
 import re
@@ -383,7 +385,7 @@ class TestAnsibleOpenStackOutput (unittest.TestCase, TestAnsibleProvider):
             "public_address": "10.100.115.15",
             "private_address": "192.168.12.25"
         }
-        template = self.update_template_attribute(template, self.NODE_NAME, testing_parameter)
+        template = self.update_template_property(template, self.NODE_NAME, testing_parameter)
         playbook = self.get_ansible_create_output(template)
 
         self.assertIsNotNone(next(iter(playbook), {}).get('tasks'))
@@ -418,7 +420,7 @@ class TestAnsibleOpenStackOutput (unittest.TestCase, TestAnsibleProvider):
                 }
             }
         }
-        template = self.update_template_attribute(template, self.NODE_NAME, testing_parameter)
+        template = self.update_template_property(template, self.NODE_NAME, testing_parameter)
         template['node_types'] = {
             'clouni.nodes.ServerExample': {
                 'derived_from': 'tosca.nodes.SoftwareComponent'
@@ -499,7 +501,7 @@ class TestAnsibleOpenStackOutput (unittest.TestCase, TestAnsibleProvider):
                 "get_input": "public_address"
             }
         }
-        template = self.update_template_attribute(template, self.NODE_NAME, testing_parameter)
+        template = self.update_template_property(template, self.NODE_NAME, testing_parameter)
         playbook = self.get_ansible_create_output(template)
         self.assertIsNotNone(next(iter(playbook), {}).get('tasks'))
 

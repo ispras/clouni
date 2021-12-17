@@ -26,4 +26,4 @@ topology_template:
           properties:
             protocol: TCP
             port: 888
-            port_name: 80
+#            port_name: 80

@@ -5,7 +5,7 @@ from toscatranslator.configuration_tools.combined.combine_configuration_tools im
 from random import randint, seed
 from time import time
 
-import copy, six, logging, sys, json
+import copy, six, logging, sys, json, re
 
 SEPARATOR = '.'
 MAP_KEY = "map"
@@ -126,7 +126,7 @@ def restructure_value(mapping_value, self, if_format_str=True, if_upper=True):
 
         # NOTE: the case when value has keys ERROR and REASON
         if flat_mapping_value.get(ERROR, False):
-            logging.exception('Unable to use unsupported TOSCA parameter: %s'
+            logging.error('Unable to use unsupported TOSCA parameter: %s'
                               % flat_mapping_value.get(REASON).format(self=self))
             sys.exit(1)
 
@@ -148,7 +148,8 @@ def restructure_value(mapping_value, self, if_format_str=True, if_upper=True):
                 logging.critical("Unable to parse the following parameter: %s" % json.dumps(parameter))
                 sys.exit(1)
             if parameter[:6] == '{self[' and parameter[-1] == '}':
-                logging.critical("Unable to parse the following parameter: %s" % json.dumps(parameter))
+                logging.critical("Parameter is format value, but has to be resolved on this stage: %s"
+                                 % json.dumps(parameter))
                 sys.exit(1)
             r = dict()
             r[parameter] = value
@@ -195,34 +196,47 @@ def restructure_value(mapping_value, self, if_format_str=True, if_upper=True):
 
     if isinstance(mapping_value, str) and if_format_str:
         # NOTE: the process is needed because using only format function makes string from json
-        mapping_value = format_value(mapping_value, self)
+        mapping_value, _ = format_value(mapping_value, self)
     return mapping_value
 
 
 def format_value(value, params):
+    is_buffer = False
+    params_without_buffer = copy.deepcopy(params)
+    params_without_buffer.pop(BUFFER)
     if isinstance(value, six.string_types):
-        if value[:6] == '{self[' and value[-1] == '}':
-            tmp_value = value[6:-2]
-            params_map_val = tmp_value.split('][')
-            temp_val = params
-            for param in params_map_val:
-                temp_val = temp_val.get(param, {})
-            return temp_val
+        value = value.replace("{{", "{{{{").replace("}}", "}}}}")
         try:
-            return value.format(self=params)
-        except ValueError:
-            pass
+            temp_val = value.format(self=params_without_buffer)
+            is_buffer = False
+        except KeyError:
+            try:
+                temp_val = value.format(self=params)
+                is_buffer = True
+            except KeyError:
+                return value, is_buffer
+        try:
+            dict_val = temp_val.replace("\'", "\"")
+            dict_val = json.loads(dict_val)
+            return dict_val, is_buffer
+        except json.decoder.JSONDecodeError:
+            return temp_val, is_buffer
     if isinstance(value, list):
         r = []
         for v in value:
-            r.append(format_value(v, params))
-        return r
+            f, temp_is_buffer = format_value(v, params)
+            is_buffer = is_buffer or temp_is_buffer
+            r.append(f)
+        return r, is_buffer
     if isinstance(value, dict):
         r = dict()
         for k, v in value.items():
-            r[k] = format_value(v, params)
-        return r
-    return value
+            format_key, temp_is_buffer = format_value(k, params)
+            is_buffer = temp_is_buffer or is_buffer
+            r[format_key], temp_is_buffer = format_value(v, params)
+            is_buffer = temp_is_buffer or is_buffer
+        return r, is_buffer
+    return value, is_buffer
 
 
 def get_resulted_mapping_values(parameter, mapping_value, value, self):
@@ -242,26 +256,35 @@ def get_resulted_mapping_values(parameter, mapping_value, value, self):
     mapping_value_parameter = mapping_value.get(PARAMETER)
     mapping_value_value = mapping_value.get(VALUE)
      # NOTE at first check if parameter self[buffer] parameter
-    if mapping_value_parameter and mapping_value_parameter[:6] == '{self[' and \
-            mapping_value_parameter[-1] == '}':
+    if mapping_value_parameter and mapping_value_parameter[:6] == '{self[' and mapping_value_parameter[-2:] == ']}':
         self[VALUE] = value
         self[PARAMETER] = parameter
         # The case when variable is written to the parameter self!
         # Inside string can be more self parameters
-        format_parameter = mapping_value_parameter[6:-2].format(self=self)
-        params_parameter = format_parameter.split('][')
         if isinstance(mapping_value_value, dict):
             if mapping_value_value.get(VALUE) and mapping_value_value.get(EXECUTOR) == PYTHON_EXECUTOR and \
                     mapping_value_value.get(SOURCE):
+                args, _ = format_value(mapping_value_value[PARAMETERS], self)
                 mapping_value_value = utils.execute_function(PYTHON_SOURCE_DIRECTORY, mapping_value_value[SOURCE],
-                                                       {'self' : self})
-        iter_value = format_value(mapping_value_value, self)
+                                                             args)
+        params_parameter = mapping_value_parameter[6:-2].split('][')
+        iter_value, is_buffer = format_value(mapping_value_value, self)
+        if is_buffer:
+            return dict(
+                parameter=parameter,
+                map=dict(
+                    parameter=mapping_value_parameter,
+                    value=mapping_value_value
+                ),
+                value=value
+            )
         iter_num = len(params_parameter)
         for i in range(iter_num - 1, 0, -1):
             temp_param = dict()
-            temp_param[params_parameter[i]] = iter_value
+            param_key, _ = format_value(params_parameter[i], self)
+            temp_param[param_key] = iter_value
             iter_value = temp_param
-        self = utils.deep_update_dict(self, {params_parameter[0]: iter_value})
+        utils.deep_update_dict(self, {params_parameter[0]: iter_value})
         return []
     elif mapping_value_parameter:
         splitted_mapping_value_parameter = mapping_value_parameter.split(SEPARATOR)
@@ -271,7 +294,6 @@ def get_resulted_mapping_values(parameter, mapping_value, value, self):
                 has_section = True
                 break
         if not has_section:
-            mapping_value_value = mapping_value.get(VALUE)
             if isinstance(mapping_value_value, list) and len(mapping_value_value) > 1:
                 r = []
                 for v in mapping_value_value:
@@ -457,11 +479,58 @@ def restructure_mapping(service_tmpl, node_tmpl, tmpl_name, self):
         logging.critical("Type \'%s\' is derived from itself" % node_type)
         sys.exit(1)
     for i in range(len(r)):
+        # NOTE: the case when value has keys ERROR and REASON
+        if r[i][MAP_KEY].get(ERROR, False):
+            logging.error("Unable to use unsupported TOSCA parameter \'%s\': %s" %
+                          (r[i][PARAMETER], r[i][MAP_KEY].get(REASON).format(self=self)))
+            sys.exit(1)
         parameter_node_type = get_node_type_from_parameter(r[i][PARAMETER])
         mapping_node_type = get_node_type_from_parameter(r[i][MAP_KEY][PARAMETER])
         if parameter_node_type == mapping_node_type and parameter_node_type != node_tmpl[TYPE]:
             r[i][PARAMETER] = r[i][PARAMETER].replace(parameter_node_type, node_tmpl[TYPE])
             r[i][MAP_KEY][PARAMETER] = r[i][MAP_KEY][PARAMETER].replace(mapping_node_type, node_tmpl[TYPE])
+    return r
+
+
+def resolve_self_in_buffer(data, self):
+    if isinstance(data, six.string_types):
+        data, _ = format_value(data, self)
+        if not isinstance(data, six.string_types):
+            return resolve_self_in_buffer(data, self)
+        else:
+            return data
+    if isinstance(data, dict):
+        r = {}
+        for k, v in data.items():
+            r[k] = resolve_self_in_buffer(v, self)
+        return r
+    if isinstance(data, list):
+        r = []
+        for i in data:
+            r.append(resolve_self_in_buffer(i, self))
+        return r
+    return data
+
+
+def restructured_mapping_buffer(restructured_mapping, self):
+    self[BUFFER] = resolve_self_in_buffer(self[BUFFER], self)
+    r = []
+    for mapping in restructured_mapping:
+        parameter = mapping[MAP_KEY][PARAMETER]
+        filter = "\{self\[buffer\]"
+        if re.search(filter, parameter):
+            self[VALUE] = mapping[VALUE]
+            self[PARAMETER] = mapping[PARAMETER]
+            iter_value, _ = format_value(mapping[MAP_KEY][VALUE], self)
+            params_parameter = parameter[6:-2].split('][')
+            iter_num = len(params_parameter)
+            for i in range(iter_num - 1, 0, -1):
+                temp_param = dict()
+                temp_param[params_parameter[i]] = iter_value
+                iter_value = temp_param
+            utils.deep_update_dict(self, {params_parameter[0]: iter_value})
+        else:
+            r.append(mapping)
     return r
 
 
@@ -823,7 +892,7 @@ def translate(service_tmpl):
 
         if namespace != service_tmpl.provider:
             restructured_mapping = restructure_mapping(service_tmpl, element, tmpl_name, self)
-
+            restructured_mapping = restructured_mapping_buffer(restructured_mapping, self)
             restructured_mapping, extra_mappings, new_conditions = restructure_mapping_facts(restructured_mapping)
             restructured_mapping.extend(extra_mappings)
             conditions.extend(new_conditions)

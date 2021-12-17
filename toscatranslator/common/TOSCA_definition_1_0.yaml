@@ -726,6 +726,7 @@ capability_types:
       secure:
         type: boolean
         default: true
+        required: false
         constraints:
           - equal: true
 
@@ -739,6 +740,7 @@ capability_types:
       network_name:
         type: string
         default: PUBLIC
+        required: false
         constraints:
           - equal: PUBLIC
       floating:
@@ -748,6 +750,7 @@ capability_types:
         type: boolean
         default: false
         status: experimental
+        required: false
       dns_name:
         description: The optional name to register with DNS
         type: string
@@ -908,7 +911,9 @@ artifact_types:
     description: >
       The TOSCA Artifact Type all other TOSCA Artifact Types derive from
     properties:
-      version: version
+      version:
+        type: version
+        required: false
 
   tosca.artifacts.File:
     derived_from: tosca.artifacts.Root

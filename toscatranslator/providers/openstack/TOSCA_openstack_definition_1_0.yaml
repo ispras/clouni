@@ -110,10 +110,6 @@ node_types:
 
   openstack.nodes.Image: # os_image, os_image_facts
     derived_from: openstack.nodes.Root
-    artifacts:
-      filename:
-        type: openstack.artifacts.Deployment.Image
-        required: false
     properties:
       kernel:
         type: string
@@ -166,6 +162,10 @@ node_types:
         required: false
       updated_at: # not used in create
         type: scalar-unit.time
+        required: false
+    artifacts:
+      filename:
+        type: openstack.artifacts.Deployment.Image
         required: false
 
   openstack.nodes.Keypair: # os_keypair

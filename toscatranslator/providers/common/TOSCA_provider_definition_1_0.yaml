@@ -45,7 +45,6 @@ relationship_types:
     interfaces:
       Target:
         type: provider.interfaces.relationships.Target
-          
   
   provider.relationships.DependsOn:
     description: This type results in ordering of initializing objects.

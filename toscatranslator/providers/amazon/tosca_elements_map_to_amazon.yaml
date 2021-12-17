@@ -9,20 +9,17 @@ tosca.nodes.Compute:
       private_address:
         parameter: amazon.nodes.Instance.properties.network
         value:
-##          parameter: network.interface.properties
-#          parameters: network
-#          value:
             assign_public_ip: true
             private_ip_address: "{self[value]}"
       public_address:
         error: true
         reason: Unable to specify {self[parameter]} in AWS
-    networks:
-      error: true
-      reason: Not implemented yet
-    ports:
-      error: true
-      reason: Not implemented yet
+      networks:
+        error: true
+        reason: Not implemented yet
+      ports:
+        error: true
+        reason: Not implemented yet
     capabilities:
       host.properties:
         parameter: amazon.nodes.Instance.properties.instance_type
