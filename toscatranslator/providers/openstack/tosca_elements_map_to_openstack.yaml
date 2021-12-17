@@ -341,7 +341,7 @@ tosca.nodes.Compute:
 #      value:
 #        - parameter: volumes
 #          value: "{self[value]}_volume"
-  - requirements.local_storage.node.local_storage:
+  - requirements.local_storage.node:
       parameter: openstack.nodes.Server.requirements.volumes
       value: "{self[value]}_volume"
 
