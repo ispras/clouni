@@ -581,7 +581,7 @@ node_types:
         type: string
         required: false
       size:
-        type: scalar-unit.size
+        type: integer # scalar-unit.size
         required: false
       volume_type:
         type: string

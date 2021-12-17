@@ -540,7 +540,7 @@ class TestAnsibleOpenStackOutput (unittest.TestCase, TestAnsibleProvider):
         checked = True
         for task in tasks:
             os_server_task = task.get('os_server', None)
-            if os_server_task != None and os_server_task.get('meta', None) != testing_value:
+            if os_server_task is not None and os_server_task.get('meta', None) != testing_value:
                 checked = False
         self.assertTrue(checked)
 

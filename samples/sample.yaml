@@ -4,7 +4,7 @@ topology_template:
   node_templates:
     server_kube_master:
       type: tosca.nodes.Compute
-      attributes:
+      properties:
         networks:
           default:
             network_name: net-for-intra-sandbox
@@ -20,13 +20,21 @@ topology_template:
             distribution: xenial
             version: 16.04
       requirements:
-        - required_storage:
+        - local_storage:
             node: disk_c
             relationship:
               type: tosca.nodes.AttachesTo
               properties:
                 location: /mnt/c
+        - local_storage:
+            capability:
+              type: tosca.capabilities.Attachment
+            node: disk_d
     disk_c:
+      type: tosca.nodes.BlockStorage
+      properties:
+        size: 10 GiB
+    disk_d:
       type: tosca.nodes.BlockStorage
       properties:
         size: 10 GiB

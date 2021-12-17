@@ -7,55 +7,81 @@
       target_objects: '{{ facts_result["ansible_facts"]["openstack_image"] }}'
     register: tmp_value
   - set_fact:
-      target_objects_8084: '{{ target_objects }}'
+      target_objects_1572: '{{ target_objects }}'
   - set_fact:
-      input_facts: '{{ target_objects_8084 }}'
+      input_facts: '{{ target_objects_1572 }}'
   - set_fact:
-      input_args_8278:
+      input_args_5012:
       - - name
         - properties
       - type: ubuntu
         distribution: xenial
         version: 16.04
   - set_fact:
-      input_args: '{{ input_args_8278 }}'
+      input_args: '{{ input_args_5012 }}'
   - include: artifacts/contains.yaml
   - set_fact:
       name: '{{ matched_object["name"] }}'
     register: tmp_value
   - set_fact:
-      name_4315: '{{ name }}'
+      name_1231: '{{ name }}'
   - file:
-      path: '{{ playbook_dir }}/id_vars_volumeee.yaml'
+      path: '{{ playbook_dir }}/id_vars_volume-from-alex.yaml'
       state: absent
   - file:
-      path: '{{ playbook_dir }}/id_vars_volumeee.yaml'
+      path: '{{ playbook_dir }}/id_vars_volume-from-alex.yaml'
       state: touch
   - name: Create OpenStack component volume
     os_volume:
-      display_name: disk_dd
+      display_name: disk_d
       size: 10
-    register: disk_dd_volume
+    register: disk_d_volume
   - set_fact:
-      disk_dd_volume_list: '{{ disk_dd_volume_list | default([]) }} + [ "{{ item.id
+      disk_d_volume_list: '{{ disk_d_volume_list | default([]) }} + [ "{{ item.id
         }}" ]'
-    loop: '{{ disk_dd_volume.results | flatten(levels=1)  }}'
+    loop: '{{ disk_d_volume.results | flatten(levels=1)  }}'
     when: item.id  is defined
   - set_fact:
-      disk_dd_volume_list:
-        disk_dd_volume_ids: '{{ disk_dd_volume_list }}'
-    when: disk_dd_volume_list is defined
+      disk_d_volume_list:
+        disk_d_volume_ids: '{{ disk_d_volume_list }}'
+    when: disk_d_volume_list is defined
   - lineinfile:
-      path: '{{ playbook_dir }}/id_vars_volumeee.yaml'
-      line: 'disk_dd_volume_delete: {{ disk_dd_volume.id }}'
-    when: disk_dd_volume.id is defined
+      path: '{{ playbook_dir }}/id_vars_volume-from-alex.yaml'
+      line: 'disk_d_volume_delete: {{ disk_d_volume.id }}'
+    when: disk_d_volume.id is defined
   - lineinfile:
-      path: '{{ playbook_dir }}/id_vars_volumeee.yaml'
-      line: '{{ disk_dd_volume_list | to_nice_yaml }}'
-    when: disk_dd_volume_list is defined
+      path: '{{ playbook_dir }}/id_vars_volume-from-alex.yaml'
+      line: '{{ disk_d_volume_list | to_nice_yaml }}'
+    when: disk_d_volume_list is defined
   - fail:
-      msg: Variable disk_dd_volume is undefined! So it will not be deleted
-    when: disk_dd_volume_list is undefined and disk_dd_volume.id is undefined
+      msg: Variable disk_d_volume is undefined! So it will not be deleted
+    when: disk_d_volume_list is undefined and disk_d_volume.id is undefined
+    ignore_errors: true
+  - name: Create OpenStack component volume
+    os_volume:
+      display_name: disk_c
+      size: 10
+    register: disk_c_volume
+  - set_fact:
+      disk_c_volume_list: '{{ disk_c_volume_list | default([]) }} + [ "{{ item.id
+        }}" ]'
+    loop: '{{ disk_c_volume.results | flatten(levels=1)  }}'
+    when: item.id  is defined
+  - set_fact:
+      disk_c_volume_list:
+        disk_c_volume_ids: '{{ disk_c_volume_list }}'
+    when: disk_c_volume_list is defined
+  - lineinfile:
+      path: '{{ playbook_dir }}/id_vars_volume-from-alex.yaml'
+      line: 'disk_c_volume_delete: {{ disk_c_volume.id }}'
+    when: disk_c_volume.id is defined
+  - lineinfile:
+      path: '{{ playbook_dir }}/id_vars_volume-from-alex.yaml'
+      line: '{{ disk_c_volume_list | to_nice_yaml }}'
+    when: disk_c_volume_list is defined
+  - fail:
+      msg: Variable disk_c_volume is undefined! So it will not be deleted
+    when: disk_c_volume_list is undefined and disk_c_volume.id is undefined
     ignore_errors: true
   - os_flavor_facts: {}
     register: node_filter_facts_raw
@@ -69,15 +95,14 @@
         ram: 1024.0
   - include: artifacts/equals.yaml
   - set_fact:
-      id_4713: '{{ matched_object["id"] }}'
+      id_2893: '{{ matched_object["id"] }}'
   - name: Create OpenStack component server
     os_server:
-      config_drive: false
       name: server_kube_master
       nics:
       - net-name: net-for-intra-sandbox
-      flavor: '{{ id_4713 }}'
-      image: '{{ name_4315 }}'
+      flavor: '{{ id_2893 }}'
+      image: '{{ name_1231 }}'
     register: server_kube_master_server
   - set_fact:
       server_kube_master_server_list: '{{ server_kube_master_server_list | default([])
@@ -89,11 +114,11 @@
         server_kube_master_server_ids: '{{ server_kube_master_server_list }}'
     when: server_kube_master_server_list is defined
   - lineinfile:
-      path: '{{ playbook_dir }}/id_vars_volumeee.yaml'
+      path: '{{ playbook_dir }}/id_vars_volume-from-alex.yaml'
       line: 'server_kube_master_server_delete: {{ server_kube_master_server.id }}'
     when: server_kube_master_server.id is defined
   - lineinfile:
-      path: '{{ playbook_dir }}/id_vars_volumeee.yaml'
+      path: '{{ playbook_dir }}/id_vars_volume-from-alex.yaml'
       line: '{{ server_kube_master_server_list | to_nice_yaml }}'
     when: server_kube_master_server_list is defined
   - fail:
@@ -131,12 +156,12 @@
           }}'
     when: server_kube_master_floating_ip_list is defined
   - lineinfile:
-      path: '{{ playbook_dir }}/id_vars_volumeee.yaml'
+      path: '{{ playbook_dir }}/id_vars_volume-from-alex.yaml'
       line: 'server_kube_master_floating_ip_delete: {{ server_kube_master_floating_ip.id
         }}'
     when: server_kube_master_floating_ip.id is defined
   - lineinfile:
-      path: '{{ playbook_dir }}/id_vars_volumeee.yaml'
+      path: '{{ playbook_dir }}/id_vars_volume-from-alex.yaml'
       line: '{{ server_kube_master_floating_ip_list | to_nice_yaml }}'
     when: server_kube_master_floating_ip_list is defined
   - fail:

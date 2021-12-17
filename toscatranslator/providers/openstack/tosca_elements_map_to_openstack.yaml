@@ -10,28 +10,28 @@ tosca.nodes.Compute:
     value:
       parameter: server
       value: "{self[keyname]}_server"
-  - parameter:  openstack.nodes.FloatingIp.interfaces.Prepare.configure.implementation
+  - parameter: openstack.nodes.FloatingIp.interfaces.Prepare.configure.implementation
     value:
-    - executor: ansible
-      source: set_fact
-      parameters:
-        host_ip: '{{{{ {self[keyname]}_floating_ip.floating_ip.floating_ip_address }}}}'
-      value: temp_value
-    - executor: ansible
-      source: add_host
-      parameters: '{self[buffer][add_host]}'
-      value: temp_value
-    - executor: ansible
-      source: shell
-      parameters: 'ssh-keyscan {{{{ host_ip }}}},`dig +short {{{{ host_ip }}}}`'
-      value: host_key
-    - executor: ansible
-      source: known_hosts
-      parameters:
-        path: ~/.ssh/known_hosts
-        name: "{{{{ host_ip }}}}"
-        key: "{{{{ host_key.stdout }}}}"
-      value: temp_value
+      - executor: ansible
+        source: set_fact
+        parameters:
+          host_ip: '{{{{ {self[keyname]}_floating_ip.floating_ip.floating_ip_address }}}}'
+        value: temp_value
+      - executor: ansible
+        source: add_host
+        parameters: '{self[buffer][add_host]}'
+        value: temp_value
+      - executor: ansible
+        source: shell
+        parameters: 'ssh-keyscan {{{{ host_ip }}}},`dig +short {{{{ host_ip }}}}`'
+        value: host_key
+      - executor: ansible
+        source: known_hosts
+        parameters:
+          path: ~/.ssh/known_hosts
+          name: "{{{{ host_ip }}}}"
+          key: "{{{{ host_key.stdout }}}}"
+        value: temp_value
   - properties:
       tosca_name:
         parameter: "{self[name]}"
@@ -50,7 +50,7 @@ tosca.nodes.Compute:
                   - source: os_subnets_facts
                     executor: ansible
                     value: target_objects
-                    parameters: {}
+                    parameters: { }
                   - source: set_fact
                     executor: ansible
                     parameters:
@@ -81,9 +81,9 @@ tosca.nodes.Compute:
         - parameter: openstack.nodes.Port.properties.name
           value: "{self[name]}_port_0"
         - parameter: openstack.nodes.Server.properties.nics
-#        - parameter: openstack.nodes.Server.requirements.network
+          #        - parameter: openstack.nodes.Server.requirements.network
           value:
-          - port-name: "{self[name]}_port_0"
+            - port-name: "{self[name]}_port_0"
       public_address:
         - parameter: openstack.nodes.Server.properties.auto_ip
           value: false
@@ -106,7 +106,7 @@ tosca.nodes.Compute:
                           - source: os_subnets_facts
                             executor: ansible
                             value: target_objects
-                            parameters: {}
+                            parameters: { }
                           - source: set_fact
                             executor: ansible
                             parameters:
@@ -306,22 +306,22 @@ tosca.nodes.Compute:
                   - "{self[buffer][os]}"
         - parameter: '{self[buffer][add_host][ansible_user]}'
           value: '{self[value]}'
-#        - parameter: openstack.nodes.Server.interfaces.Prepare.preconfigure.implementation
-#          value:
-#          - executor: ansible
-#            source: lineinfile
-#            parameters:
-#              insertafter: EOF
-#              line: '[{self[keyname]}:vars]'
-#              path: 'inventory.yaml'
-#            value: temp_value
-#          - executor: ansible
-#            source: lineinfile
-#            parameters:
-#              insertafter: EOF
-#              line: 'ansible_user={self[value]}'
-#              path: 'inventory.yaml'
-#            value: temp_value
+      #        - parameter: openstack.nodes.Server.interfaces.Prepare.preconfigure.implementation
+      #          value:
+      #          - executor: ansible
+      #            source: lineinfile
+      #            parameters:
+      #              insertafter: EOF
+      #              line: '[{self[keyname]}:vars]'
+      #              path: 'inventory.yaml'
+      #            value: temp_value
+      #          - executor: ansible
+      #            source: lineinfile
+      #            parameters:
+      #              insertafter: EOF
+      #              line: 'ansible_user={self[value]}'
+      #              path: 'inventory.yaml'
+      #            value: temp_value
       os.properties.distribution: "{self[buffer][os][distribution]}"
       os.properties.version: "{self[buffer][os][version]}"
       scalable.properties:
@@ -330,16 +330,23 @@ tosca.nodes.Compute:
             value: "start=1 end={self[value]} format={self[name]}-%d"
           - parameter: openstack.nodes.Server.properties.name
             value: "{{{{ item }}}}"
-#        max_instances:
-#          error: true
-#          reason: Not described in TOSCA Profile YAML v1.0
-#        min_instances:
-#          error: true
-#          reason: Not described in TOSCA Profile YAML v1.0
-    requirements.local_storage.node: openstack.nodes.Server.requirements.volumes.node
+  #        max_instances:
+  #          error: true
+  #          reason: Not described in TOSCA Profile YAML v1.0
+  #        min_instances:
+  #          error: true
+  #          reason: Not described in TOSCA Profile YAML v1.0
+#  - requirements.local_storage.node: TODO: ТАК НАДО
+#      parameter: openstack.nodes.Server.requirements
+#      value:
+#        - parameter: volumes
+#          value: "{self[value]}_volume"
+  - requirements.local_storage.node.local_storage:
+      parameter: openstack.nodes.Server.requirements.volumes
+      value: "{self[value]}_volume"
 
 tosca.nodes.SoftwareComponent:
-#  - tosca.nodes.SoftwareComponent
+  #  - tosca.nodes.SoftwareComponent
   - requirements: tosca.nodes.SoftwareComponent.requirements
   - requirements.host:
       parameter: tosca.nodes.SoftwareComponent.requirements.host
@@ -352,7 +359,7 @@ tosca.nodes.SoftwareComponent:
 tosca.nodes.BlockStorage:
   - properties:
       size:
-        - parameter: openstack.nodes.Volume.attributes.size
+        - parameter: openstack.nodes.Volume.properties.size
           value:
             source: transform_units
             executor: python
@@ -362,52 +369,52 @@ tosca.nodes.BlockStorage:
               is_only_numb: true
               is_floor_to_int: true
             value: default_tmp
-  - parameter: openstack.nodes.Volume.attributes.display_name
+  - parameter: openstack.nodes.Volume.properties.display_name
     value: "{self[name]}"
 
 tosca.nodes.network.Network:
   - properties:
       network_name:
-          - parameter: openstack.nodes.Network.properties.name
-            value: "{self[value]}"
-          - parameter: openstack.nodes.Subnet.properties.name
-            value: "{self[value]}"
-          - parameter: openstack.nodes.Subnet.requirements.network_name
-            value: "{self[name]}_network"
+        - parameter: openstack.nodes.Network.properties.name
+          value: "{self[value]}"
+        - parameter: openstack.nodes.Subnet.properties.name
+          value: "{self[value]}"
+        - parameter: openstack.nodes.Subnet.requirements.network_name
+          value: "{self[name]}_network"
       network_id:
-          parameter: openstack.nodes.Subnet.properties.id
-          value: "{self[value]}"
+        parameter: openstack.nodes.Subnet.properties.id
+        value: "{self[value]}"
       dhcp_enabled:
-          parameter: openstack.nodes.Subnet.properties.enable_dhcp
-          value: "{self[value]}"
+        parameter: openstack.nodes.Subnet.properties.enable_dhcp
+        value: "{self[value]}"
       physical_network:
-          parameter: openstack.nodes.Network.attributes.provider_physical_network
-          value: "{self[value]}"
+        parameter: openstack.nodes.Network.attributes.provider_physical_network
+        value: "{self[value]}"
       network_type:
-          parameter: openstack.nodes.Network.attributes.provider_network_type
-          value: "{self[value]}"
+        parameter: openstack.nodes.Network.attributes.provider_network_type
+        value: "{self[value]}"
       segmentation_id:
-          parameter: openstack.nodes.Network.attributes.provider_segmentation_id
-          value: "{self[value]}"
+        parameter: openstack.nodes.Network.attributes.provider_segmentation_id
+        value: "{self[value]}"
       start_ip:
-          parameter: openstack.nodes.Subnet.properties.allocation_pool_start
-          value: "{self[value]}"
+        parameter: openstack.nodes.Subnet.properties.allocation_pool_start
+        value: "{self[value]}"
       end_ip:
-          parameter: openstack.nodes.Subnet.properties.allocation_pool_end
-          value: "{self[value]}"
+        parameter: openstack.nodes.Subnet.properties.allocation_pool_end
+        value: "{self[value]}"
       cidr:
-          parameter: openstack.nodes.Subnet.properties.cidr
-          value: "{self[value]}"
+        parameter: openstack.nodes.Subnet.properties.cidr
+        value: "{self[value]}"
       ip_version:
-          parameter: openstack.nodes.Subnet.properties.ip_version
-          value: "{self[value]}"
+        parameter: openstack.nodes.Subnet.properties.ip_version
+        value: "{self[value]}"
       gateway_ip:
-          parameter: openstack.nodes.Subnet.properties.gateway_ip
-          value: "{self[value]}"
+        parameter: openstack.nodes.Subnet.properties.gateway_ip
+        value: "{self[value]}"
   - attributes:
       segmentation_id:
-          parameter: openstack.nodes.Network.attributes.provider_segmentation_id
-          value: "{self[value]}"
+        parameter: openstack.nodes.Network.attributes.provider_segmentation_id
+        value: "{self[value]}"
 
 tosca.nodes.network.Port:
   - properties:
@@ -427,7 +434,7 @@ tosca.nodes.network.Port:
           value:
             - ip_address: "{self[value]}"
   - requirements:
-    - link:
+      - link:
           parameter: openstack.nodes.Port.requirements.network
           value: "{self[value]}_subnet"
 
