@@ -11,6 +11,7 @@ topology_template:
         floating_ip_address: 10.100.115.15
       requirements:
         - network:
+            relationship: server_kube_master_server_name
             node_filter:
               properties:
                 - name:
@@ -39,7 +40,10 @@ topology_template:
       properties:
         direction: ingress
         port_range_max: 1000
-        port_range_min: 1000
+        port_range_min:
+          get_property:
+            - SELF
+            - port_range_max
         protocol: tcp
         remote_ip_prefix: 0.0.0.0
       requirements:

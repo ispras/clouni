@@ -1,7 +1,7 @@
 import yaml
 
 from toscatranslator.configuration_tools.common.configuration_tool import ConfigurationTool
-from toscatranslator.common.tosca_reserved_keys import KUBERNETES
+from toscatranslator.common.tosca_reserved_keys import KUBERNETES, PROPERTIES
 
 API_VERSION = 'apiVersion'
 API_GROUP = 'apiGroup'
@@ -26,13 +26,21 @@ class KubernetesConfigurationTool(ConfigurationTool):
 
     def get_k8s_kind_for_create(self, node_k8s):
         props_dict = dict()
-        node = node_k8s.nodetemplate
-        props_dict.update({KIND: node.entity_tpl.get(TYPE).split('.')[2]})
-        api = node.get_property_value(API_GROUP) + '/' + node.get_property_value(API_VERSION) \
-            if (node.get_property_value(API_GROUP) != '') else node.get_property_value(API_VERSION)
+        node = node_k8s.tmpl
+        props_dict.update({KIND: node.get(TYPE).split('.')[2]})
+        api = node.get(PROPERTIES, {}).get(API_GROUP, '') + '/' + node.get(PROPERTIES, {}).get(API_VERSION, '') \
+            if (node.get(PROPERTIES).get(API_GROUP, '') != '') else node.get(PROPERTIES).get(API_VERSION, '')
         props_dict.update({API_VERSION: api})
-        [props_dict.update({prop.name: prop.value}) for prop in node.get_properties_objects()
-         if prop.name != API_VERSION and prop.name != API_GROUP]
+        [props_dict.update({prop_name: prop}) for prop_name,prop in node.get(PROPERTIES, {}).items()
+         if prop_name != API_VERSION and prop_name != API_GROUP]
+        if props_dict.get('kind') == 'Deployment':
+            for i in range(len(props_dict.get('spec', {}).get('template', {}).get('spec', {}).get('containers', []))):
+                memory = props_dict['spec']['template']['spec']['containers'][i]\
+                    .get('resources', {}).get('limits', {}).get('memory')
+                if memory is not None:
+                    props_dict['spec']['template']['spec']['containers'][i]['resources']['limits']['memory'] = \
+                        props_dict['spec']['template']['spec']['containers'][i]['resources']['limits']['memory']\
+                            .replace('MB', 'M')
         return props_dict
 
     def copy_conditions_to_the_directory(self, used_conditions_set, directory):

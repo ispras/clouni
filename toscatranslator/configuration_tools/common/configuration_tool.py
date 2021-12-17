@@ -1,6 +1,6 @@
 from toscatranslator.common import utils
 from toscatranslator.common.tosca_reserved_keys import NODES, RELATIONSHIPS, INTERFACES, GET_OPERATION_OUTPUT, SELF, \
-    IMPLEMENTATION
+    IMPLEMENTATION, TYPE
 
 import logging, sys, six, copy
 
@@ -61,7 +61,7 @@ class ConfigurationTool(object):
         if element_type == NODES:
             interfaces = self.get_interfaces_from_node(element_object)
             element_template_name = element_object.name
-            op_required = self.list_get_operation_outputs(element_object.nodetemplate.entity_tpl)
+            op_required = self.list_get_operation_outputs(element_object.tmpl)
             self.manage_operation_output(op_required, element_template_name)
         elif element_type == RELATIONSHIPS:
             # NOTE interfaces can't be used as it contains the error ()
@@ -115,13 +115,12 @@ class ConfigurationTool(object):
             sys.exit(1)
 
     def get_interfaces_from_node(self, node):
-        # TODO
         """
 
         :param node:
         :return:
         """
-        return node.nodetemplate.entity_tpl.get(INTERFACES, {})
+        return node.tmpl.get(INTERFACES, {})
 
     def get_interfaces_from_relationship(self, rel):
         """
@@ -129,7 +128,7 @@ class ConfigurationTool(object):
         :param rel:
         :return:
         """
-        return rel.entity_tpl.get(INTERFACES, {})
+        return rel.tmpl.get(INTERFACES, {})
 
     def manage_operation_output(self, op_required, element_template_name):
         """

@@ -69,14 +69,19 @@ data_types:
     properties:
       port_name:
         type: string
+        required: false
       port_id:
         type: string
+        required: false
       network_id:
         type: string
+        required: false
       mac_address:
         type: string
+        required: false
       addresses:
         type: list
+        required: false
         entry_schema:
           type: string
 
@@ -238,7 +243,7 @@ node_types:
     description: >
       The TOSCA WebApplication node represents a software application that can be managed and run by a TOSCA
       WebServer node.
-    derived_from: tosca.nodes.Root
+    derived_from: tosca.nodes.SoftwareComponent
     properties:
       context_root:
         type: string
@@ -488,10 +493,6 @@ node_types:
         default: true
         description: >
           Indicates should DHCP service be enabled on the network or not.
-    attributes:
-      segmentation_id:
-        type: string
-        required: false
     capabilities:
       link:
         type: tosca.capabilities.network.Linkable
@@ -536,10 +537,6 @@ node_types:
         description: >
           Defines the ending IP of a range to be allocated for the compute
           instances that are associated with this Port.
-    attributes:
-      ip_address:
-        type: string
-        required: false
     requirements:
       - binding:
           description: >
@@ -616,10 +613,6 @@ relationship_types:
       device:
         required: false
         type: string
-    attributes:
-      device:
-        type: string
-        required: false
 
   tosca.relationships.RoutesTo:
     description: This type represents an intentional network routing between two Endpoints in different networks.
@@ -733,6 +726,7 @@ capability_types:
       secure:
         type: boolean
         default: true
+        required: false
         constraints:
           - equal: true
 
@@ -746,6 +740,7 @@ capability_types:
       network_name:
         type: string
         default: PUBLIC
+        required: false
         constraints:
           - equal: PUBLIC
       floating:
@@ -755,6 +750,7 @@ capability_types:
         type: boolean
         default: false
         status: experimental
+        required: false
       dns_name:
         description: The optional name to register with DNS
         type: string
@@ -915,7 +911,9 @@ artifact_types:
     description: >
       The TOSCA Artifact Type all other TOSCA Artifact Types derive from
     properties:
-      version: version
+      version:
+        type: version
+        required: false
 
   tosca.artifacts.File:
     derived_from: tosca.artifacts.Root

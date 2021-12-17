@@ -110,10 +110,6 @@ node_types:
 
   openstack.nodes.Image: # os_image, os_image_facts
     derived_from: openstack.nodes.Root
-    artifacts:
-      filename:
-        type: openstack.artifacts.Deployment.Image
-        required: false
     properties:
       kernel:
         type: string
@@ -166,6 +162,10 @@ node_types:
         required: false
       updated_at: # not used in create
         type: scalar-unit.time
+        required: false
+    artifacts:
+      filename:
+        type: openstack.artifacts.Deployment.Image
         required: false
 
   openstack.nodes.Keypair: # os_keypair
@@ -297,12 +297,12 @@ node_types:
       - network: # network_id in facts
           capability: openstack.capabilities.Node
           node: openstack.nodes.Network
-          relationships: openstack.relationships.DependsOn
+          relationship: openstack.relationships.DependsOn
           occurrences: [1, 1]
       - security_groups:
           capability: openstack.capabilities.Container
           node: openstack.nodes.SecurityGroup
-          relationships: openstack.relationships.DependsOn
+          relationship: openstack.relationships.DependsOn
           occurrences: [0, UNBOUNDED]
 
   openstack.nodes.Router: # os_router
@@ -332,12 +332,12 @@ node_types:
       - network: # external gateway network
           capability: openstack.capabilities.Node
           node: openstack.nodes.Network
-          relationships: openstack.relationships.DependsOn
+          relationship: openstack.relationships.DependsOn
           occurrences: [ 1, 1 ]
       - interfaces:
           capability: openstack.capabilities.Node
           node: openstack.nodes.Subnet
-          relationships: openstack.relationships.DependsOn
+          relationship: openstack.relationships.DependsOn
           occurrences: [ 0, UNBOUNDED ]
 
   openstack.nodes.SecurityGroup: # os_security_group

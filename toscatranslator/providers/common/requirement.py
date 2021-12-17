@@ -9,7 +9,7 @@ class ProviderRequirement (object):
 
     DEFAULT_REQUIRED_PARAMS = list(REQUIREMENT_DEFAULT_PARAMS)
 
-    def __init__(self, provider, name, key, data, node_filter_key=None):
+    def __init__(self, provider, name, key, data, definition, node_filter_key=None):
         self.provider = provider
         self.name = name
         self.key = key
@@ -18,6 +18,7 @@ class ProviderRequirement (object):
         self.node_filter_key = node_filter_key
         self.value = None
         self.artifact = None
+        self.definition = definition
 
         self.requires = copy.deepcopy(self.DEFAULT_REQUIRED_PARAMS)
         if self.name[-5:] == NAME_SUFFIX:

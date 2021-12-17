@@ -1,0 +1,16 @@
+tosca.nodes.SoftwareComponent:
+  - requirements: tosca.nodes.SoftwareComponent.requirements
+  - requirements.host.node:
+      parameter: tosca.nodes.SoftwareComponent.requirements.host.node
+      value: "{self[value]}_server"
+  - properties: tosca.nodes.SoftwareComponent.properties
+  - properties: tosca.nodes.SoftwareComponent.properties
+  - capabilities: tosca.nodes.SoftwareComponent.capabilities
+  - interfaces: tosca.nodes.SoftwareComponent.interfaces
+
+tosca.relationships.DependsOn: tosca.relationships.DependsOn
+tosca.relationships.HostedOn: tosca.relationships.HostedOn
+tosca.relationships.ConnectsTo: tosca.relationships.ConnectsTo
+tosca.relationships.AttachesTo: tosca.relationships.AttachesTo
+tosca.relationships.network.LinksTo: tosca.relationships.network.LinksTo
+tosca.relationships.network.BindsTo: tosca.relationships.network.BindsTo

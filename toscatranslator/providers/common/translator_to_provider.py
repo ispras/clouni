@@ -5,12 +5,12 @@ from toscatranslator.configuration_tools.combined.combine_configuration_tools im
 from random import randint, seed
 from time import time
 
-import copy, six, logging, sys, json
+import copy, six, logging, sys, json, re
 
 SEPARATOR = '.'
 MAP_KEY = "map"
 SET_FACT_SOURCE = "set_fact"
-INDIVISIBLE_KEYS = [GET_OPERATION_OUTPUT, INPUTS, IMPLEMENTATION]
+INDIVISIBLE_KEYS = [GET_OPERATION_OUTPUT, INPUTS, IMPLEMENTATION, GET_ATTRIBUTE]
 BUFFER = 'buffer'
 
 ARTIFACT_RANGE_START = 1000
@@ -19,11 +19,11 @@ PYTHON_EXECUTOR = 'python'
 PYTHON_SOURCE_DIRECTORY = 'toscatranslator.providers.common.python_sources'
 
 
-def translate_element_from_provider(node):
-    (_, element_type, _) = utils.tosca_type_parse(node.type)
+def translate_element_from_provider(tmpl_name, node_tmpl):
+    (_, element_type, _) = utils.tosca_type_parse(node_tmpl[TYPE])
     node_templates = {
         element_type: {
-            node.name: copy.deepcopy(node.entity_tpl)
+            tmpl_name: copy.deepcopy(node_tmpl)
         }
     }
     return node_templates
@@ -87,7 +87,6 @@ def get_structure_of_mapped_param(mapped_param, value, input_value=None, indivis
     if isinstance(mapped_param, dict):
         # NOTE: Assert number of keys! Always start of recursion?
         num_of_keys = len(mapped_param.keys())
-        # if mapped_param.get(PARAMETER) and (num_of_keys == 2 or num_of_keys == 3 and KEYNAME in mapped_param.keys()):
         if num_of_keys == 1 or num_of_keys == 2 and KEYNAME in mapped_param.keys():
             for k, v in mapped_param.items():
                 if k != PARAMETER and k != KEYNAME:
@@ -127,7 +126,7 @@ def restructure_value(mapping_value, self, if_format_str=True, if_upper=True):
 
         # NOTE: the case when value has keys ERROR and REASON
         if flat_mapping_value.get(ERROR, False):
-            logging.exception('Unable to use unsupported TOSCA parameter: %s'
+            logging.error('Unable to use unsupported TOSCA parameter: %s'
                               % flat_mapping_value.get(REASON).format(self=self))
             sys.exit(1)
 
@@ -149,7 +148,8 @@ def restructure_value(mapping_value, self, if_format_str=True, if_upper=True):
                 logging.critical("Unable to parse the following parameter: %s" % json.dumps(parameter))
                 sys.exit(1)
             if parameter[:6] == '{self[' and parameter[-1] == '}':
-                logging.critical("Unable to parse the following parameter: %s" % json.dumps(parameter))
+                logging.critical("Parameter is format value, but has to be resolved on this stage: %s"
+                                 % json.dumps(parameter))
                 sys.exit(1)
             r = dict()
             r[parameter] = value
@@ -180,6 +180,7 @@ def restructure_value(mapping_value, self, if_format_str=True, if_upper=True):
             seed(time())
             artifact_name = '_'.join([self[NAME], executor_name, source_name,
                                       str(randint(ARTIFACT_RANGE_START, ARTIFACT_RANGE_END))]) + extension
+
             flat_mapping_value.update(
                 name=artifact_name,
                 configuration_tool=executor_name
@@ -196,34 +197,75 @@ def restructure_value(mapping_value, self, if_format_str=True, if_upper=True):
 
     if isinstance(mapping_value, str) and if_format_str:
         # NOTE: the process is needed because using only format function makes string from json
-        mapping_value = format_value(mapping_value, self)
+        mapping_value, _ = format_value(mapping_value, self, False)
     return mapping_value
 
 
-def format_value(value, params):
+def replace_brackets(data, with_splash=True):
+    if isinstance(data, six.string_types):
+        if with_splash:
+            return data.replace("{", "\{").replace("}", "\}")
+        else:
+            return data.replace("\\\\{", "{").replace("\\{", "{").replace("\{", "{") \
+                .replace("\\\\}", "}").replace("\\}", "}").replace("\}", "}")
+    if isinstance(data, dict):
+        r = {}
+        for k, v in data.items():
+            r[replace_brackets(k)] = replace_brackets(v, with_splash)
+        return r
+    if isinstance(data, list):
+        r = []
+        for i in data:
+            r.append(replace_brackets(i, with_splash))
+        return r
+    return data
+
+
+def format_value(value, params, if_replace_brackets=True):
+    is_buffer = False
+    params_without_buffer = copy.deepcopy(params)
+    params_without_buffer.pop(BUFFER)
     if isinstance(value, six.string_types):
-        if value[:6] == '{self[' and value[-1] == '}':
-            tmp_value = value[6:-2]
-            params_map_val = tmp_value.split('][')
-            temp_val = params
-            for param in params_map_val:
-                temp_val = temp_val.get(param, {})
-            return temp_val
+        value_format = value.replace("\\\\{", "{{").replace("\\{", "{{")\
+            .replace("\\\\}", "}}").replace("\\}", "}}")
         try:
-            return value.format(self=params)
-        except ValueError:
-            pass
+            temp_val = value_format.format(self=params_without_buffer)
+            is_buffer = False
+        except KeyError:
+            try:
+                temp_val = value_format.format(self=params)
+                is_buffer = True
+            except KeyError:
+                return value, is_buffer
+        try:
+            if temp_val == value_format:
+                temp_val = value.replace("\\\\{", "{").replace("\\{", "{") \
+                    .replace("\\\\}", "}").replace("\\}", "}")
+            dict_val = temp_val.replace("\'", "\"")
+            dict_val = json.loads(dict_val)
+            if if_replace_brackets:
+                dict_val = replace_brackets(dict_val)
+            return dict_val, is_buffer
+        except json.decoder.JSONDecodeError:
+            if if_replace_brackets:
+                temp_val = replace_brackets(temp_val)
+            return temp_val, is_buffer
     if isinstance(value, list):
         r = []
         for v in value:
-            r.append(format_value(v, params))
-        return r
+            f, temp_is_buffer = format_value(v, params, if_replace_brackets)
+            is_buffer = is_buffer or temp_is_buffer
+            r.append(f)
+        return r, is_buffer
     if isinstance(value, dict):
         r = dict()
         for k, v in value.items():
-            r[k] = format_value(v, params)
-        return r
-    return value
+            format_key, temp_is_buffer = format_value(k, params, if_replace_brackets)
+            is_buffer = temp_is_buffer or is_buffer
+            r[format_key], temp_is_buffer = format_value(v, params, if_replace_brackets)
+            is_buffer = temp_is_buffer or is_buffer
+        return r, is_buffer
+    return value, is_buffer
 
 
 def get_resulted_mapping_values(parameter, mapping_value, value, self):
@@ -243,26 +285,35 @@ def get_resulted_mapping_values(parameter, mapping_value, value, self):
     mapping_value_parameter = mapping_value.get(PARAMETER)
     mapping_value_value = mapping_value.get(VALUE)
      # NOTE at first check if parameter self[buffer] parameter
-    if mapping_value_parameter and mapping_value_parameter[:6] == '{self[' and \
-            mapping_value_parameter[-1] == '}':
+    if mapping_value_parameter and mapping_value_parameter[:6] == '{self[' and mapping_value_parameter[-2:] == ']}':
         self[VALUE] = value
         self[PARAMETER] = parameter
         # The case when variable is written to the parameter self!
         # Inside string can be more self parameters
-        format_parameter = mapping_value_parameter[6:-2].format(self=self)
-        params_parameter = format_parameter.split('][')
         if isinstance(mapping_value_value, dict):
             if mapping_value_value.get(VALUE) and mapping_value_value.get(EXECUTOR) == PYTHON_EXECUTOR and \
                     mapping_value_value.get(SOURCE):
+                args, _ = format_value(mapping_value_value[PARAMETERS], self)
                 mapping_value_value = utils.execute_function(PYTHON_SOURCE_DIRECTORY, mapping_value_value[SOURCE],
-                                                       {'self' : self})
-        iter_value = format_value(mapping_value_value, self)
+                                                             args)
+        params_parameter = mapping_value_parameter[6:-2].split('][')
+        iter_value, is_buffer = format_value(mapping_value_value, self)
+        if is_buffer:
+            return dict(
+                parameter=parameter,
+                map=dict(
+                    parameter=mapping_value_parameter,
+                    value=mapping_value_value
+                ),
+                value=value
+            )
         iter_num = len(params_parameter)
         for i in range(iter_num - 1, 0, -1):
             temp_param = dict()
-            temp_param[params_parameter[i]] = iter_value
+            param_key, _ = format_value(params_parameter[i], self)
+            temp_param[param_key] = iter_value
             iter_value = temp_param
-        self = utils.deep_update_dict(self, {params_parameter[0]: iter_value})
+        utils.deep_update_dict(self, {params_parameter[0]: iter_value})
         return []
     elif mapping_value_parameter:
         splitted_mapping_value_parameter = mapping_value_parameter.split(SEPARATOR)
@@ -272,7 +323,6 @@ def get_resulted_mapping_values(parameter, mapping_value, value, self):
                 has_section = True
                 break
         if not has_section:
-            mapping_value_value = mapping_value.get(VALUE)
             if isinstance(mapping_value_value, list) and len(mapping_value_value) > 1:
                 r = []
                 for v in mapping_value_value:
@@ -289,10 +339,6 @@ def get_resulted_mapping_values(parameter, mapping_value, value, self):
                 splitted_mapping_value_value = mapping_value_value.split(SEPARATOR)
                 for i in range(len(splitted_mapping_value_value)):
                     if splitted_mapping_value_value[i] in NODE_TEMPLATE_KEYS:
-                        # parameter_tag = SEPARATOR.join(splitted_mapping_value_value[:i+1])
-                        # value_new = SEPARATOR.join(splitted_mapping_value_value[i-1:])
-                        # mapping_value[PARAMETER] = mapping_value_parameter + SEPARATOR + parameter_tag
-                        # mapping_value[VALUE] = value_new
                         mapping_value[PARAMETER] = mapping_value_parameter + SEPARATOR + mapping_value_value
                         mapping_value[VALUE] = "{self[value]}"
                         return dict(
@@ -422,38 +468,21 @@ def get_restructured_mapping_item(key_prefix, parameter, mapping_value, value, s
     return None
 
 
-def get_parent_node_template(node):
-    node = copy.deepcopy(node)
-    node.type_definition = utils.get_full_type_definition(node.parent_type)
-    new_entity_tpl = copy.deepcopy(node.entity_tpl)
-    new_entity_tpl[TYPE] = node.type
-    if node.parent_type is not None:
-        new_entity_tpl[DERIVED_FROM] = node.parent_type.type
-    else:
-        new_entity_tpl.pop(DERIVED_FROM, None)
-    for sec in NODE_TEMPLATE_KEYS:
-        if new_entity_tpl.get(sec, None) is not None:
-            if isinstance(new_entity_tpl[sec], dict):
-                sec_keys = node.type_definition.defs.get(sec, {}).keys()
-                for key in node.entity_tpl[sec].keys():
-                    if key not in sec_keys:
-                        new_entity_tpl[sec].pop(key)
-                if new_entity_tpl[sec] == {}:
-                    new_entity_tpl.pop(sec)
-    node.entity_tpl = new_entity_tpl
-    return node
-
-
-def get_node_type_from_parameter(parameter):
+def split_parameter(parameter):
     splitted_parameter = parameter.split(SEPARATOR)
     for i in range(len(splitted_parameter)):
         if splitted_parameter[i] in NODE_TEMPLATE_KEYS:
             node_type = SEPARATOR.join(splitted_parameter[:i])
-            return node_type
-    return parameter
+            return node_type, splitted_parameter[i:]
+    return parameter, []
 
 
-def restructure_mapping(tosca_elements_map_to_provider, node, self):
+def get_node_type_from_parameter(parameter):
+    node_type, _ = split_parameter(parameter)
+    return node_type
+
+
+def restructure_mapping(service_tmpl, node_tmpl, tmpl_name, self):
     """
     Restructure the mapping elements to make the mapping uniform the only 1 version to be interpreted.
     Only assigned with value parameters are mentioned
@@ -463,26 +492,79 @@ def restructure_mapping(tosca_elements_map_to_provider, node, self):
     :param node: input node to be mapped
     :return: restructured_mapping: dict
     """
+    tosca_elements_map_to_provider = service_tmpl.tosca_elements_map_to_provider()
     template = {}
     for section in NODE_TEMPLATE_KEYS:
-        section_value = node.entity_tpl.get(section)
+        section_value = node_tmpl.get(section)
         if section_value is not None:
             template[section] = section_value
 
-    self[NAME] = node.name
-    r = get_restructured_mapping_item('', '', tosca_elements_map_to_provider, {node.type: template}, self)
-    # if node.parent_type != None and node.parent_type != SEPARATOR.join([TOSCA, NODES, ROOT]):
-    if node.parent_type != None:
-        node_parent = get_parent_node_template(node)
-        r_parent = restructure_mapping(tosca_elements_map_to_provider, node_parent, self)
+    self[NAME] = tmpl_name
+    r = []
+    node_type = node_tmpl[TYPE]
+    prev_node_type = None
+    while node_type != None and prev_node_type != node_type:
+        r_parent = get_restructured_mapping_item('', '', tosca_elements_map_to_provider, {node_type: template}, self)
         r_parent.extend(r)
         r = r_parent
+        prev_node_type = node_type
+        node_type = service_tmpl.definitions[node_type].get(DERIVED_FROM)
+    if prev_node_type == node_type:
+        logging.critical("Type \'%s\' is derived from itself" % node_type)
+        sys.exit(1)
     for i in range(len(r)):
+        # NOTE: the case when value has keys ERROR and REASON
+        if r[i][MAP_KEY].get(ERROR, False):
+            logging.error("Unable to use unsupported TOSCA parameter \'%s\': %s" %
+                          (r[i][PARAMETER], r[i][MAP_KEY].get(REASON).format(self=self)))
+            sys.exit(1)
         parameter_node_type = get_node_type_from_parameter(r[i][PARAMETER])
         mapping_node_type = get_node_type_from_parameter(r[i][MAP_KEY][PARAMETER])
-        if parameter_node_type == mapping_node_type and parameter_node_type != node.type:
-            r[i][PARAMETER] = r[i][PARAMETER].replace(parameter_node_type, node.type)
-            r[i][MAP_KEY][PARAMETER] = r[i][MAP_KEY][PARAMETER].replace(mapping_node_type, node.type)
+        if parameter_node_type == mapping_node_type and parameter_node_type != node_tmpl[TYPE]:
+            r[i][PARAMETER] = r[i][PARAMETER].replace(parameter_node_type, node_tmpl[TYPE])
+            r[i][MAP_KEY][PARAMETER] = r[i][MAP_KEY][PARAMETER].replace(mapping_node_type, node_tmpl[TYPE])
+    return r
+
+
+def resolve_self_in_buffer(data, self):
+    if isinstance(data, six.string_types):
+        data, _ = format_value(data, self)
+        if not isinstance(data, six.string_types):
+            return resolve_self_in_buffer(data, self)
+        else:
+            return data
+    if isinstance(data, dict):
+        r = {}
+        for k, v in data.items():
+            r[k] = resolve_self_in_buffer(v, self)
+        return r
+    if isinstance(data, list):
+        r = []
+        for i in data:
+            r.append(resolve_self_in_buffer(i, self))
+        return r
+    return data
+
+
+def restructure_mapping_buffer(restructured_mapping, self):
+    self[BUFFER] = resolve_self_in_buffer(self[BUFFER], self)
+    r = []
+    for mapping in restructured_mapping:
+        parameter = mapping[MAP_KEY][PARAMETER]
+        filter = "\{self\[buffer\]"
+        if re.search(filter, parameter):
+            self[VALUE] = mapping[VALUE]
+            self[PARAMETER] = mapping[PARAMETER]
+            iter_value, _ = format_value(mapping[MAP_KEY][VALUE], self)
+            params_parameter = parameter[6:-2].split('][')
+            iter_num = len(params_parameter)
+            for i in range(iter_num - 1, 0, -1):
+                temp_param = dict()
+                temp_param[params_parameter[i]] = iter_value
+                iter_value = temp_param
+            utils.deep_update_dict(self, {params_parameter[0]: iter_value})
+        else:
+            r.append(mapping)
     return r
 
 
@@ -494,6 +576,14 @@ def retrieve_node_templates(input_dict, input_prefix=None):
         t = retrieve_node_templates(v, SEPARATOR.join([input_prefix, k]) if input_prefix else k)
         r = utils.deep_update_dict(r, t)
     return r
+
+
+def get_keyname_from_type(keyname, node_type):
+    (_, _, type_name) = utils.tosca_type_parse(node_type)
+    if not type_name:
+        logging.critical("Unable to parse type name: %s" % json.dumps(node_type))
+        sys.exit(1)
+    return keyname + "_" + utils.snake_case(type_name)
 
 
 def translate_node_from_tosca(restructured_mapping, tpl_name, self):
@@ -518,11 +608,7 @@ def translate_node_from_tosca(restructured_mapping, tpl_name, self):
             r = retrieve_node_templates(structure)
             for node_type, tpl in r.items():
                 if not keyname:
-                    (_, _, type_name) = utils.tosca_type_parse(node_type)
-                    if not type_name:
-                        logging.critical("Unable to parse type name: %s" % json.dumps(node_type))
-                        sys.exit(1)
-                    keyname = self[KEYNAME] + "_" + utils.snake_case(type_name)
+                    keyname = get_keyname_from_type(self[KEYNAME], node_type)
                 node_tpl_with_name = {keyname: {node_type: tpl}}
                 resulted_structure = utils.deep_update_dict(resulted_structure, node_tpl_with_name)
 
@@ -560,7 +646,7 @@ def get_source_structure_from_facts(condition, fact_name, value, arguments, exec
         facts_result = "facts_result"
         if len(fact_name_splitted) > 1:
             facts_result += "[\"" + "\"][\"".join(fact_name_splitted[1:]) + "\"]"
-        facts_result = "{{{{ " + facts_result + " }}}}"
+        facts_result = "\\{\\{ " + facts_result + " \\}\\}"
         new_global_elements_map_total_implementation = [
             {
                 SOURCE: source_name,
@@ -616,8 +702,6 @@ def get_source_structure_from_facts(condition, fact_name, value, arguments, exec
         logging.critical("Unable to parse the following parameter: %s" % json.dumps(target_parameter))
         sys.exit(1)
 
-    # choose_operation_name = "choose_" + tag_operation_name
-    # total_operation_name = "total_" + tag_operation_name
     choose_operation_name = "choose"
     total_operation_name = "total"
 
@@ -650,7 +734,7 @@ def get_source_structure_from_facts(condition, fact_name, value, arguments, exec
                 {
                     SOURCE: SET_FACT_SOURCE,
                     PARAMETERS: {
-                        value: "{{{{ matched_object[\"" + value + "\"] }}}}"
+                        value: "\{\{ matched_object[\"" + value + "\"] \}\}"
                     },
                     VALUE: "tmp_value",
                     EXECUTOR: executor
@@ -760,9 +844,7 @@ def restructure_mapping_facts(elements_map, extra_elements_map=None, target_para
                             VALUE: "default_value",
                             EXECUTOR: ANSIBLE,
                             PARAMETERS: {
-                                value_name: "{{{{ {{ input_parameter: input_value }} }}}}"
-                                # so many braces because format
-                                # uses braces and replace '{{' with '{'
+                                value_name: "\\{\\{ input_parameter: input_value \\}\\}"
                             }
                         },
                         INPUTS: {
@@ -820,7 +902,52 @@ def restructure_mapping_facts(elements_map, extra_elements_map=None, target_para
     return elements_map, extra_elements_map, conditions
 
 
-def translate(tosca_elements_map_to_provider, topology_template, provider):
+def restructure_get_attribute(data, service_tmpl, self):
+    r = data
+    if isinstance(data, list):
+        r = []
+        for i in data:
+            r.append(restructure_get_attribute(i, service_tmpl, self))
+    elif isinstance(data, dict):
+        r = {}
+        for k, v in data.items():
+            if k == GET_ATTRIBUTE:
+                args = restructure_get_attribute(v, service_tmpl, self)
+                node_type = service_tmpl.node_templates[args[0]]['type']
+                parameter = SEPARATOR.join([node_type, ATTRIBUTES] + args[1:])
+                self = copy.copy(self)
+                self[PARAMETER] = parameter
+                value = True
+                for i in range(len(args)-1, 0, -1):
+                    value = {args[i]: value}
+                value = {node_type: { ATTRIBUTES: value }}
+                self[VALUE] = value
+                self[NAME] = args[0]
+                self[KEYNAME] = args[0]
+                items = get_restructured_mapping_item('', '', service_tmpl.tosca_elements_map_to_provider(), value, self)
+                attribute_items = []
+                for item in items:
+                    if re.search(parameter, item[PARAMETER]):
+                        attribute_items.append(item)
+                if len(attribute_items) == 0:
+                    logging.error("Can not parse \'get_attribute\', mapping not found: %s" % json.dumps(args))
+                    sys.exit(1)
+                if len(attribute_items) > 1:
+                    logging.critical("Not implemented, must have an example to work through logic")
+                    sys.exit(1)
+                mapping_parameter = attribute_items[0][MAP_KEY][PARAMETER]
+                map_node_type, splitted_param = split_parameter(mapping_parameter)
+                if splitted_param[0] != ATTRIBUTES:
+                    logging.error("Attributes can only be mapped to the attributes, error occured with %s"
+                                  % json.dumps(data))
+                    sys.exit(1)
+                r[k] = [get_keyname_from_type(self[KEYNAME], map_node_type)] + splitted_param[1:]
+            else:
+                r[k] = restructure_get_attribute(v, service_tmpl, self)
+    return r
+
+
+def translate(service_tmpl):
     """
     Main function of this file, the only which is used outside the file
     :param tosca_elements_map_to_provider: dict from provider specific file
@@ -829,32 +956,30 @@ def translate(tosca_elements_map_to_provider, topology_template, provider):
     :return: list of new node templates and relationship templates and
     list of artifacts to be used for generating scripts
     """
-    node_templates = topology_template.nodetemplates
-    relationship_templates = topology_template.relationship_templates
-    element_templates = node_templates + relationship_templates
+    element_templates = copy.copy(service_tmpl.node_templates)
+    element_templates.update(copy.copy(service_tmpl.relationship_templates))
 
     new_element_templates = {}
-    artifacts = []
     conditions = []
-    extra = dict()
     self = dict()
     self[ARTIFACTS] = []
     self[EXTRA] = dict()
 
-    for element in element_templates:
-        (namespace, _, _) = utils.tosca_type_parse(element.type)
-        self[NAME] = element.name
-        self[KEYNAME] = element.name
+    for tmpl_name, element in element_templates.items():
+        (namespace, _, _) = utils.tosca_type_parse(element[TYPE])
+        self[NAME] = tmpl_name
+        self[KEYNAME] = tmpl_name
         self[BUFFER] = {}
 
-        if namespace != provider:
-            restructured_mapping = restructure_mapping(tosca_elements_map_to_provider, element, self)
-
+        if namespace != service_tmpl.provider:
+            restructured_mapping = restructure_mapping(service_tmpl, element, tmpl_name, self)
+            restructured_mapping = restructure_mapping_buffer(restructured_mapping, self)
             restructured_mapping, extra_mappings, new_conditions = restructure_mapping_facts(restructured_mapping)
             restructured_mapping.extend(extra_mappings)
             conditions.extend(new_conditions)
+            restructured_mapping = restructure_get_attribute(restructured_mapping, service_tmpl, self)
 
-            tpl_structure = translate_node_from_tosca(restructured_mapping, element.name, self)
+            tpl_structure = translate_node_from_tosca(restructured_mapping, tmpl_name, self)
             for tpl_name, temp_tpl in tpl_structure.items():
                 for node_type, tpl in temp_tpl.items():
                     (_, element_type, _) = utils.tosca_type_parse(node_type)
@@ -862,9 +987,11 @@ def translate(tosca_elements_map_to_provider, topology_template, provider):
                     new_element_templates[element_type] = new_element_templates.get(element_type, {})
                     new_element_templates[element_type].update({tpl_name: copy.deepcopy(tpl)})
         else:
-            new_element = translate_element_from_provider(element)
+            new_element = translate_element_from_provider(tmpl_name, element)
             new_element_templates = utils.deep_update_dict(new_element_templates, new_element)
 
     conditions = set(conditions)
+    self_extra = replace_brackets(self[EXTRA], False)
+    self_artifacts = replace_brackets(self[ARTIFACTS], False)
 
-    return new_element_templates, self[ARTIFACTS], conditions, self[EXTRA]
+    return new_element_templates, self_artifacts, conditions, self_extra
