@@ -4,10 +4,10 @@ topology_template:
   node_templates:
     server_kube_master:
       type: tosca.nodes.Compute
-      properties:
-        networks:
-          default:
-            network_name: net-for-intra-sandbox
+#      properties:
+#        networks:
+#          default:
+#            network_name: net-for-intra-sandbox
       capabilities:
         host:
           properties:
