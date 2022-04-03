@@ -491,3 +491,12 @@ class TestAnsibleOpenStackOutput (unittest.TestCase, TestAnsibleProvider):
                 checked = True
                 self.assertEqual(task['set_fact']['server_address'], '{{ %s.floating_ip_address }}' % register_var)
         self.assertTrue(checked)
+
+    def test_operations(self):
+        super(TestAnsibleOpenStackOutput, self).test_operations()
+
+    def check_operations(self, tasks_host, testing_value):
+        for task in tasks_host:
+            for k, v in task.items():
+                if k == 'include':
+                    self.assertEqual(v, testing_value)

@@ -7,7 +7,7 @@ import difflib
 
 from toscatranslator.common.utils import deep_update_dict
 from toscatranslator.common.tosca_reserved_keys import PROVIDERS, ANSIBLE, TYPE, \
-    TOSCA_DEFINITIONS_VERSION, PROPERTIES, CAPABILITIES, REQUIREMENTS, TOPOLOGY_TEMPLATE, NODE_TEMPLATES
+    TOSCA_DEFINITIONS_VERSION, PROPERTIES, CAPABILITIES, REQUIREMENTS, TOPOLOGY_TEMPLATE, NODE_TEMPLATES, INTERFACES
 
 TEST = 'test'
 
@@ -140,6 +140,14 @@ class BaseAnsibleProvider:
 
     def update_template_requirement(self, template, node_name, update_value):
         return self.update_node_template(template, node_name, update_value, REQUIREMENTS)
+
+    def update_template_operation(self, template, node_name, interface_name, operation_name, update_value):
+        uupdate_value = {
+            interface_name: {
+                operation_name: update_value
+            }
+        }
+        return self.update_node_template(template, node_name, uupdate_value, INTERFACES)
 
     def diff_files(self, file_name1, file_name2):
         with open(file_name1, 'r') as file1, open(file_name2, 'r') as file2:
@@ -431,3 +439,24 @@ class TestAnsibleProvider(BaseAnsibleProvider):
 
             tasks = playbook[0]['tasks']
             self.check_outputs(tasks, testing_value)
+
+    def test_operations(self):
+        if hasattr(self, "check_operations"):
+            template = copy.deepcopy(self.DEFAULT_TEMPLATE)
+            testing_value = "configure_server.sh"
+            testing_parameter = {
+                "implementation": testing_value
+            }
+            template = self.update_template_operation(template, self.NODE_NAME, "Standard", "configure",
+                                                      testing_parameter)
+            playbook = self.get_ansible_create_output(template)
+
+            self.assertEqual(len(playbook), 2)
+            self.assertIsNotNone(playbook[0].get('tasks'))
+            self.assertIsNotNone(playbook[1].get('tasks'))
+            self.assertEqual(playbook[0].get('hosts'), 'localhost')
+            self.assertEqual(playbook[1].get('hosts'), self.NODE_NAME)
+
+            tasks1 = playbook[0]['tasks']
+            tasks2 = playbook[1]['tasks']
+            self.check_operations(tasks2, testing_value)
