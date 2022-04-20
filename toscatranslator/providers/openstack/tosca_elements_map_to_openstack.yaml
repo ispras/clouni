@@ -13,7 +13,7 @@ tosca.nodes.Compute:
       parameter: server
       value:
         node: "{self[keyname]}_server"
-  - parameter:  openstack.nodes.FloatingIp.interfaces.Prepare.configure.implementation
+  - parameter:  openstack.nodes.FloatingIp.interfaces.Standard.configure.implementation
     value:
     - executor: ansible
       source: set_fact
@@ -246,7 +246,7 @@ tosca.nodes.Compute:
             value: "\\{\\{ {self[keyname]}_ports[item | int] | default(omit) \\}\\}"
           - parameter: openstack.nodes.SecurityGroupRule.properties.port_range_max
             value: "\\{\\{ {self[keyname]}_ports[item | int] | default(omit) \\}\\}"
-          - parameter: openstack.nodes.SecurityGroupRule.interfaces.Prepare.preconfigure.implementation
+          - parameter: openstack.nodes.SecurityGroupRule.interfaces.Prepare.prepare.implementation
             value:
               - value: "tmp"
                 source: set_fact

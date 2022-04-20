@@ -1,23 +1,28 @@
+import copy
+import itertools
+import logging
+import os
+import six
+import sys
+import yaml
+from shutil import copyfile
+
 from toscatranslator.common import utils
 from toscatranslator.common.tosca_reserved_keys import PARAMETERS, VALUE, EXTRA, SOURCE, INPUTS, NODE_FILTER, NAME, \
     NODES, GET_OPERATION_OUTPUT, IMPLEMENTATION, ANSIBLE, GET_INPUT
-
-from toscatranslator.providers.common.provider_configuration import ProviderConfiguration
 from toscatranslator.configuration_tools.common.configuration_tool import ConfigurationTool, \
     OUTPUT_IDS, OUTPUT_ID_RANGE_START, OUTPUT_ID_RANGE_END
-
 from toscatranslator.configuration_tools.ansible.runner import run_ansible
 
-import copy, sys, yaml, os, itertools, six, logging
-from shutil import copyfile
+from toscatranslator.providers.common.provider_configuration import ProviderConfiguration
 
 ANSIBLE_RESERVED_KEYS = \
     (REGISTER, PATH, FILE, STATE, LINEINFILE, SET_FACT, IS_DEFINED, IS_UNDEFINED, IMPORT_TASKS_MODULE) = \
     ('register', 'path', 'file', 'state', 'lineinfile', 'set_fact', ' is defined', 'is_undefined', 'include')
 
 REQUIRED_CONFIG_PARAMS = (ASYNC_DEFAULT_TIME, ASYNC_DEFAULT_RETRIES, ASYNC_DEFAULT_DELAY, INITIAL_ARTIFACTS_DIRECTORY,
-                       DEFAULT_HOST) = ("async_default_time", "async_default_retries", "async_default_delay",
-                                        "initial_artifacts_directory", "default_host")
+                          DEFAULT_HOST) = ("async_default_time", "async_default_retries", "async_default_delay",
+                                           "initial_artifacts_directory", "default_host")
 
 
 class AnsibleConfigurationTool(ConfigurationTool):
@@ -53,15 +58,14 @@ class AnsibleConfigurationTool(ConfigurationTool):
         provider_config = ProviderConfiguration(provider)
         ansible_config = provider_config.get_section(ANSIBLE)
         node_filter_config = provider_config.get_subsection(ANSIBLE, NODE_FILTER)
-        provider_async_default_delay = ansible_config.get(ASYNC_DEFAULT_DELAY) or \
-                                       self.async_default_delay
-        provider_async_default_retries = ansible_config.get(ASYNC_DEFAULT_RETRIES) or \
-                                         self.async_default_retries
+        provider_async_default_delay = ansible_config.get(ASYNC_DEFAULT_DELAY) or self.async_default_delay
+        provider_async_default_retries = ansible_config.get(ASYNC_DEFAULT_RETRIES) or self.async_default_retries
         provider_async_default_time = ansible_config.get(ASYNC_DEFAULT_TIME) or self.async_default_time
         extra_async = self.get_extra_async(extra, provider_async_default_time)
 
         prev_dep_order = 0
-        ids_file_path = self.rap_ansible_variable("playbook_dir") + '/id_vars_' + cluster_name + self.get_artifact_extension()
+        ids_file_path = self.rap_ansible_variable(
+            "playbook_dir") + '/id_vars_' + cluster_name + self.get_artifact_extension()
         self.init_global_variables(inputs)
         elements_queue, software_queue = self.init_queue(nodes_relationships_queue)
         ansible_task_list = self.get_ansible_tasks_for_inputs(inputs)
@@ -87,20 +91,21 @@ class AnsibleConfigurationTool(ConfigurationTool):
             description_prefix, module_prefix = self.get_module_prefixes(is_delete, ansible_config)
             description_by_type = self.ansible_description_by_type(v.type_name, description_prefix)
             module_by_type = self.ansible_module_by_type(v.type_name, module_prefix)
-            ansible_tasks = self.get_ansible_tasks_from_interface(v, target_directory, is_delete,
-                                                            additional_args=extra)
+            ansible_tasks = self.get_ansible_tasks_from_create_delete_interface(v, target_directory, is_delete,
+                                                                                additional_args=extra)
             if len(ansible_tasks) == 0:
                 if not is_delete:
                     ansible_tasks = self.get_ansible_tasks_for_create(v, target_directory, node_filter_config,
                                                                       description_by_type, module_by_type,
                                                                       additional_args=extra)
+                    ansible_tasks += self.get_ansible_tasks_after_create(v, target_directory, additional_args=extra)
                 else:
                     ansible_tasks = self.get_ansible_tasks_for_delete(v, description_by_type, module_by_type,
                                                                       additional_args=extra)
             tasks_for_async = self.get_ansible_tasks_for_async(v, description_prefix, provider_async_default_retries,
                                                                provider_async_default_delay)
             if not is_delete or is_delete and not any(item == module_by_type for item in
-                                     ansible_config.get('modules_skipping_delete', [])):
+                                                      ansible_config.get('modules_skipping_delete', [])):
                 if extra_async != False:
                     if prev_dep_order != v.dependency_order:
                         ansible_task_list.extend(check_async_tasks)
@@ -130,8 +135,9 @@ class AnsibleConfigurationTool(ConfigurationTool):
         )]
 
         for v in software_queue:
-            ansible_tasks = self.get_ansible_tasks_from_interface(v, target_directory, is_delete,
-                                                                  additional_args=extra)
+            ansible_tasks = self.get_ansible_tasks_from_create_delete_interface(v, target_directory, is_delete,
+                                                                                additional_args=extra)
+            ansible_tasks += self.get_ansible_tasks_after_create(v, target_directory, additional_args=extra)
             software_playbook = dict(
                 name=description_prefix + ' ' + v.name + ' ' + ' software component',
                 hosts=v.host,
@@ -182,7 +188,7 @@ class AnsibleConfigurationTool(ConfigurationTool):
                 output_id = self.global_operations_info[full_op_name][OUTPUT_IDS][data[GET_OPERATION_OUTPUT][-1]]
                 return self.rap_ansible_variable(output_id)
             if len(data) == 1 and data.get(GET_INPUT, None) is not None:
-                output_id = self.global_variables['input_'+data[GET_INPUT]]
+                output_id = self.global_variables['input_' + data[GET_INPUT]]
                 return self.rap_ansible_variable(output_id)
 
             r = {}
@@ -293,16 +299,12 @@ class AnsibleConfigurationTool(ConfigurationTool):
 
         post_tasks = []
         for interface_name, interface in self.get_interfaces_from_node(element_object).items():
-            if interface_name == 'Prepare':
-                for op_name, op in interface.items():
-                    if op_name == 'preconfigure' or op_name == 'configure':
-                        op_key = '_'.join([element_object.name, interface_name.lower(), op_name])
-                        if not self.global_operations_info.get(op_key, {}).get(OUTPUT_IDS):
-                            tasks_from_op = self.get_ansible_tasks_from_operation(op_key, target_directory, True)
-                            if op_name == 'preconfigure':
-                                ansible_tasks.extend(tasks_from_op)
-                            else:
-                                post_tasks.extend(tasks_from_op)
+            for op_name, op in interface.items():
+                if op_name == 'prepare':
+                    op_key = '_'.join([element_object.name, interface_name.lower(), op_name])
+                    if not self.global_operations_info.get(op_key, {}).get(OUTPUT_IDS):
+                        tasks_from_op = self.get_ansible_tasks_from_operation(op_key, target_directory, True)
+                        ansible_tasks.extend(tasks_from_op)
         ansible_args = copy.copy(element_object.configuration_args)
         ansible_args[STATE] = 'present'
         task_name = element_object.name.replace('-', '_')
@@ -314,6 +316,32 @@ class AnsibleConfigurationTool(ConfigurationTool):
         ansible_tasks.append(ansible_task_as_dict)
         ansible_tasks.extend(post_tasks)
         return ansible_tasks
+
+    def get_ansible_tasks_after_create(self, element_object, target_directory, additional_args=None):
+        if additional_args is None:
+            additional_args = {}
+        else:
+            additional_args_global = copy.deepcopy(additional_args.get('global', {}))
+            additional_args_element = copy.deepcopy(additional_args.get(element_object.name, {}))
+            additional_args = utils.deep_update_dict(additional_args_global,
+                                                     additional_args_element)
+
+        ansible_tasks_configure = []
+        ansible_tasks_start = []
+        for interface_name, interface in self.get_interfaces_from_node(element_object).items():
+            for op_name, op in interface.items():
+                if op_name == 'configure' or op_name == 'start':
+                    op_key = '_'.join([element_object.name, interface_name.lower(), op_name])
+                    if not self.global_operations_info.get(op_key, {}).get(OUTPUT_IDS):
+                        tasks_from_op = self.get_ansible_tasks_from_operation(op_key, target_directory, True)
+                        for i, task in enumerate(tasks_from_op):
+                            task.update(additional_args)
+                        if op_name == 'configure':
+                            ansible_tasks_configure.extend(tasks_from_op)
+                        else:
+                            ansible_tasks_start.extend(tasks_from_op)
+        return ansible_tasks_configure + ansible_tasks_start
+
 
     def get_ansible_tasks_for_delete(self, element_object, description_by_type, module_by_type, additional_args=None):
         """
@@ -350,7 +378,7 @@ class AnsibleConfigurationTool(ConfigurationTool):
                  'when': task_name + '_var' + '.changed'})
         return ansible_tasks
 
-    def get_ansible_tasks_from_interface(self, element_object, target_directory, is_delete, additional_args=None):
+    def get_ansible_tasks_from_create_delete_interface(self, element_object, target_directory, is_delete, additional_args=None):
         if additional_args is None:
             additional_args = {}
         else:
@@ -417,8 +445,11 @@ class AnsibleConfigurationTool(ConfigurationTool):
             return []
 
         import_task_arg = op_info[IMPLEMENTATION]
-        if not isinstance(import_task_arg, list):
+        assert(isinstance(import_task_arg, str) or isinstance(import_task_arg, dict) or isinstance(import_task_arg, list))
+        if isinstance(import_task_arg, str):
             import_task_arg = [import_task_arg]
+        elif isinstance(import_task_arg, dict):
+            import_task_arg = [import_task_arg['primary']] + import_task_arg.get('dependencies', [])
 
         if op_info.get(INPUTS):
             for k, v in op_info[INPUTS].items():
@@ -511,7 +542,8 @@ class AnsibleConfigurationTool(ConfigurationTool):
             else:
                 target_filename = os.path.join(target_directory, cond + self.get_artifact_extension())
                 copyfile(filename, target_filename)
-                logging.info("File \'%s\' was successfully copied to the directory \'%s\'" % (filename, target_directory))
+                logging.info(
+                    "File \'%s\' was successfully copied to the directory \'%s\'" % (filename, target_directory))
 
     def get_ansible_tasks_for_async(self, element_object, description_prefix, retries=None, delay=None):
         jid = '.'.join([element_object.name, 'ansible_job_id'])
@@ -614,4 +646,3 @@ class AnsibleConfigurationTool(ConfigurationTool):
                 }
             })
         return ansible_tasks
-

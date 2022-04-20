@@ -21,6 +21,7 @@ class ConfigurationTool(object):
         self.global_operations_queue = []
         self.global_operations_info = {}
         self.global_variables = {}
+        self.artifacts = {}
 
         self.tool_config = ConfigurationToolConfiguration(self.TOOL_NAME)
 

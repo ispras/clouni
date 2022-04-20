@@ -441,9 +441,10 @@ class TestAnsibleOpenStackOutput (unittest.TestCase, TestAnsibleProvider):
         self.assertTrue(checked)
 
         tasks = tasks2
-        self.assertEqual(len(tasks), 2)
+        self.assertEqual(len(tasks), 3)
         self.assertEqual(tasks[0].get('set_fact', {}).get('version', None), 0.1)
         self.assertEqual(tasks[1].get('include', None), "artifacts/ansible-server-example.yaml")
+        self.assertEqual(tasks[2].get('include', None), "artifacts/configure-server-example.yaml")
 
     def test_get_input(self):
         super(TestAnsibleOpenStackOutput, self).test_get_input()
@@ -496,7 +497,11 @@ class TestAnsibleOpenStackOutput (unittest.TestCase, TestAnsibleProvider):
         super(TestAnsibleOpenStackOutput, self).test_operations()
 
     def check_operations(self, tasks_host, testing_value):
+        server_created = False
         for task in tasks_host:
             for k, v in task.items():
+                if k == 'os_server':
+                    server_created = True
                 if k == 'include':
-                    self.assertEqual(v, testing_value)
+                    self.assertTrue(server_created)
+                    self.assertEqual(v, os.path.join('artifacts', testing_value))

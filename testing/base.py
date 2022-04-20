@@ -324,14 +324,15 @@ class TestAnsibleProvider(BaseAnsibleProvider):
                 'requirements': [{
                     'host': self.NODE_NAME
                 }],
-                'interfaces':{
+                'interfaces': {
                     'Standard': {
                         'create': {
                             'implementation': 'examples/ansible-server-example.yaml',
                             'inputs': {
                                 'version': { 'get_property': ['service_1', 'component_version'] }
                             }
-                        }
+                        },
+                        'configure': 'configure-server-example.yaml'
                     }
                 }
             }
@@ -451,12 +452,9 @@ class TestAnsibleProvider(BaseAnsibleProvider):
                                                       testing_parameter)
             playbook = self.get_ansible_create_output(template)
 
-            self.assertEqual(len(playbook), 2)
+            self.assertEqual(len(playbook), 1)
             self.assertIsNotNone(playbook[0].get('tasks'))
-            self.assertIsNotNone(playbook[1].get('tasks'))
             self.assertEqual(playbook[0].get('hosts'), 'localhost')
-            self.assertEqual(playbook[1].get('hosts'), self.NODE_NAME)
 
-            tasks1 = playbook[0]['tasks']
-            tasks2 = playbook[1]['tasks']
-            self.check_operations(tasks2, testing_value)
+            tasks = playbook[0]['tasks']
+            self.check_operations(tasks, testing_value)
