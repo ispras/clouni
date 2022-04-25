@@ -69,12 +69,13 @@ class BaseAnsibleProvider:
         assert hasattr(self, 'PROVIDER') is not None
         assert self.PROVIDER in PROVIDERS
 
-    def get_ansible_create_output(self, template, template_filename=None, extra=None, delete_template=True):
+    def get_ansible_create_output(self, template, template_filename=None, extra=None, delete_template=True,
+                                  host_ip_parameter='public_address'):
         if not template_filename:
             template_filename = self.testing_template_filename()
         self.write_template(self.prepare_yaml(template))
-        r = common_translate(template_filename, False, self.PROVIDER, ANSIBLE, TEST, False, extra=extra,
-                             log_level='debug')
+        r = common_translate(template_filename, False, self.PROVIDER, ANSIBLE, TEST, is_delete=False, extra=extra,
+                             log_level='debug', host_ip_parameter=host_ip_parameter)
         print(r)
         if delete_template:
             self.delete_template(template_filename)
@@ -85,7 +86,7 @@ class BaseAnsibleProvider:
         if not template_filename:
             template_filename = self.testing_template_filename()
         self.write_template(self.prepare_yaml(template))
-        r = common_translate(template_filename, False, self.PROVIDER, ANSIBLE, TEST, True, extra=extra)
+        r = common_translate(template_filename, False, self.PROVIDER, ANSIBLE, TEST, is_delete=True, extra=extra)
         print(r)
         if delete_template:
             self.delete_template(template_filename)
@@ -95,7 +96,7 @@ class BaseAnsibleProvider:
     def get_ansible_delete_output_from_file(self, template, template_filename=None, extra=None):
         if not template_filename:
             template_filename = self.testing_template_filename()
-        r = common_translate(template_filename, False, self.PROVIDER, ANSIBLE, TEST, True, extra=extra)
+        r = common_translate(template_filename, False, self.PROVIDER, ANSIBLE, TEST, is_delete=True, extra=extra)
         print(r)
         playbook = self.parse_yaml(r)
         return playbook
@@ -341,7 +342,7 @@ class TestAnsibleProvider(BaseAnsibleProvider):
             self.assertEqual(len(playbook), 2)
             self.assertIsNotNone(playbook[0].get('tasks'))
             self.assertIsNotNone(playbook[1].get('tasks'))
-            self.assertEqual(playbook[1].get('hosts'), self.NODE_NAME)
+            self.assertEqual(playbook[1].get('hosts'), self.NODE_NAME + '_public_address')
 
             tasks1 = playbook[0]['tasks']
             tasks2 = playbook[1]['tasks']
@@ -458,3 +459,38 @@ class TestAnsibleProvider(BaseAnsibleProvider):
 
             tasks = playbook[0]['tasks']
             self.check_operations(tasks, testing_value)
+
+    def test_host_ip_parameter(self):
+        if hasattr(self, "check_host_ip_parameter"):
+            template = copy.deepcopy(self.DEFAULT_TEMPLATE)
+            testing_value = 'net-for-sandbox'
+            testing_parameter = {
+                "public_address": "10.100.156.76",
+                "private_address": "192.168.34.34",
+                "networks": {
+                    "default": {
+                        "network_name": testing_value
+                    }
+                },
+                "ports": {
+                    "extra": {
+                        "port_name": "extra_port"
+                    }
+                }
+            }
+            template = self.update_template_property(template, self.NODE_NAME, testing_parameter)
+            testing_parameter = {
+                "architecture": "x86_64",
+                "type": "cirros",
+                "version": "0.4.0"
+            }
+            template = self.update_template_capability_properties(template, self.NODE_NAME, 'os', testing_parameter)
+            playbook = self.get_ansible_create_output(template, host_ip_parameter='networks.default')
+
+            self.assertEqual(len(playbook), 1)
+            self.assertIsNotNone(playbook[0].get('tasks'))
+            self.assertEqual(playbook[0].get('hosts'), 'localhost')
+
+            tasks = playbook[0]['tasks']
+            self.check_host_ip_parameter(tasks, testing_value)
+

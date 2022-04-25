@@ -6,10 +6,14 @@ topology_template:
       type: tosca.nodes.Compute
       properties:
         meta: "cube_master=true"
-        public_address: 10.100.157.77
+        public_address: 10.100.156.76
+        private_address: 192.168.34.34
         networks:
           default:
-            network_name: sandbox_net
+            network_name: net-for-sandbox
+        ports:
+          extra:
+            port_name: extra_port
       capabilities:
         host:
           properties:

@@ -1,0 +1,341 @@
+- name: Create OpenStack component openstack cluster
+  hosts: localhost
+  tasks:
+  - os_subnets_facts: {}
+    register: facts_result
+  - set_fact:
+      target_objects: '{{ facts_result["ansible_facts"]["openstack_subnets"] }}'
+    register: tmp_value
+  - set_fact:
+      target_objects_2400: '{{ target_objects }}'
+  - set_fact:
+      input_facts: '{{ target_objects_2400 }}'
+  - set_fact:
+      input_args_7086:
+      - allocation_pool_start
+      - allocation_pool_end
+      - - 192.168.2.11
+  - set_fact:
+      input_args: '{{ input_args_7086 }}'
+  - include: artifacts/ip_contains.yaml
+  - set_fact:
+      network_id: '{{ matched_object["network_id"] }}'
+    register: tmp_value
+  - set_fact:
+      network_id_7695: '{{ network_id }}'
+  - os_image_facts: {}
+    register: facts_result
+  - set_fact:
+      target_objects: '{{ facts_result["ansible_facts"]["openstack_image"] }}'
+    register: tmp_value
+  - set_fact:
+      target_objects_2148: '{{ target_objects }}'
+  - set_fact:
+      input_facts: '{{ target_objects_2148 }}'
+  - set_fact:
+      input_args_2252:
+      - - name
+        - properties
+      - architecture: x86
+        type: cumulus_vx
+  - set_fact:
+      input_args: '{{ input_args_2252 }}'
+  - include: artifacts/contains.yaml
+  - set_fact:
+      name: '{{ matched_object["name"] }}'
+    register: tmp_value
+  - set_fact:
+      name_5161: '{{ name }}'
+  - os_image_facts: {}
+    register: facts_result
+  - set_fact:
+      target_objects: '{{ facts_result["ansible_facts"]["openstack_image"] }}'
+    register: tmp_value
+  - set_fact:
+      target_objects_1568: '{{ target_objects }}'
+  - set_fact:
+      input_facts: '{{ target_objects_1568 }}'
+  - set_fact:
+      input_args_7029:
+      - - name
+        - properties
+      - architecture: x86
+        type: cumulus_vx
+        version: 4.1
+  - set_fact:
+      input_args: '{{ input_args_7029 }}'
+  - include: artifacts/contains.yaml
+  - set_fact:
+      name: '{{ matched_object["name"] }}'
+    register: tmp_value
+  - set_fact:
+      name_7385: '{{ name }}'
+  - file:
+      path: '{{ playbook_dir }}/id_vars_test_nfv.yaml'
+      state: absent
+  - file:
+      path: '{{ playbook_dir }}/id_vars_test_nfv.yaml'
+      state: touch
+  - name: Create OpenStack component network
+    os_network:
+      admin_state_up: true
+      external: false
+      provider_network_type: geneve
+      name: my_net
+      shared: false
+    register: my_vl_network
+  - set_fact:
+      my_vl_network_list: '{{ my_vl_network_list | default([]) }} + [ "{{ item.id
+        }}" ]'
+    loop: '{{ my_vl_network.results | flatten(levels=1)  }}'
+    when: item.id  is defined
+  - set_fact:
+      my_vl_network_list:
+        my_vl_network_ids: '{{ my_vl_network_list }}'
+    when: my_vl_network_list is defined
+  - lineinfile:
+      path: '{{ playbook_dir }}/id_vars_test_nfv.yaml'
+      line: 'my_vl_network_delete: {{ my_vl_network.id }}'
+    when: my_vl_network.id is defined
+  - lineinfile:
+      path: '{{ playbook_dir }}/id_vars_test_nfv.yaml'
+      line: '{{ my_vl_network_list | to_nice_yaml }}'
+    when: my_vl_network_list is defined
+  - fail:
+      msg: Variable my_vl_network is undefined! So it will not be deleted
+    when: my_vl_network_list is undefined and my_vl_network.id is undefined
+    ignore_errors: true
+  - name: Create OpenStack component subnet
+    os_subnet:
+      extra_specs: {}
+      no_gateway_ip: false
+      use_default_subnetpool: false
+      allocation_pool_end: 192.168.2.100
+      allocation_pool_start: 192.168.2.10
+      cidr: 192.168.2.0/24
+      enable_dhcp: true
+      gateway_ip: 192.168.2.1
+      ip_version: 4
+      name: my_net
+      network_name: my_net
+    register: my_vl_subnet
+  - set_fact:
+      my_vl_subnet_list: '{{ my_vl_subnet_list | default([]) }} + [ "{{ item.id }}"
+        ]'
+    loop: '{{ my_vl_subnet.results | flatten(levels=1)  }}'
+    when: item.id  is defined
+  - set_fact:
+      my_vl_subnet_list:
+        my_vl_subnet_ids: '{{ my_vl_subnet_list }}'
+    when: my_vl_subnet_list is defined
+  - lineinfile:
+      path: '{{ playbook_dir }}/id_vars_test_nfv.yaml'
+      line: 'my_vl_subnet_delete: {{ my_vl_subnet.id }}'
+    when: my_vl_subnet.id is defined
+  - lineinfile:
+      path: '{{ playbook_dir }}/id_vars_test_nfv.yaml'
+      line: '{{ my_vl_subnet_list | to_nice_yaml }}'
+    when: my_vl_subnet_list is defined
+  - fail:
+      msg: Variable my_vl_subnet is undefined! So it will not be deleted
+    when: my_vl_subnet_list is undefined and my_vl_subnet.id is undefined
+    ignore_errors: true
+  - name: Create OpenStack component port
+    os_port:
+      admin_state_up: true
+      fixed_ips:
+      - ip_address: 192.168.2.11
+      name: 192.168.2.11
+      port_security_enabled: false
+      vnic_type: normal
+      network: my_net
+    register: my_ext_cpd_port
+  - set_fact:
+      my_ext_cpd_port_list: '{{ my_ext_cpd_port_list | default([]) }} + [ "{{ item.id
+        }}" ]'
+    loop: '{{ my_ext_cpd_port.results | flatten(levels=1)  }}'
+    when: item.id  is defined
+  - set_fact:
+      my_ext_cpd_port_list:
+        my_ext_cpd_port_ids: '{{ my_ext_cpd_port_list }}'
+    when: my_ext_cpd_port_list is defined
+  - lineinfile:
+      path: '{{ playbook_dir }}/id_vars_test_nfv.yaml'
+      line: 'my_ext_cpd_port_delete: {{ my_ext_cpd_port.id }}'
+    when: my_ext_cpd_port.id is defined
+  - lineinfile:
+      path: '{{ playbook_dir }}/id_vars_test_nfv.yaml'
+      line: '{{ my_ext_cpd_port_list | to_nice_yaml }}'
+    when: my_ext_cpd_port_list is defined
+  - fail:
+      msg: Variable my_ext_cpd_port is undefined! So it will not be deleted
+    when: my_ext_cpd_port_list is undefined and my_ext_cpd_port.id is undefined
+    ignore_errors: true
+  - os_flavor_facts: {}
+    register: node_filter_facts_raw
+  - set_fact:
+      input_facts: '{{ node_filter_facts_raw["ansible_facts"]["openstack_flavors"]
+        }}'
+  - set_fact:
+      input_args:
+        disk: 100.0
+        ram: 1024.0
+        vcpus: 1
+  - include: artifacts/equals.yaml
+  - set_fact:
+      id_2889: '{{ matched_object["id"] }}'
+  - name: Create OpenStack component server
+    os_server:
+      boot_from_volume: false
+      reuse_ips: true
+      config_drive: false
+      meta: new_vdu
+      name: new_vdu
+      flavor: '{{ id_2889 }}'
+      image: '{{ name_5161 }}'
+    register: new_vdu_server
+  - set_fact:
+      new_vdu_server_list: '{{ new_vdu_server_list | default([]) }} + [ "{{ item.id
+        }}" ]'
+    loop: '{{ new_vdu_server.results | flatten(levels=1)  }}'
+    when: item.id  is defined
+  - set_fact:
+      new_vdu_server_list:
+        new_vdu_server_ids: '{{ new_vdu_server_list }}'
+    when: new_vdu_server_list is defined
+  - lineinfile:
+      path: '{{ playbook_dir }}/id_vars_test_nfv.yaml'
+      line: 'new_vdu_server_delete: {{ new_vdu_server.id }}'
+    when: new_vdu_server.id is defined
+  - lineinfile:
+      path: '{{ playbook_dir }}/id_vars_test_nfv.yaml'
+      line: '{{ new_vdu_server_list | to_nice_yaml }}'
+    when: new_vdu_server_list is defined
+  - fail:
+      msg: Variable new_vdu_server is undefined! So it will not be deleted
+    when: new_vdu_server_list is undefined and new_vdu_server.id is undefined
+    ignore_errors: true
+  - os_flavor_facts: {}
+    register: node_filter_facts_raw
+  - set_fact:
+      input_facts: '{{ node_filter_facts_raw["ansible_facts"]["openstack_flavors"]
+        }}'
+  - set_fact:
+      input_args:
+        disk: 50.0
+        ram: 1024.0
+        vcpus: 1
+  - include: artifacts/equals.yaml
+  - set_fact:
+      id_8567: '{{ matched_object["id"] }}'
+  - name: Create OpenStack component server
+    os_server:
+      boot_from_volume: false
+      reuse_ips: true
+      config_drive: false
+      meta: my_vdu
+      name: my_vdu
+      nics:
+      - '{{ network_id_7695 }}'
+      flavor: '{{ id_8567 }}'
+      image: '{{ name_7385 }}'
+    register: my_vdu_server
+  - set_fact:
+      my_vdu_server_list: '{{ my_vdu_server_list | default([]) }} + [ "{{ item.id
+        }}" ]'
+    loop: '{{ my_vdu_server.results | flatten(levels=1)  }}'
+    when: item.id  is defined
+  - set_fact:
+      my_vdu_server_list:
+        my_vdu_server_ids: '{{ my_vdu_server_list }}'
+    when: my_vdu_server_list is defined
+  - lineinfile:
+      path: '{{ playbook_dir }}/id_vars_test_nfv.yaml'
+      line: 'my_vdu_server_delete: {{ my_vdu_server.id }}'
+    when: my_vdu_server.id is defined
+  - lineinfile:
+      path: '{{ playbook_dir }}/id_vars_test_nfv.yaml'
+      line: '{{ my_vdu_server_list | to_nice_yaml }}'
+    when: my_vdu_server_list is defined
+  - fail:
+      msg: Variable my_vdu_server is undefined! So it will not be deleted
+    when: my_vdu_server_list is undefined and my_vdu_server.id is undefined
+    ignore_errors: true
+  - name: Create OpenStack component floating ip
+    os_floating_ip:
+      server: new_vdu
+    register: new_vdu_floating_ip
+  - set_fact:
+      host_ip: '{{ new_vdu_floating_ip.floating_ip.floating_ip_address }}'
+    register: temp_value
+  - add_host:
+      hostname: '{{ host_ip }}'
+      ansible_user: cumulus_vx
+    register: temp_value
+  - shell: ssh-keyscan {{ host_ip }},`dig +short {{ host_ip }}`
+    register: host_key
+  - known_hosts:
+      path: ~/.ssh/known_hosts
+      name: '{{ host_ip }}'
+      key: '{{ host_key.stdout }}'
+    register: temp_value
+  - set_fact:
+      new_vdu_floating_ip_list: '{{ new_vdu_floating_ip_list | default([]) }} + [
+        "{{ item.id }}" ]'
+    loop: '{{ new_vdu_floating_ip.results | flatten(levels=1)  }}'
+    when: item.id  is defined
+  - set_fact:
+      new_vdu_floating_ip_list:
+        new_vdu_floating_ip_ids: '{{ new_vdu_floating_ip_list }}'
+    when: new_vdu_floating_ip_list is defined
+  - lineinfile:
+      path: '{{ playbook_dir }}/id_vars_test_nfv.yaml'
+      line: 'new_vdu_floating_ip_delete: {{ new_vdu_floating_ip.id }}'
+    when: new_vdu_floating_ip.id is defined
+  - lineinfile:
+      path: '{{ playbook_dir }}/id_vars_test_nfv.yaml'
+      line: '{{ new_vdu_floating_ip_list | to_nice_yaml }}'
+    when: new_vdu_floating_ip_list is defined
+  - fail:
+      msg: Variable new_vdu_floating_ip is undefined! So it will not be deleted
+    when: new_vdu_floating_ip_list is undefined and new_vdu_floating_ip.id is undefined
+    ignore_errors: true
+  - name: Create OpenStack component floating ip
+    os_floating_ip:
+      server: my_vdu
+    register: my_vdu_floating_ip
+  - set_fact:
+      host_ip: '{{ my_vdu_floating_ip.floating_ip.floating_ip_address }}'
+    register: temp_value
+  - add_host:
+      hostname: '{{ host_ip }}'
+      ansible_user: cumulus_vx
+    register: temp_value
+  - shell: ssh-keyscan {{ host_ip }},`dig +short {{ host_ip }}`
+    register: host_key
+  - known_hosts:
+      path: ~/.ssh/known_hosts
+      name: '{{ host_ip }}'
+      key: '{{ host_key.stdout }}'
+    register: temp_value
+  - set_fact:
+      my_vdu_floating_ip_list: '{{ my_vdu_floating_ip_list | default([]) }} + [ "{{
+        item.id }}" ]'
+    loop: '{{ my_vdu_floating_ip.results | flatten(levels=1)  }}'
+    when: item.id  is defined
+  - set_fact:
+      my_vdu_floating_ip_list:
+        my_vdu_floating_ip_ids: '{{ my_vdu_floating_ip_list }}'
+    when: my_vdu_floating_ip_list is defined
+  - lineinfile:
+      path: '{{ playbook_dir }}/id_vars_test_nfv.yaml'
+      line: 'my_vdu_floating_ip_delete: {{ my_vdu_floating_ip.id }}'
+    when: my_vdu_floating_ip.id is defined
+  - lineinfile:
+      path: '{{ playbook_dir }}/id_vars_test_nfv.yaml'
+      line: '{{ my_vdu_floating_ip_list | to_nice_yaml }}'
+    when: my_vdu_floating_ip_list is defined
+  - fail:
+      msg: Variable my_vdu_floating_ip is undefined! So it will not be deleted
+    when: my_vdu_floating_ip_list is undefined and my_vdu_floating_ip.id is undefined
+    ignore_errors: true

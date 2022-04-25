@@ -1,0 +1,11 @@
+- add_host:
+    hostname: '{{ host_ip }}'
+    groups: '{{ group }}'
+- shell: ssh-keyscan {{ host_ip }},`dig +short {{ host_ip }}`
+  register: host_key
+  ignore_errors: true
+- known_hosts:
+    path: ~/.ssh/known_hosts
+    name: '{{ host_ip }}'
+    key: '{{ host_key.stdout }}'
+    when: host_key.rc == 1

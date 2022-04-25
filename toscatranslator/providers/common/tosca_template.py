@@ -13,12 +13,14 @@ import os, copy, json, yaml, logging, sys, six
 
 SEPARATOR = '.'
 
+
 class ProviderToscaTemplate(object):
     REQUIRED_CONFIG_PARAMS = (TOSCA_ELEMENTS_MAP_FILE, TOSCA_ELEMENTS_DEFINITION_FILE)
     DEPENDENCY_FUNCTIONS = (GET_PROPERTY, GET_ATTRIBUTE, GET_OPERATION_OUTPUT)
     DEFAULT_ARTIFACTS_DIRECTOR = ARTIFACTS
 
-    def __init__(self, tosca_parser_template_object, provider, cluster_name, common_map_files=[]):
+    def __init__(self, tosca_parser_template_object, provider, cluster_name, host_ip_parameter, common_map_files=[]):
+        self.host_ip_parameter = host_ip_parameter
         self.provider = provider
         self.provider_config = ProviderConfiguration(self.provider)
         self.cluster_name = cluster_name
@@ -103,6 +105,7 @@ class ProviderToscaTemplate(object):
             else:
                 provider_node_instance = ProviderResource(self.provider, node, node_name,
                                                           self.definitions[node[TYPE]],
+                                                          self.host_ip_parameter,
                                                           is_software_component=is_software_component)
                 provider_nodes[node_name] = provider_node_instance
         return provider_nodes
@@ -112,6 +115,7 @@ class ProviderToscaTemplate(object):
         for rel_name, rel_body in self.relationship_templates.items():
             provider_rel_instance = ProviderResource(self.provider, rel_body, rel_name,
                                                      self.definitions[rel_body[TYPE]],
+                                                     self.host_ip_parameter,
                                                      is_relationship=True,
                                                      relation_target_source=self._relation_target_source)
             provider_relations[rel_name] = provider_rel_instance

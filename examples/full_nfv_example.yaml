@@ -1,0 +1,127 @@
+topology_template:
+  node_templates:
+    my_ext_cpd:
+      properties:
+        ip_address: 192.168.2.11
+      requirements:
+      - binding: my_vdu
+      - link: my_vl
+      type: tosca.nodes.network.Port
+    my_vdu:
+      capabilities:
+        host:
+          properties:
+            disk_size: 50 GiB
+            mem_size: 1024 MiB
+            num_cpus: 1
+        os:
+          properties:
+            architecture: x86
+            type: cumulus_vx
+            version: 4.1
+      interfaces:
+        Standard:
+          configure:
+            implementation: configure_my_vdu.yaml
+            inputs:
+              DHCP_defaultLeaseTime: 600
+              DHCP_gateway: 192.168.2.1
+              DHCP_interfaceName: swp1
+              DHCP_internalNetCidr: 192.168.2.0/24
+              DHCP_maxLeaseTime: 7200
+              DHCP_rangeEnd: 192.168.2.100
+              DHCP_rangeStart: 192.168.2.10
+              DHCP_staticHosts:
+                host1: 192.168.2.50
+                host2: 192.168.2.51
+              DNS_domainName: example.com
+              DNS_forwarders:
+                google1: 8.8.8.8
+              DNS_iPAddressType: IPV4
+              DNS_internalNetAddr: 192.168.2.1
+              DNS_staticHosts:
+                host1: 192.168.2.50
+                host2: 192.168.2.51
+              Firewall_dpi_rules:
+              - action: DROP
+                deepProtocol: youtube
+                destAddr: 8.8.8.8
+                routingPath: FORWARD
+                sourceAddr: 10.10.10.10
+              Firewall_standart_rules:
+              - action: ACCEPT
+                destAddr: 8.8.8.8
+                destPort: 2202
+                protocol: tcp
+                routingPath: FORWARD
+                sourceAddr: 10.10.10.10
+                sourcePort: 22
+              Nat_rules:
+              - destAddrPr: 8.8.8.8/24
+                protocol: tcp
+                routingType: snat
+                sourceAddrPr: 10.10.10.10/24
+                typeNat: static
+              Ntop_analyze_endpointPort: 3000
+              Ntop_analyze_interfacesNames:
+              - eth0
+              Ntop_analyze_internalNetCidr:
+              - 192.168.2.0/24
+              Routing_routes:
+              - destCidr: 192.168.2.0/24
+                dev: eth0
+                gateway: 192.168.2.1
+                src: 0.0.0.0/0
+              Routing_rules:
+              - destAddr: 0.0.0.0
+                sourceAddr: 0.0.0.0
+              Tshark_analyze_captureFilter: dst port 135 and tcp port 135 and ip[2:2]==48
+              Tshark_analyze_duration: 10000
+              Tshark_analyze_files: 1
+              Tshark_analyze_interfaceName: swp1
+              Tshark_analyze_pathToPcap: /tmp/dump.pcap
+      properties:
+        meta: my_vdu
+        ports:
+          external:
+            addresses:
+            - 192.168.2.11
+      type: tosca.nodes.Compute
+    my_vl:
+      properties:
+        cidr: 192.168.2.0/24
+        end_ip: 192.168.2.100
+        gateway_ip: 192.168.2.1
+        ip_version: '4'
+        network_name: my_net
+        network_type: geneve
+        start_ip: 192.168.2.10
+      type: tosca.nodes.network.Network
+    new_vdu:
+      capabilities:
+        host:
+          properties:
+            disk_size: 100 GiB
+            mem_size: 1024 MiB
+            num_cpus: 1
+        os:
+          properties:
+            architecture: x86
+            type: cumulus_vx
+      interfaces:
+        Standard:
+          configure:
+            implementation: configure_new_vdu.yaml
+            inputs:
+              Routing_routes:
+              - destCidr: 0.0.0.0/0
+                dev: eth0
+                gateway: 1.1.1.1
+                src: 0.0.0.0/0
+              Routing_rules:
+              - destAddr: 0.0.0.0
+                sourceAddr: 0.0.0.0
+      properties:
+        meta: new_vdu
+      type: tosca.nodes.Compute
+tosca_definitions_version: tosca_simple_yaml_1_0

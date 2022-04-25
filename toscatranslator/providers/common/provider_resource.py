@@ -11,8 +11,8 @@ import copy, logging
 
 class ProviderResource(object):
 
-    def __init__(self, provider, tmpl, node_name, node_type, is_software_component=False, is_relationship=False,
-                 relation_target_source = dict()):
+    def __init__(self, provider, tmpl, node_name, node_type, host_ip_parameter, is_software_component=False, is_relationship=False,
+                 relation_target_source=dict()):
         """
 
         :param provider:
@@ -79,7 +79,9 @@ class ProviderResource(object):
                         if self.host is not None:
                             logging.critical("Node \'\' can be hosted only on one node" % self.name)
                             sys.exit(1)
-                        self.host = req.value
+                        if host_ip_parameter not in ('public_address', 'private_address'):
+                            host_ip_parameter = 'private_address'
+                        self.host = req.value + '_' + host_ip_parameter
 
             self.node_filter_artifacts = []
             for key, req in self.requirements.items():

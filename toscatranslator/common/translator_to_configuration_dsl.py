@@ -16,8 +16,9 @@ import json, os, sys, yaml
 REQUIRED_CONFIGURATION_PARAMS = (TOSCA_ELEMENTS_DEFINITION_FILE, DEFAULT_ARTIFACTS_DIRECTORY, TOSCA_ELEMENTS_MAP_FILE)
 
 
-def translate(template_file, validate_only, provider, configuration_tool, cluster_name, is_delete=False, if_run=False,
-              a_file=True, extra=None, log_level='info'):
+def translate(template_file, validate_only, provider, configuration_tool, cluster_name,
+              host_ip_parameter='public_address', is_delete=False, if_run=False, a_file=True, extra=None,
+              log_level='info'):
     """
     Main function, is called by different shells, i.e. bash, Ansible module, grpc
     :param template_file: filename of TOSCA template or TOSCA template data if a_file is False
@@ -120,7 +121,7 @@ def translate(template_file, validate_only, provider, configuration_tool, cluste
 
     # Parse and generate new TOSCA service template with only provider specific TOSCA types from normative types
     tosca = ProviderToscaTemplate(tosca_parser_template_object, provider, cluster_name,
-                                  common_map_files=default_map_files)
+                                  host_ip_parameter, common_map_files=default_map_files)
 
     # Init configuration tool class
     tool = get_configuration_tool_class(configuration_tool)()

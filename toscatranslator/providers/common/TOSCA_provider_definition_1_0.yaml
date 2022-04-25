@@ -27,6 +27,8 @@ node_types:
         implementation: equals.yaml
       ip_contains:
         implementation: ip_contains.yaml
+      add_host:
+        implementation: add_host.yaml
     requirements:
       - dependency:
           capability: provider.capabilities.Node

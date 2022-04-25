@@ -178,13 +178,13 @@ class TestAnsibleOpenStackOutput (unittest.TestCase, TestAnsibleProvider):
         self.assertIsInstance(playbook[0], dict)
         self.assertIsNotNone(playbook[0]['tasks'])
         tasks = playbook[0]['tasks']
-        self.assertEqual(len(tasks), 18)
+        self.assertEqual(12, len(tasks))
         self.assertIsNotNone(tasks[2][SERVER_MODULE_NAME])
         server = tasks[2][SERVER_MODULE_NAME]
         self.assertEqual(server['name'], self.NODE_NAME)
 
     def test_async_meta(self):
-        extra={
+        extra = {
             'global': {
                 'async': True,
                 'retries': 3,
@@ -197,7 +197,7 @@ class TestAnsibleOpenStackOutput (unittest.TestCase, TestAnsibleProvider):
     def test_meta(self, extra=None):
         super(TestAnsibleOpenStackOutput, self).test_meta(extra=extra)
 
-    def check_meta (self, tasks, testing_value=None, extra=None):
+    def check_meta(self, tasks, testing_value=None, extra=None):
         server_name = None
         for task in tasks:
             if task.get(SERVER_MODULE_NAME):
@@ -415,28 +415,14 @@ class TestAnsibleOpenStackOutput (unittest.TestCase, TestAnsibleProvider):
             if tasks[i].get('os_floating_ip', None) != None:
                 fip_var = tasks[i]['register']
 
-                self.assertIsNotNone(tasks[i+1].get('set_fact', None))
-                self.assertEqual(tasks[i+1]['set_fact'].get('host_ip', None),
+                self.assertIsNotNone(tasks[i+1].get('set_fact', {}).get('ansible_user'))
+                self.assertIsNotNone(tasks[i+2].get('set_fact', None))
+                self.assertEqual(tasks[i+2]['set_fact'].get('host_ip', None),
                                  '{{ '+ fip_var + '.floating_ip.floating_ip_address }}')
 
-                self.assertIsNotNone(tasks[i+2].get('add_host', None))
-                self.assertEqual(tasks[i+2]['add_host'].get('hostname', None),
-                                 '{{ host_ip }}')
-                self.assertEqual(tasks[i+2]['add_host'].get('groups', None),
-                                 self.NODE_NAME)
-
-                self.assertIsNotNone(tasks[i+3].get('shell', None))
-                self.assertEqual(tasks[i+3]['shell'],
-                                 'ssh-keyscan {{ host_ip }},`dig +short {{ host_ip }}`')
-                self.assertIsNotNone(tasks[i+3].get('register', None))
-                self.assertEqual(tasks[i+3]['register'],
-                                 'host_key')
-
-                self.assertIsNotNone(tasks[i+4].get('known_hosts', None))
-                self.assertEqual(tasks[i+4]['known_hosts'].get('name', None),
-                                 '{{ host_ip }}')
-                self.assertEqual(tasks[i+4]['known_hosts'].get('key', None),
-                                 '{{ host_key.stdout }}')
+                self.assertEqual(tasks[i+3].get('set_fact', {}).get('group'), self.NODE_NAME + '_public_address')
+                self.assertIsNotNone(tasks[i+4].get('include', None))
+                self.assertEqual(tasks[i+4]['include'], 'artifacts/add_host.yaml')
                 checked = True
         self.assertTrue(checked)
 
@@ -505,3 +491,19 @@ class TestAnsibleOpenStackOutput (unittest.TestCase, TestAnsibleProvider):
                 if k == 'include':
                     self.assertTrue(server_created)
                     self.assertEqual(v, os.path.join('artifacts', testing_value))
+
+    def test_host_ip_parameter(self):
+        super(TestAnsibleOpenStackOutput, self).test_host_ip_parameter()
+
+    def check_host_ip_parameter(self, tasks, testing_value):
+        for i in range(len(tasks)):
+            if tasks[i].get('os_server'):
+                self.assertEqual(tasks[i]['os_server']['nics'][0]['net-name'], testing_value)
+                ansible_user = tasks[i+1].get('set_fact', {}).get('ansible_user')
+                host_ip = tasks[i+2].get('set_fact', {}).get('host_ip')
+                group = tasks[i+3].get('set_fact', {}).get('group')
+                include = tasks[i+4].get('include')
+                self.assertEqual(ansible_user, 'cirros')
+                self.assertEqual(host_ip, '{{ tosca_server_example_server.server.public_v4 }}')
+                self.assertEqual(group, 'tosca_server_example_private_address')
+                self.assertEqual(include, 'artifacts/add_host.yaml')

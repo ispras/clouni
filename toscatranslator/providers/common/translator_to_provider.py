@@ -433,10 +433,13 @@ def get_restructured_mapping_item(key_prefix, parameter, mapping_value, value, s
                     arg_key_prefix = ''
                 arg_parameter = k if not parameter else SEPARATOR.join([parameter, k])
                 item = get_restructured_mapping_item(arg_key_prefix, arg_parameter, arg_map, v, self)
-                if isinstance(item, list):
+                if item:
+                    if not isinstance(item, list):
+                        item = [item]
+                    if k == '*':
+                        for i in item:
+                            i[PARAMETER] = _k.join(i[PARAMETER].rsplit(k, 1))
                     r.extend(item)
-                elif item is not None:
-                    r.append(item)
         return r
 
     if isinstance(value, list):
@@ -947,6 +950,21 @@ def restructure_get_attribute(data, service_tmpl, self):
     return r
 
 
+def sort_host_ip_parameter(restructured_mapping, host_ip_parameter):
+    host_ip_mapping_key = SEPARATOR.join(['tosca.nodes.Compute', PROPERTIES, host_ip_parameter])
+    mapping_equal = []
+    mapping_match = []
+    mapping_not_matched = []
+    for map in restructured_mapping:
+        if map[PARAMETER] == host_ip_mapping_key:
+            mapping_equal.append(map)
+        elif re.match(host_ip_mapping_key + '*', map[PARAMETER]):
+            mapping_match.append(map)
+        else:
+            mapping_not_matched.append(map)
+    return mapping_equal + mapping_match + mapping_not_matched
+
+
 def translate(service_tmpl):
     """
     Main function of this file, the only which is used outside the file
@@ -973,6 +991,7 @@ def translate(service_tmpl):
 
         if namespace != service_tmpl.provider:
             restructured_mapping = restructure_mapping(service_tmpl, element, tmpl_name, self)
+            restructured_mapping = sort_host_ip_parameter(restructured_mapping, service_tmpl.host_ip_parameter)
             restructured_mapping = restructure_mapping_buffer(restructured_mapping, self)
             restructured_mapping, extra_mappings, new_conditions = restructure_mapping_facts(restructured_mapping)
             restructured_mapping.extend(extra_mappings)

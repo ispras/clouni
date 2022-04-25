@@ -471,14 +471,23 @@ class AnsibleConfigurationTool(ConfigurationTool):
                     }
                 }
                 tasks.append(new_task)
-        for i in import_task_arg:
-            if self.artifacts.get(i):
-                art_data = self.artifacts[i]
+        for art in import_task_arg:
+            if self.artifacts.get(art):
+                art_data = self.artifacts[art]
                 new_tasks = self.create_artifact_data(art_data)
                 tasks.extend(new_tasks)
             else:
+                target_filename = os.path.join(target_directory, art)
+                art_filename_1 = os.path.join(os.getcwd(), art)
+                art_filename_2 = os.path.join(self.get_ansible_artifacts_directory(), art)
+                if os.path.isfile(art_filename_1):
+                    copyfile(art_filename_1, target_filename)
+                elif os.path.isfile(art_filename_2):
+                    copyfile(art_filename_2, target_filename)
+                else:
+                    logging.error("Artifact filename %s was not found in %s or %s" % (art, art_filename_1, art_filename_2))
                 new_task = {
-                    IMPORT_TASKS_MODULE: os.path.join(target_directory, i)
+                    IMPORT_TASKS_MODULE: os.path.join(target_directory, art)
                 }
                 tasks.append(new_task)
         if op_info.get(OUTPUT_IDS):
@@ -521,10 +530,13 @@ class AnsibleConfigurationTool(ConfigurationTool):
             f.write(filedata)
             logging.info("Artifact for executor %s was created: %s" % (self.TOOL_NAME, filename))
 
+    def get_ansible_artifacts_directory(self):
+        return os.path.join(os.path.dirname(os.path.realpath(__file__)), self.initial_artifacts_directory)
+
     def copy_condition_to_the_directory(self, cond, target_directory):
         os.makedirs(target_directory, exist_ok=True)
-        tool_artifacts_dir = os.path.join(os.path.dirname(os.path.realpath(__file__)), self.initial_artifacts_directory)
-        filename = os.path.join(tool_artifacts_dir, cond + self.get_artifact_extension())
+        # tool_artifacts_dir = os.path.join(os.path.dirname(os.path.realpath(__file__)), self.initial_artifacts_directory)
+        filename = os.path.join(self.get_ansible_artifacts_directory(), cond + self.get_artifact_extension())
         if not os.path.isfile(filename):
             logging.error("File containing condition \'%s\' not found in \'%s\'" % (cond, filename))
             sys.exit(1)
