@@ -1,2 +1,6 @@
 ansible>=2.8.8,<=2.9.19 # GPL-3.0 for Ansible playbook execution
 openstacksdk==0.46.0 # for Ansible playbook execution when using OpenStack
+python-openstackclient==5.2.0 # for running ansible playbook
+python-cinderclient==7.0.1
+python-keystoneclient==4.0.0
+python-novaclient==17.0.0

@@ -6,6 +6,8 @@ from toscatranslator.providers.common.provider_configuration import ProviderConf
 from toscatranslator.configuration_tools.common.configuration_tool import ConfigurationTool, \
     OUTPUT_IDS, OUTPUT_ID_RANGE_START, OUTPUT_ID_RANGE_END
 
+from toscatranslator.configuration_tools.ansible.runner import run_ansible
+
 import copy, sys, yaml, os, itertools, six, logging
 from shutil import copyfile
 
@@ -36,7 +38,7 @@ class AnsibleConfigurationTool(ConfigurationTool):
         for param in REQUIRED_CONFIG_PARAMS:
             setattr(self, param, main_config[param])
 
-    def to_dsl(self, provider, nodes_relationships_queue, cluster_name, is_delete, artifacts=None,
+    def to_dsl(self, provider, nodes_relationships_queue, cluster_name, is_delete, if_run=False, artifacts=None,
                target_directory=None, inputs=None, outputs=None, extra=None):
 
         if artifacts is None:
@@ -137,6 +139,8 @@ class AnsibleConfigurationTool(ConfigurationTool):
             )
             ansible_playbook.append(software_playbook)
 
+        if if_run:
+            run_ansible(ansible_playbook, target_directory)
         return yaml.dump(ansible_playbook, default_flow_style=False, sort_keys=False)
 
     def get_extra_async(self, extra, async_default_time):

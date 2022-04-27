@@ -21,6 +21,7 @@ class TranslatorShell(object):
         self.cluster_name = args.cluster_name
         self.extra = {}
         self.log_level = args.log_level
+        self.if_run = args.run
 
         for i in args.extra:
             i_splitted = [j.strip() for j in i.split('=', 1)]
@@ -42,9 +43,11 @@ class TranslatorShell(object):
 
         self.working_dir = os.getcwd()
 
-        output = translate(self.template_file, self.validate_only, self.provider, self.configuration_tool, self.cluster_name, self.is_delete,
+        output = translate(self.template_file, self.validate_only, self.provider, self.configuration_tool,
+                           self.cluster_name, is_delete=self.is_delete, if_run=self.if_run,
                            extra={'global': self.extra}, log_level=self.log_level)
-        self.output_print(output)
+        if not self.if_run:
+            self.output_print(output)
 
     def get_parser(self):
         parser = argparse.ArgumentParser(prog="clouni")
@@ -75,6 +78,10 @@ class TranslatorShell(object):
                             default="ansible",
                             help="Configuration tool which DSL the template would be translated to. "
                                  "Default value = \"ansible\"")
+        parser.add_argument('--run',
+                            action='store_true',
+                            default=False,
+                            help="Run Ansible playbook when it is created")
         parser.add_argument('--async',
                             action='store_true',
                             default=False,
