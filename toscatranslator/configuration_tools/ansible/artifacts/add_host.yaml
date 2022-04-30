@@ -2,7 +2,7 @@
     hostname: '{{ group }}'
     ansible_ssh_host: '{{ host_ip }}'
     ansible_ssh_user: '{{ ansible_user }}'
-    ansible_ssh_pass: '{{ ansible_sudo_pass }}'
+    ansible_ssh_pass: '{{ ansible_sudo_pass | default(omit) }}'
   when: host_ip is defined and host_ip != ''
 - shell: |
     check_ssh() {
