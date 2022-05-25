@@ -42,10 +42,14 @@ class TestAnsibleAmazonOutput (unittest.TestCase, TestAnsibleProvider):
     def test_server_name(self):
         template = copy.deepcopy(self.DEFAULT_TEMPLATE)
         playbook = self.get_ansible_create_output(template)
-        self.assertEqual(len(playbook), 1)
-        self.assertIsInstance(playbook[0], dict)
-        self.assertIsNotNone(playbook[0]['tasks'])
-        tasks = playbook[0]['tasks']
+        self.assertEqual(len(playbook), 2)
+        for play in playbook:
+            self.assertIsInstance(play, dict)
+            self.assertIsNotNone(play['tasks'])
+        tasks = []
+        for play in playbook:
+            for task in play['tasks']:
+                tasks.append(task)
         self.assertEqual(len(tasks), 8)
         self.assertIsNotNone(tasks[2][INSTANCE_MODULE_NAME])
         server = tasks[2][INSTANCE_MODULE_NAME]

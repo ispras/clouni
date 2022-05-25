@@ -9,9 +9,12 @@ from toscatranslator.providers.common.provider_configuration import ProviderConf
 from toscatranslator.providers.common.translator_to_provider import translate as translate_to_provider
 from toscatranslator.providers.common.provider_resource import ProviderResource
 
+from graphlib import TopologicalSorter
+
 import os, copy, json, yaml, logging, sys, six
 
 SEPARATOR = '.'
+
 
 class ProviderToscaTemplate(object):
     REQUIRED_CONFIG_PARAMS = (TOSCA_ELEMENTS_MAP_FILE, TOSCA_ELEMENTS_DEFINITION_FILE)
@@ -24,11 +27,11 @@ class ProviderToscaTemplate(object):
         self.cluster_name = cluster_name
         for sec in self.REQUIRED_CONFIG_PARAMS:
             if not self.provider_config.config[self.provider_config.MAIN_SECTION].get(sec):
-                logging.error("Provider configuration parameter \'%s\' has missing value" % sec )
+                logging.error("Provider configuration parameter \'%s\' has missing value" % sec)
                 logging.error("Translating failed")
                 sys.exit(1)
 
-        map_files = self.provider_config.get_section(self.provider_config.MAIN_SECTION)\
+        map_files = self.provider_config.get_section(self.provider_config.MAIN_SECTION) \
             .get(TOSCA_ELEMENTS_MAP_FILE)
         if isinstance(map_files, six.string_types):
             map_files = [map_files]
@@ -86,7 +89,7 @@ class ProviderToscaTemplate(object):
         self.provider_relations = self._provider_relations()
 
         # self.provider_node_names_by_priority = self._sort_nodes_by_priority()
-        self.provider_nodes_queue = self.sort_nodes_by_dependency()
+        self.provider_operations = self.sort_nodes_and_operations_by_graph_dependency()
 
     def _provider_nodes(self):
         """
@@ -129,52 +132,55 @@ class ProviderToscaTemplate(object):
 
         return provider_nodes_by_name
 
-    def sort_nodes_by_dependency(self):
-        """
-        Use dependency requirement between nodes of the same type, check dependency of different types
-        :param self.template_dependencies
-        :param self.relationship_templates_by_name
-        :param self.provider_node_names_by_priority
-        :param self.provider_nodes_by_name
-        :return: List of nodes sorted by priority
-        """
-
-        group_by_templ_name = dict()
-        group = 0
-        template_names = []
-
-        nodes_left_next = set(self.provider_nodes.keys())
-        nodes_left_next = nodes_left_next.union(set(self.provider_relations.keys()))
-        infinite_error = False
-        while len(nodes_left_next) > 0 and not infinite_error:
-            nodes_left = copy.copy(nodes_left_next)
-            infinite_error = True
-            for templ_name in nodes_left:
-                set_intersection = nodes_left_next.intersection(self.template_dependencies.get(templ_name, set()))
-                if len(set_intersection) == 0:
-                    infinite_error = False
-                    template_names.append(templ_name)
-                    nodes_left_next.remove(templ_name)
-                    group_by_templ_name[templ_name] = group
-            group += 1
-        # Here we added nodes of the same priority
-        if infinite_error:
-            logging.error('Resolving dependencies for nodes by priority failed for nodes: %s'
-                          % json.dumps(nodes_left_next))
-            sys.exit(1)
-
-        templates = []
-        for templ_name in template_names:
+    def sort_nodes_and_operations_by_graph_dependency(self):
+        nodes = set(self.provider_nodes.keys())
+        nodes = nodes.union(set(self.provider_relations.keys()))
+        dependencies = {}
+        lifecycle = ['configure', 'start', 'stop', 'delete']
+        reversed_full_lifecycle = lifecycle[::-1] + ['create']
+        for templ_name in nodes:
+            set_intersection = nodes.intersection(self.template_dependencies.get(templ_name, set()))
             templ = self.provider_nodes.get(templ_name, self.provider_relations.get(templ_name))
-            if templ is None:
-                logging.critical("Failed to resolve dependencies in intermediate non-normative TOSCA template. "
-                                 "Template \'%s\' is missing." % templ_name)
-                sys.exit(1)
-            if group_by_templ_name.get(templ_name):
-                templ.dependency_order = group_by_templ_name[templ_name]
-            templates.append(templ)
-
-        return templates
+            (_, element_type, _) = utils.tosca_type_parse(templ.type)
+            if element_type == NODES and 'interfaces' in templ.tmpl and 'Standard' in templ.tmpl['interfaces']:
+                new_operations = ['create']
+                for elem in lifecycle:
+                    if elem in templ.tmpl['interfaces']['Standard']:
+                        new_operations.append(elem)
+                if len(new_operations) == 1:
+                    utils.deep_update_dict(dependencies, {templ_name + ':create': set_intersection})
+                else:
+                    for i in range(1, len(new_operations)):
+                        utils.deep_update_dict(dependencies, {
+                            templ_name + ':' + new_operations[i]: {templ_name + ':' + new_operations[i - 1]}})
+                    utils.deep_update_dict(dependencies, {templ_name + ':' + new_operations[0]: set_intersection})
+            else:
+                utils.deep_update_dict(dependencies, {templ_name + ':create': set_intersection})
+        new_dependencies = {}
+        for key, value in dependencies.items():
+            new_set = set()
+            for elem in value:
+                for oper in reversed_full_lifecycle:
+                    if elem + ":" + oper in dependencies:
+                        new_set.add(elem + ":" + oper)
+                        break
+                    elif elem in dependencies:
+                        new_set.add(elem)
+                        break
+            new_dependencies[key] = new_set
+        templ_mappling = {}
+        for elem in new_dependencies:
+            templ_name = elem.split(':')[0]
+            templ = copy.deepcopy(self.provider_nodes.get(templ_name, self.provider_relations.get(templ_name)))
+            templ.operation = elem.split(':')[1]
+            templ_mappling[elem] = templ
+        templ_dependencies = {}
+        for key, value in new_dependencies.items():
+            new_set = set()
+            for elem in value:
+                new_set.add(templ_mappling[elem])
+            templ_dependencies[templ_mappling[key]] = new_set
+        return templ_dependencies
 
     def add_template_dependency(self, node_name, dependency_name):
         if not dependency_name == SELF and not node_name == dependency_name:
@@ -375,7 +381,7 @@ class ProviderToscaTemplate(object):
             for req in node_tmpl[REQUIREMENTS]:
                 if req.get(value[1], None) is not None:
                     if req[value[1]].get(NODE, None) is not None:
-                        return self._get_property_value([ req[value[1]][NODE] ] + value[2:], req[value[1]][NODE])
+                        return self._get_property_value([req[value[1]][NODE]] + value[2:], req[value[1]][NODE])
                     if req[value[1]].get(NODE_FILTER, None) is not None:
                         tmpl_properties = {}
                         node_filter_props = req[value[1]][NODE_FILTER].get(PROPERTIES, [])
@@ -452,7 +458,7 @@ class ProviderToscaTemplate(object):
                                 tpl[INTERFACES][inf_name][op_name] = {
                                     IMPLEMENTATION: {
                                         'primary': op_body[0] if len(op_body) >= 1 else [],
-                                        'dependencies': op_body[1:] if len(op_body) >=2 else []
+                                        'dependencies': op_body[1:] if len(op_body) >= 2 else []
                                     },
                                     INPUTS: []
                                 }

@@ -165,7 +165,10 @@ class TestAnsibleProvider(BaseAnsibleProvider):
             playbook = self.get_ansible_create_output(template, extra=extra)
 
             assert next(iter(playbook), {}).get('tasks')
-            tasks = playbook[0]['tasks']
+            tasks = []
+            for play in playbook:
+                for task in play['tasks']:
+                    tasks.append(task)
 
             if extra:
                 self.check_meta(tasks, testing_value=testing_value, extra=extra)
@@ -185,7 +188,10 @@ class TestAnsibleProvider(BaseAnsibleProvider):
             playbook = self.get_ansible_create_output(template)
 
             assert next(iter(playbook), {}).get('tasks')
-            tasks = playbook[0]['tasks']
+            tasks = []
+            for play in playbook:
+                for task in play['tasks']:
+                    tasks.append(task)
 
             self.check_private_address(tasks, testing_value)
 
@@ -201,7 +207,10 @@ class TestAnsibleProvider(BaseAnsibleProvider):
 
             assert next(iter(playbook), {}).get('tasks')
 
-            tasks = playbook[0]['tasks']
+            tasks = []
+            for play in playbook:
+                for task in play['tasks']:
+                    tasks.append(task)
             self.check_public_address(tasks, testing_value)
 
     def test_network_name(self):
@@ -220,7 +229,10 @@ class TestAnsibleProvider(BaseAnsibleProvider):
 
             assert next(iter(playbook), {}).get('tasks')
 
-            tasks = playbook[0]['tasks']
+            tasks = []
+            for play in playbook:
+                for task in play['tasks']:
+                    tasks.append(task)
             self.check_network_name(tasks, testing_value)
 
     def test_host_capabilities(self):
@@ -236,7 +248,10 @@ class TestAnsibleProvider(BaseAnsibleProvider):
 
             assert next(iter(playbook), {}).get('tasks')
 
-            tasks = playbook[0]['tasks']
+            tasks = []
+            for play in playbook:
+                for task in play['tasks']:
+                    tasks.append(task)
             self.check_host_capabilities(tasks)
 
     def test_endpoint_capabilities(self):
@@ -256,7 +271,10 @@ class TestAnsibleProvider(BaseAnsibleProvider):
             playbook = self.get_ansible_create_output(template)
             assert next(iter(playbook), {}).get('tasks')
 
-            tasks = playbook[0]['tasks']
+            tasks = []
+            for play in playbook:
+                for task in play['tasks']:
+                    tasks.append(task)
             self.check_endpoint_capabilities(tasks)
 
     def test_os_capabilities(self):
@@ -272,7 +290,10 @@ class TestAnsibleProvider(BaseAnsibleProvider):
             playbook = self.get_ansible_create_output(template)
             assert next(iter(playbook), {}).get('tasks')
 
-            tasks = playbook[0]['tasks']
+            tasks = []
+            for play in playbook:
+                for task in play['tasks']:
+                    tasks.append(task)
             self.check_os_capabilities(tasks)
 
     def test_scalable_capabilities(self):
@@ -288,7 +309,10 @@ class TestAnsibleProvider(BaseAnsibleProvider):
             playbook = self.get_ansible_create_output(template)
             assert next(iter(playbook), {}).get('tasks')
 
-            tasks = playbook[0]['tasks']
+            tasks = []
+            for play in playbook:
+                for task in play['tasks']:
+                    tasks.append(task)
             self.check_scalable_capabilities(tasks)
 
     def test_host_of_software_component(self):
@@ -329,13 +353,14 @@ class TestAnsibleProvider(BaseAnsibleProvider):
             }
             playbook = self.get_ansible_create_output(template)
 
-            self.assertEqual(len(playbook), 2)
-            self.assertIsNotNone(playbook[0].get('tasks'))
-            self.assertIsNotNone(playbook[1].get('tasks'))
-            self.assertEqual(playbook[1].get('hosts'), self.NODE_NAME)
+            self.assertEqual(len(playbook), 4)
+            for play in playbook:
+                self.assertIsNotNone(play.get('tasks'))
 
-            tasks1 = playbook[0]['tasks']
-            tasks2 = playbook[1]['tasks']
+            self.assertEqual(playbook[2].get('hosts'), self.NODE_NAME)
+            tasks2 = playbook[2]['tasks']
+
+            tasks1 = playbook[0]['tasks'] + playbook[1]['tasks'] + playbook[3]['tasks']
             self.check_host_of_software_component(tasks1, tasks2)
 
     def test_get_input(self):
@@ -357,7 +382,10 @@ class TestAnsibleProvider(BaseAnsibleProvider):
             playbook = self.get_ansible_create_output(template)
             self.assertIsNotNone(next(iter(playbook), {}).get('tasks'))
 
-            tasks = playbook[0]['tasks']
+            tasks = []
+            for play in playbook:
+                for task in play['tasks']:
+                    tasks.append(task)
             self.check_get_input(tasks, testing_value)
 
     def test_get_property(self):
@@ -382,7 +410,10 @@ class TestAnsibleProvider(BaseAnsibleProvider):
             playbook = self.get_ansible_create_output(template)
             self.assertIsNotNone(next(iter(playbook), {}).get('tasks'))
 
-            tasks = playbook[0]['tasks']
+            tasks = []
+            for play in playbook:
+                for task in play['tasks']:
+                    tasks.append(task)
             self.check_get_property(tasks, testing_value)
 
     def test_get_attribute(self):
@@ -407,7 +438,10 @@ class TestAnsibleProvider(BaseAnsibleProvider):
             playbook = self.get_ansible_create_output(template)
             self.assertIsNotNone(next(iter(playbook), {}).get('tasks'))
 
-            tasks = playbook[0]['tasks']
+            tasks = []
+            for play in playbook:
+                for task in play['tasks']:
+                    tasks.append(task)
             self.check_get_attribute(tasks, testing_value)
 
     def test_outputs(self):
@@ -429,5 +463,8 @@ class TestAnsibleProvider(BaseAnsibleProvider):
 
             assert next(iter(playbook), {}).get('tasks')
 
-            tasks = playbook[0]['tasks']
+            tasks = []
+            for play in playbook:
+                for task in play['tasks']:
+                    tasks.append(task)
             self.check_outputs(tasks, testing_value)

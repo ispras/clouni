@@ -326,6 +326,7 @@ tosca.nodes.Compute:
     interfaces: openstack.nodes.Server.interfaces
 
 tosca.nodes.network.Network:
+  - interfaces: openstack.nodes.Network.interfaces
   - properties:
       network_name:
           - parameter: openstack.nodes.Network.properties.name
@@ -366,6 +367,7 @@ tosca.nodes.network.Network:
           value: "{self[value]}"
 
 tosca.nodes.network.Port:
+  - interfaces: openstack.nodes.Port.interfaces
   - properties:
       ip_address:
         - parameter: openstack.nodes.Port.properties.fixed_ips

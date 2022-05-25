@@ -35,7 +35,7 @@ class ProviderResource(object):
         self.self = node_name
         self.target = None
         self.source = None
-        self.dependency_order = 0
+        self.operation = None
 
         self.set_defaults()
         # NOTE: Get the parameters from template using provider definition

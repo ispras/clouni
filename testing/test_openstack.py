@@ -89,42 +89,44 @@ class TestAnsibleOpenStackOutput (unittest.TestCase, TestAnsibleProvider):
         file_path = os.path.join('examples', 'tosca-network-and-server-example.yaml')
         template = self.read_template(file_path)
         playbook = self.get_ansible_create_output(template, file_path, delete_template=False)
-        self.assertEqual(len(playbook), 1)
-        self.assertIsInstance(playbook[0], dict)
-        self.assertIsNotNone(playbook[0]['tasks'])
-        tasks = playbook[0]['tasks']
+        self.assertEqual(len(playbook), 6)
+        for elem in playbook:
+            self.assertIsInstance(elem, dict)
+            self.assertIsNotNone(elem['tasks'])
         has_network = False
         has_subnet = False
         has_port = False
         has_compute = False
-        for task in tasks:
-            if not has_network:
-                if task.get(SUBNET_MODULE_NAME) or task.get(PORT_MODULE_NAME) or task.get(SERVER_MODULE_NAME):
-                    self.assertTrue(False, msg='os_network should be first!')
-                if task.get(NETWORK_MODULE_NAME):
-                    self.check_network_module(task)
-                    network_name = task[NETWORK_MODULE_NAME]['name']
-                    has_network = True
-            elif has_network:
-                if not has_subnet:
-                    if task.get(PORT_MODULE_NAME) or task.get(SERVER_MODULE_NAME):
-                        self.assertTrue(False, msg='os_subnet should be first!')
-                    if task.get(SUBNET_MODULE_NAME):
-                        self.check_subnet_module(task, network_name)
-                        subnet_name = task[SUBNET_MODULE_NAME]['name']
-                        has_subnet = True
-                elif has_subnet:
-                    if not has_port:
-                        if task.get(SERVER_MODULE_NAME):
-                            self.assertTrue(False, msg='os_port should be first!')
-                        if task.get(PORT_MODULE_NAME):
-                            self.check_port_module(task, subnet_name)
-                            port_name = task[PORT_MODULE_NAME]['name']
-                            has_port = True
-                    elif has_port:
-                        if task.get(SERVER_MODULE_NAME):
-                            self.check_compute_module(task, port_name)
-                            has_compute = True
+        for elem in playbook:
+            tasks = elem['tasks']
+            for task in tasks:
+                if not has_network:
+                    if task.get(SUBNET_MODULE_NAME) or task.get(PORT_MODULE_NAME) or task.get(SERVER_MODULE_NAME):
+                        self.assertTrue(False, msg='os_network should be first!')
+                    if task.get(NETWORK_MODULE_NAME):
+                        self.check_network_module(task)
+                        network_name = task[NETWORK_MODULE_NAME]['name']
+                        has_network = True
+                elif has_network:
+                    if not has_subnet:
+                        if task.get(PORT_MODULE_NAME) or task.get(SERVER_MODULE_NAME):
+                            self.assertTrue(False, msg='os_subnet should be first!')
+                        if task.get(SUBNET_MODULE_NAME):
+                            self.check_subnet_module(task, network_name)
+                            subnet_name = task[SUBNET_MODULE_NAME]['name']
+                            has_subnet = True
+                    elif has_subnet:
+                        if not has_port:
+                            if task.get(SERVER_MODULE_NAME):
+                                self.assertTrue(False, msg='os_port should be first!')
+                            if task.get(PORT_MODULE_NAME):
+                                self.check_port_module(task, subnet_name)
+                                port_name = task[PORT_MODULE_NAME]['name']
+                                has_port = True
+                        elif has_port:
+                            if task.get(SERVER_MODULE_NAME):
+                                self.check_compute_module(task, port_name)
+                                has_compute = True
         self.assertTrue(has_network)
         self.assertTrue(has_subnet)
         self.assertTrue(has_port)
@@ -174,10 +176,14 @@ class TestAnsibleOpenStackOutput (unittest.TestCase, TestAnsibleProvider):
     def test_server_name(self):
         template = copy.deepcopy(self.DEFAULT_TEMPLATE)
         playbook = self.get_ansible_create_output(template)
-        self.assertEqual(len(playbook), 1)
-        self.assertIsInstance(playbook[0], dict)
-        self.assertIsNotNone(playbook[0]['tasks'])
-        tasks = playbook[0]['tasks']
+        self.assertEqual(len(playbook), 3)
+        for play in playbook:
+            self.assertIsInstance(play, dict)
+            self.assertIsNotNone(play['tasks'])
+        tasks = []
+        for play in playbook:
+            for task in play['tasks']:
+                tasks.append(task)
         self.assertEqual(len(tasks), 18)
         self.assertIsNotNone(tasks[2][SERVER_MODULE_NAME])
         server = tasks[2][SERVER_MODULE_NAME]
@@ -326,13 +332,18 @@ class TestAnsibleOpenStackOutput (unittest.TestCase, TestAnsibleProvider):
         playbook = self.get_ansible_delete_output_from_file(copy.deepcopy(self.DEFAULT_TEMPLATE),
                                                   template_filename='examples/tosca-server-example-scalable.yaml')
         self.assertIsNotNone(playbook[0]['tasks'][0]['include_vars'])
-        self.assertIsNotNone(playbook[0]['tasks'][len(playbook[0]['tasks'])-1]['file'])
+        self.assertIsNotNone(playbook[4]['tasks'][0]['file'])
         module_names= ['os_floating_ip','os_server','os_port','os_security_group',]
-        for task in playbook[0]['tasks']:
+        tasks = []
+        for play in playbook:
+            for task in play['tasks']:
+                tasks.append(task)
+        for task in tasks:
             if task.get('name') is not None:
                 modules = [task.get(name)['state'] for name in module_names if task.get(name) is not None]
                 self.assertEqual(modules[0], 'absent')
 
+    @unittest.skip("async will be deleted")
     def test_delete_full_modules_async(self):
         extra = {
             'global': {
@@ -345,11 +356,15 @@ class TestAnsibleOpenStackOutput (unittest.TestCase, TestAnsibleProvider):
         playbook = self.get_ansible_delete_output_from_file(copy.deepcopy(self.DEFAULT_TEMPLATE),
                                                   template_filename='examples/tosca-server-example-scalable.yaml', extra=extra)
         self.assertIsNotNone(playbook[0]['tasks'][0]['include_vars'])
-        self.assertIsNotNone(playbook[0]['tasks'][len(playbook[0]['tasks'])-1]['file'])
+        self.assertIsNotNone(playbook[4]['tasks'][0]['file'])
         module_names = ['os_floating_ip','os_server','os_port','os_security_group']
         delete_task_counter = 0
         async_task_counter = 0
-        for task in playbook[0]['tasks']:
+        tasks = []
+        for play in playbook:
+            for task in play['tasks']:
+                tasks.append(task)
+        for task in tasks:
             if task.get('name') is not None:
                 modules = [task.get(name)['state'] for name in module_names if task.get(name) is not None]
                 if modules:
@@ -385,7 +400,10 @@ class TestAnsibleOpenStackOutput (unittest.TestCase, TestAnsibleProvider):
 
         self.assertIsNotNone(next(iter(playbook), {}).get('tasks'))
 
-        tasks = playbook[0]['tasks']
+        tasks = []
+        for play in playbook:
+            for task in play['tasks']:
+                tasks.append(task)
         self.check_public_address(tasks, "10.100.115.15")
         self.check_private_address(tasks, "192.168.12.25")
 
