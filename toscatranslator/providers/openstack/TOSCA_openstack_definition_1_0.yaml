@@ -396,7 +396,7 @@ node_types:
     properties:
       auto_ip:
         type: boolean
-        required: false
+        default: false
       boot_from_volume:
         type: boolean
         default: false

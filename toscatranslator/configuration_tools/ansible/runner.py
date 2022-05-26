@@ -7,6 +7,8 @@ from toscatranslator.common.utils import get_random_int
 from cotea.runner import runner
 from cotea.arguments_maker import argument_maker
 
+from threading import Thread
+
 TMP_DIR = '/tmp/clouni'
 
 
@@ -18,15 +20,17 @@ def run_ansible(ansible_playbook, artifacts_directory):
     """
     random_id = get_random_int(1000, 9999)
     os.makedirs(TMP_DIR, exist_ok=True)
-    tmp_current_dir = os.path.join(TMP_DIR, str(random_id))
-    os.makedirs(tmp_current_dir)
+    tmp_current_dir = os.path.join(TMP_DIR)
+    if not os.path.isdir(TMP_DIR):
+        os.makedirs(tmp_current_dir)
     playbook_path = os.path.join(tmp_current_dir, 'ansible_playbook.yaml')
     with open(playbook_path, 'w') as playbook_file:
         playbook_file.write(yaml.dump(ansible_playbook, default_flow_style=False, sort_keys=False))
 
     if not os.path.isabs(artifacts_directory):
         tmp_artifacts_directory = os.path.join(tmp_current_dir, artifacts_directory)
-        os.makedirs(tmp_artifacts_directory)
+        if not os.path.isdir(tmp_artifacts_directory):
+            os.makedirs(tmp_artifacts_directory)
         copy_tree(artifacts_directory, tmp_artifacts_directory)
 
     am = argument_maker()
@@ -44,3 +48,13 @@ def run_ansible(ansible_playbook, artifacts_directory):
             r.run_next_task()
 
     r.finish_ansible()
+
+
+def run_and_finish(ansible_playbook, artifacts_directory, node, graph):
+    run_ansible(ansible_playbook, artifacts_directory)
+    graph.done(node)
+
+def parallel_run_ansible(ansible_playbook, artifacts_directory, node, graph):
+    thread = Thread(target=run_and_finish, args=(ansible_playbook, artifacts_directory, node, graph))
+    thread.start()
+    thread.join()

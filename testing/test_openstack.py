@@ -89,7 +89,7 @@ class TestAnsibleOpenStackOutput (unittest.TestCase, TestAnsibleProvider):
         file_path = os.path.join('examples', 'tosca-network-and-server-example.yaml')
         template = self.read_template(file_path)
         playbook = self.get_ansible_create_output(template, file_path, delete_template=False)
-        self.assertEqual(len(playbook), 6)
+        self.assertEqual(len(playbook), 5)
         for elem in playbook:
             self.assertIsInstance(elem, dict)
             self.assertIsNotNone(elem['tasks'])
@@ -176,7 +176,7 @@ class TestAnsibleOpenStackOutput (unittest.TestCase, TestAnsibleProvider):
     def test_server_name(self):
         template = copy.deepcopy(self.DEFAULT_TEMPLATE)
         playbook = self.get_ansible_create_output(template)
-        self.assertEqual(len(playbook), 3)
+        self.assertEqual(len(playbook), 2)
         for play in playbook:
             self.assertIsInstance(play, dict)
             self.assertIsNotNone(play['tasks'])

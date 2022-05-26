@@ -8,7 +8,7 @@ from toscatranslator.providers.common.provider_configuration import ProviderConf
 from toscatranslator.configuration_tools.common.configuration_tool import ConfigurationTool, \
     OUTPUT_IDS, OUTPUT_ID_RANGE_START, OUTPUT_ID_RANGE_END
 
-from toscatranslator.configuration_tools.ansible.runner import run_ansible
+from toscatranslator.configuration_tools.ansible.runner import run_ansible, parallel_run_ansible
 
 import copy, sys, yaml, os, itertools, six, logging
 from shutil import copyfile
@@ -39,7 +39,7 @@ class AnsibleConfigurationTool(ConfigurationTool):
         for param in REQUIRED_CONFIG_PARAMS:
             setattr(self, param, main_config[param])
 
-    def to_dsl(self, provider, operations_graph, cluster_name, is_delete, if_run=False, artifacts=None,
+    def to_dsl(self, provider, operations_graph, reversed_operations_graph, cluster_name, is_delete, if_run=False, artifacts=None,
                target_directory=None, inputs=None, outputs=None, extra=None):
 
         if artifacts is None:
@@ -54,23 +54,18 @@ class AnsibleConfigurationTool(ConfigurationTool):
         provider_config = ProviderConfiguration(provider)
         ansible_config = provider_config.get_section(ANSIBLE)
         node_filter_config = provider_config.get_subsection(ANSIBLE, NODE_FILTER)
-        provider_async_default_delay = ansible_config.get(ASYNC_DEFAULT_DELAY) or \
-                                       self.async_default_delay
-        provider_async_default_retries = ansible_config.get(ASYNC_DEFAULT_RETRIES) or \
-                                         self.async_default_retries
         provider_async_default_time = ansible_config.get(ASYNC_DEFAULT_TIME) or self.async_default_time
         extra_async = self.get_extra_async(extra, provider_async_default_time)
 
-        #prev_dep_order = 0
         ids_file_path = self.rap_ansible_variable(
             "playbook_dir") + '/id_vars_' + cluster_name + self.get_artifact_extension()
         self.init_global_variables(inputs)
-        elements_queue = self.init_queue(operations_graph)
+        elements = TopologicalSorter(self.init_graph(operations_graph))
 
         if is_delete:
-            elements_queue.reverse()
+            elements = TopologicalSorter(self.init_graph(reversed_operations_graph))
 
-        check_async_tasks = []
+        elements.prepare()
         ansible_playbook = []
 
         ansible_task_for_elem = dict(
@@ -78,94 +73,80 @@ class AnsibleConfigurationTool(ConfigurationTool):
             hosts=self.default_host,
             tasks=[]
         )
-        if not is_delete:
-            ansible_task_for_elem['tasks'].append(copy.deepcopy({FILE: {
-                PATH: ids_file_path,
-                STATE: 'absent'}}))
-            ansible_task_for_elem['tasks'].append(copy.deepcopy({FILE: {
-                PATH: ids_file_path,
-                STATE: 'touch'}}))
-            ansible_playbook.append(ansible_task_for_elem)
-
-        for v in elements_queue:
-            if is_delete:
-                if v.operation == 'create':
-                    v.operation = 'delete'
-                else:
-                    continue
-            extra_tasks_for_delete = self.get_extra_tasks_for_delete(v.name.replace('-', '_'), ids_file_path)
-            description_prefix, module_prefix = self.get_module_prefixes(is_delete, ansible_config)
-            description_by_type = self.ansible_description_by_type(v.type_name, description_prefix)
-            module_by_type = self.ansible_module_by_type(v.type_name, module_prefix)
-            ansible_task_for_elem = dict(
-                name='',
-                hosts=self.default_host,
-                tasks=[]
-            )
-            if v.operation == 'delete':
-                if not v.is_software_component:
-                    ansible_task_for_elem['tasks'].append(copy.deepcopy({'include_vars': ids_file_path}))
-                    ansible_tasks = self.get_ansible_tasks_for_delete(v, description_by_type, module_by_type,
-                                                                      additional_args=extra)
-                    ansible_tasks.extend(self.get_ansible_tasks_from_interface(v, target_directory, is_delete, v.operation,
-                                                                               additional_args=extra))
-                    tasks_for_async = self.get_ansible_tasks_for_async(v, description_prefix,
-                                                                       provider_async_default_retries,
-                                                                       provider_async_default_delay)
-                    if not any(item == module_by_type for item in
-                                          ansible_config.get('modules_skipping_delete', [])):
-                        if extra_async != False:
-                            # придумать че тут делать
-                            check_async_tasks.extend(copy.deepcopy(tasks_for_async))
-                        ansible_task_for_elem['tasks'].extend(copy.deepcopy(ansible_tasks))
+        first = True
+        while elements.is_active():
+            for v in elements.get_ready():
+                if is_delete:
+                    if v.operation == 'create':
+                        v.operation = 'delete'
+                    else:
+                        elements.done(v)
+                        continue
+                extra_tasks_for_delete = self.get_extra_tasks_for_delete(v.name.replace('-', '_'), ids_file_path)
+                description_prefix, module_prefix = self.get_module_prefixes(is_delete, ansible_config)
+                description_by_type = self.ansible_description_by_type(v.type_name, description_prefix)
+                module_by_type = self.ansible_module_by_type(v.type_name, module_prefix)
+                ansible_task_for_elem = dict(
+                    name='',
+                    hosts=self.default_host,
+                    tasks=[]
+                )
+                if not is_delete and first:
+                    first = False
+                    ansible_task_for_elem['tasks'].append(copy.deepcopy({FILE: {
+                        PATH: ids_file_path,
+                        STATE: 'absent'}}))
+                    ansible_task_for_elem['tasks'].append(copy.deepcopy({FILE: {
+                        PATH: ids_file_path,
+                        STATE: 'touch'}}))
+                if v.operation == 'delete':
                     ansible_task_for_elem[
                         'name'] = description_prefix + ' ' + provider + ' cluster: ' + v.name + ':' + v.operation
-                    if extra_async != False:
-                        check_async_tasks.extend(extra_tasks_for_delete)
-                        ansible_task_for_elem['tasks'].extend(check_async_tasks)
-                    else:
+                    # подумать а что если там будет явно задана операция delete в interfaces?
+                    if not v.is_software_component:
+                        ansible_task_for_elem['tasks'].append(copy.deepcopy({'include_vars': ids_file_path}))
+                        ansible_tasks = self.get_ansible_tasks_for_delete(v, description_by_type, module_by_type,
+                                                                          additional_args=extra)
+                        ansible_tasks.extend(self.get_ansible_tasks_from_interface(v, target_directory, is_delete, v.operation,
+                                                                                   additional_args=extra))
+                        if not any(item == module_by_type for item in
+                                              ansible_config.get('modules_skipping_delete', [])):
+                            ansible_task_for_elem['tasks'].extend(copy.deepcopy(ansible_tasks))
                         ansible_task_for_elem['tasks'].extend(copy.deepcopy(extra_tasks_for_delete))
-            elif v.operation == 'create':
-                if not v.is_software_component:
-                    ansible_task_for_elem['name'] = description_prefix + ' ' + provider + ' cluster: ' + v.name
-                    ansible_task_for_elem['tasks'] = copy.deepcopy(self.get_ansible_tasks_for_inputs(inputs))
-                    for val in self.global_operations_queue:
-                        if v.name in val:
-                            ansible_task_for_elem['tasks'].extend(
-                                copy.deepcopy(self.get_ansible_tasks_from_operation(val, target_directory)))
-                    ansible_tasks = self.get_ansible_tasks_for_create(v, target_directory, node_filter_config,
-                                                                              description_by_type, module_by_type,
-                                                                              additional_args=extra)
+                elif v.operation == 'create':
+                    if not v.is_software_component:
+                        ansible_task_for_elem['name'] = description_prefix + ' ' + provider + ' cluster: ' + v.name
+                        ansible_task_for_elem['tasks'].extend(copy.deepcopy(self.get_ansible_tasks_for_inputs(inputs)))
+                        for val in self.global_operations_queue:
+                            if v.name in val:
+                                ansible_task_for_elem['tasks'].extend(
+                                    copy.deepcopy(self.get_ansible_tasks_from_operation(val, target_directory)))
+                        ansible_tasks = self.get_ansible_tasks_for_create(v, target_directory, node_filter_config,
+                                                                                  description_by_type, module_by_type,
+                                                                                  additional_args=extra)
 
-                    ansible_tasks.extend(self.get_ansible_tasks_from_interface(v, target_directory, is_delete, v.operation,
-                                                              additional_args=extra))
+                        ansible_tasks.extend(self.get_ansible_tasks_from_interface(v, target_directory, is_delete, v.operation,
+                                                                  additional_args=extra))
 
-                    tasks_for_async = self.get_ansible_tasks_for_async(v, description_prefix,
-                                                                       provider_async_default_retries,
-                                                                       provider_async_default_delay)
-                    if extra_async != False:
-                        # придумать че тут делать
-                       check_async_tasks.extend(copy.deepcopy(tasks_for_async))
-                    ansible_task_for_elem['tasks'].extend(copy.deepcopy(ansible_tasks))
-
-                    if extra_async != False:
-                        check_async_tasks.extend(extra_tasks_for_delete)
-                        ansible_task_for_elem['tasks'].extend(copy.deepcopy(check_async_tasks))
-                    else:
+                        ansible_task_for_elem['tasks'].extend(copy.deepcopy(ansible_tasks))
                         ansible_task_for_elem['tasks'].extend(copy.deepcopy(extra_tasks_for_delete))
 
+                    else:
+                        ansible_task_for_elem['name'] = description_prefix + ' ' + provider + ' cluster: ' + v.name
+                        ansible_task_for_elem['hosts'] = v.host
+                        ansible_task_for_elem['tasks'].extend(copy.deepcopy(
+                            self.get_ansible_tasks_from_interface(v, target_directory, is_delete, v.operation,
+                                                                  additional_args=extra)))
                 else:
-                    ansible_task_for_elem['name'] = description_prefix + ' ' + provider + ' cluster: ' + v.name
-                    ansible_task_for_elem['hosts'] = v.host
-                    ansible_task_for_elem['tasks'] = copy.deepcopy(
+                    ansible_task_for_elem['name'] = description_prefix + ' ' + provider + ' cluster: ' + v.name + ':' + v.operation
+                    ansible_task_for_elem['tasks'].extend(copy.deepcopy(
                         self.get_ansible_tasks_from_interface(v, target_directory, is_delete, v.operation,
-                                                              additional_args=extra))
-            else:
-                ansible_task_for_elem['name'] = description_prefix + ' ' + provider + ' cluster: ' + v.name + ':' + v.operation
-                ansible_task_for_elem['tasks'] = copy.deepcopy(
-                    self.get_ansible_tasks_from_interface(v, target_directory, is_delete, v.operation,
-                                                          additional_args=extra))
-            ansible_playbook.append(ansible_task_for_elem)
+                                                              additional_args=extra)))
+                ansible_playbook.append(ansible_task_for_elem)
+                if extra_async and if_run:
+                    parallel_run_ansible([ansible_task_for_elem], target_directory, v, elements)
+                else:
+                    elements.done(v)
         if is_delete:
             ansible_task_for_elem = dict(
                 name='Renew id_vars_example.yaml',
@@ -175,8 +156,10 @@ class AnsibleConfigurationTool(ConfigurationTool):
             ansible_task_for_elem['tasks'].append(copy.deepcopy({FILE: {
                 PATH: ids_file_path,
                 STATE: 'absent'}}))
+            if extra_async and if_run:
+                parallel_run_ansible([ansible_task_for_elem], target_directory, v, elements)
             ansible_playbook.append(ansible_task_for_elem)
-        if if_run:
+        if if_run and not extra_async:
             run_ansible(ansible_playbook, target_directory)
         return yaml.dump(ansible_playbook, default_flow_style=False, sort_keys=False)
 
@@ -194,23 +177,25 @@ class AnsibleConfigurationTool(ConfigurationTool):
             extra_async = int(async_default_time)
         return extra_async
 
-    def init_queue(self, operations_graph):
-        nodes_relationships_queue = []
+    def init_graph(self, operations_graph):
         ts = TopologicalSorter(operations_graph)
-        for templ in ts.static_order():
-            nodes_relationships_queue.append(templ)
-        elements_queue = []
-        for v in nodes_relationships_queue:
+        elements_queue = [*ts.static_order()]
+
+        for v in elements_queue:
             self.gather_global_operations(v)
         for op_name, op in self.global_operations_info.items():
             self.global_operations_info[op_name] = self.replace_all_get_functions(op)
-        for v in nodes_relationships_queue:
+        for v in elements_queue:
             (_, element_type, _) = utils.tosca_type_parse(v.type)
             if element_type == NODES:
                 new_conf_args = self.replace_all_get_functions(v.configuration_args)
                 v.configuration_args = new_conf_args
-                elements_queue.append(v)
-        return elements_queue
+            else:
+                del operations_graph[v]
+                for key in operations_graph:
+                    if v in operations_graph[key]:
+                        operations_graph[key].remove(v)
+        return operations_graph
 
     def replace_all_get_functions(self, data):
         if isinstance(data, dict):
@@ -550,47 +535,6 @@ class AnsibleConfigurationTool(ConfigurationTool):
                 copyfile(filename, target_filename)
                 logging.info(
                     "File \'%s\' was successfully copied to the directory \'%s\'" % (filename, target_directory))
-
-    def get_ansible_tasks_for_async(self, element_object, description_prefix, retries=None, delay=None):
-        jid = '.'.join([element_object.name, 'ansible_job_id'])
-        results_var = '.'.join([element_object.name, 'results'])
-        tasks = [
-            {
-                NAME: 'Checking ' + element_object.name + ' ' + description_prefix.lower() + 'd',
-                'async_status': 'jid=' + self.rap_ansible_variable(jid),
-                REGISTER: 'async_result_status',
-                'until': 'async_result_status.finished',
-                'retries': retries,
-                'delay': delay,
-                'when': jid + IS_DEFINED
-            },
-            {
-                NAME: 'Checking ' + element_object.name + ' ' + description_prefix.lower() + 'd',
-                'async_status': 'jid=' + self.rap_ansible_variable(results_var + '[item|int].ansible_job_id'),
-                REGISTER: 'async_result_status_list',
-                'until': 'async_result_status_list.finished or async_result_status_list.results[item].finished | default(0)',
-                'retries': retries,
-                'delay': delay,
-                # 'with_items': self.rap_ansible_variable(element_object.name + '.results | default([])'),
-                'with_sequence': 'start=0 end=' + self.rap_ansible_variable(results_var + '|length - 1'),
-                'when': results_var + IS_DEFINED
-            },
-            {
-                NAME: 'Saving ' + element_object.name + ' result',
-                SET_FACT: {
-                    element_object.name: self.rap_ansible_variable('async_result_status')
-                },
-                'when': jid + IS_DEFINED
-            },
-            {
-                NAME: 'Saving ' + element_object.name + ' result',
-                SET_FACT: {
-                    element_object.name: self.rap_ansible_variable('async_result_status_list')
-                },
-                'when': results_var + IS_DEFINED
-            }
-        ]
-        return tasks
 
     def get_extra_tasks_for_delete(self, task_name, path):
         ansible_tasks_for_create = []

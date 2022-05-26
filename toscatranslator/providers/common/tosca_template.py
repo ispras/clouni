@@ -89,7 +89,7 @@ class ProviderToscaTemplate(object):
         self.provider_relations = self._provider_relations()
 
         # self.provider_node_names_by_priority = self._sort_nodes_by_priority()
-        self.provider_operations = self.sort_nodes_and_operations_by_graph_dependency()
+        self.provider_operations, self.reversed_provider_operations = self.sort_nodes_and_operations_by_graph_dependency()
 
     def _provider_nodes(self):
         """
@@ -175,12 +175,17 @@ class ProviderToscaTemplate(object):
             templ.operation = elem.split(':')[1]
             templ_mappling[elem] = templ
         templ_dependencies = {}
+        reversed_templ_dependencies = {}
         for key, value in new_dependencies.items():
             new_set = set()
             for elem in value:
                 new_set.add(templ_mappling[elem])
+                if templ_mappling[elem] not in reversed_templ_dependencies:
+                    reversed_templ_dependencies[templ_mappling[elem]] = {templ_mappling[key]}
+                elif templ_mappling[key] not in reversed_templ_dependencies[templ_mappling[elem]]:
+                    reversed_templ_dependencies[templ_mappling[elem]].add(templ_mappling[key])
             templ_dependencies[templ_mappling[key]] = new_set
-        return templ_dependencies
+        return templ_dependencies, reversed_templ_dependencies
 
     def add_template_dependency(self, node_name, dependency_name):
         if not dependency_name == SELF and not node_name == dependency_name:

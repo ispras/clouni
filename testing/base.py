@@ -353,14 +353,18 @@ class TestAnsibleProvider(BaseAnsibleProvider):
             }
             playbook = self.get_ansible_create_output(template)
 
-            self.assertEqual(len(playbook), 4)
+            self.assertEqual(len(playbook), 3)
             for play in playbook:
                 self.assertIsNotNone(play.get('tasks'))
 
-            self.assertEqual(playbook[2].get('hosts'), self.NODE_NAME)
-            tasks2 = playbook[2]['tasks']
-
-            tasks1 = playbook[0]['tasks'] + playbook[1]['tasks'] + playbook[3]['tasks']
+            if playbook[1].get('hosts') == self.NODE_NAME:
+                tasks2 = playbook[1]['tasks']
+                tasks1 = playbook[0]['tasks'] + playbook[2]['tasks']
+            elif playbook[2].get('hosts') == self.NODE_NAME:
+                tasks2 = playbook[2]['tasks']
+                tasks1 = playbook[0]['tasks'] + playbook[1]['tasks']
+            else:
+                self.assertTrue(False)
             self.check_host_of_software_component(tasks1, tasks2)
 
     def test_get_input(self):
