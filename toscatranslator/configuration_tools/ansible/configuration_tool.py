@@ -1,3 +1,6 @@
+import time
+from multiprocessing import Queue
+
 from graphlib import TopologicalSorter
 
 from toscatranslator.common import utils
@@ -8,7 +11,8 @@ from toscatranslator.providers.common.provider_configuration import ProviderConf
 from toscatranslator.configuration_tools.common.configuration_tool import ConfigurationTool, \
     OUTPUT_IDS, OUTPUT_ID_RANGE_START, OUTPUT_ID_RANGE_END
 
-from toscatranslator.configuration_tools.ansible.runner import run_ansible, parallel_run_ansible
+from toscatranslator.configuration_tools.ansible.runner import run_ansible, parallel_run_ansible, prepare_for_run
+from multiprocessing.connection import Listener
 
 import copy, sys, yaml, os, itertools, six, logging
 from shutil import copyfile
@@ -20,6 +24,7 @@ ANSIBLE_RESERVED_KEYS = \
 REQUIRED_CONFIG_PARAMS = (ASYNC_DEFAULT_TIME, ASYNC_DEFAULT_RETRIES, ASYNC_DEFAULT_DELAY, INITIAL_ARTIFACTS_DIRECTORY,
                           DEFAULT_HOST) = ("async_default_time", "async_default_retries", "async_default_delay",
                                            "initial_artifacts_directory", "default_host")
+
 
 class AnsibleConfigurationTool(ConfigurationTool):
     TOOL_NAME = ANSIBLE
@@ -39,9 +44,9 @@ class AnsibleConfigurationTool(ConfigurationTool):
         for param in REQUIRED_CONFIG_PARAMS:
             setattr(self, param, main_config[param])
 
-    def to_dsl(self, provider, operations_graph, reversed_operations_graph, cluster_name, is_delete, if_run=False, artifacts=None,
+    def to_dsl(self, provider, operations_graph, reversed_operations_graph, cluster_name, is_delete, if_run=False,
+               artifacts=None,
                target_directory=None, inputs=None, outputs=None, extra=None):
-
         if artifacts is None:
             artifacts = []
         if target_directory is None:
@@ -54,27 +59,42 @@ class AnsibleConfigurationTool(ConfigurationTool):
         provider_config = ProviderConfiguration(provider)
         ansible_config = provider_config.get_section(ANSIBLE)
         node_filter_config = provider_config.get_subsection(ANSIBLE, NODE_FILTER)
-        provider_async_default_time = ansible_config.get(ASYNC_DEFAULT_TIME) or self.async_default_time
-        extra_async = self.get_extra_async(extra, provider_async_default_time)
+        extra_async = self.get_extra_async(extra)
 
         ids_file_path = self.rap_ansible_variable(
             "playbook_dir") + '/id_vars_' + cluster_name + self.get_artifact_extension()
         self.init_global_variables(inputs)
-        elements = TopologicalSorter(self.init_graph(operations_graph))
+
+        operations_graph = self.init_graph(operations_graph)
+        elements = TopologicalSorter(operations_graph)
 
         if is_delete:
-            elements = TopologicalSorter(self.init_graph(reversed_operations_graph))
+            reversed_operations_graph = self.init_graph(reversed_operations_graph)
+            elements = TopologicalSorter(reversed_operations_graph)
 
         elements.prepare()
         ansible_playbook = []
-
-        ansible_task_for_elem = dict(
-            name='Renew id_vars_example.yaml',
-            hosts=self.default_host,
-            tasks=[]
-        )
+        if if_run:
+            prepare_for_run(target_directory)
+            if extra_async:
+                q = Queue()
+                active = []
         first = True
+
         while elements.is_active():
+            if if_run and extra_async:
+                node_name = None
+                try:
+                    node_name = q.get_nowait()
+                except:
+                    time.sleep(1)
+                # не очень удобно передавать через очередь сообщений имя,
+                # но обьекты там копируются и передать их по нормальному нереально
+                if node_name is not None:
+                    for node in active:
+                        if node.name == node_name:
+                            active.remove(node)
+                            elements.done(node)
             for v in elements.get_ready():
                 if is_delete:
                     if v.operation == 'create':
@@ -107,10 +127,11 @@ class AnsibleConfigurationTool(ConfigurationTool):
                         ansible_task_for_elem['tasks'].append(copy.deepcopy({'include_vars': ids_file_path}))
                         ansible_tasks = self.get_ansible_tasks_for_delete(v, description_by_type, module_by_type,
                                                                           additional_args=extra)
-                        ansible_tasks.extend(self.get_ansible_tasks_from_interface(v, target_directory, is_delete, v.operation,
-                                                                                   additional_args=extra))
+                        ansible_tasks.extend(
+                            self.get_ansible_tasks_from_interface(v, target_directory, is_delete, v.operation,
+                                                                  additional_args=extra))
                         if not any(item == module_by_type for item in
-                                              ansible_config.get('modules_skipping_delete', [])):
+                                   ansible_config.get('modules_skipping_delete', [])):
                             ansible_task_for_elem['tasks'].extend(copy.deepcopy(ansible_tasks))
                         ansible_task_for_elem['tasks'].extend(copy.deepcopy(extra_tasks_for_delete))
                 elif v.operation == 'create':
@@ -122,10 +143,11 @@ class AnsibleConfigurationTool(ConfigurationTool):
                                 ansible_task_for_elem['tasks'].extend(
                                     copy.deepcopy(self.get_ansible_tasks_from_operation(val, target_directory)))
                         ansible_tasks = self.get_ansible_tasks_for_create(v, target_directory, node_filter_config,
-                                                                                  description_by_type, module_by_type,
-                                                                                  additional_args=extra)
+                                                                          description_by_type, module_by_type,
+                                                                          additional_args=extra)
 
-                        ansible_tasks.extend(self.get_ansible_tasks_from_interface(v, target_directory, is_delete, v.operation,
+                        ansible_tasks.extend(
+                            self.get_ansible_tasks_from_interface(v, target_directory, is_delete, v.operation,
                                                                   additional_args=extra))
 
                         ansible_task_for_elem['tasks'].extend(copy.deepcopy(ansible_tasks))
@@ -138,13 +160,15 @@ class AnsibleConfigurationTool(ConfigurationTool):
                             self.get_ansible_tasks_from_interface(v, target_directory, is_delete, v.operation,
                                                                   additional_args=extra)))
                 else:
-                    ansible_task_for_elem['name'] = description_prefix + ' ' + provider + ' cluster: ' + v.name + ':' + v.operation
+                    ansible_task_for_elem[
+                        'name'] = description_prefix + ' ' + provider + ' cluster: ' + v.name + ':' + v.operation
                     ansible_task_for_elem['tasks'].extend(copy.deepcopy(
                         self.get_ansible_tasks_from_interface(v, target_directory, is_delete, v.operation,
                                                               additional_args=extra)))
                 ansible_playbook.append(ansible_task_for_elem)
                 if extra_async and if_run:
-                    parallel_run_ansible([ansible_task_for_elem], target_directory, v, elements)
+                    parallel_run_ansible([ansible_task_for_elem], v, q)
+                    active.append(v)
                 else:
                     elements.done(v)
         if is_delete:
@@ -157,13 +181,13 @@ class AnsibleConfigurationTool(ConfigurationTool):
                 PATH: ids_file_path,
                 STATE: 'absent'}}))
             if extra_async and if_run:
-                parallel_run_ansible([ansible_task_for_elem], target_directory, v, elements)
+                run_ansible(ansible_playbook)
             ansible_playbook.append(ansible_task_for_elem)
         if if_run and not extra_async:
-            run_ansible(ansible_playbook, target_directory)
+            run_ansible(ansible_playbook)
         return yaml.dump(ansible_playbook, default_flow_style=False, sort_keys=False)
 
-    def get_extra_async(self, extra, async_default_time):
+    def get_extra_async(self, extra):
         """
         Check if deploy asynchronously
         :param extra: extra passed by user
@@ -173,8 +197,8 @@ class AnsibleConfigurationTool(ConfigurationTool):
         if not extra:
             extra = dict()
         extra_async = extra.get('global', {}).get('async', False)
-        if extra_async == True:
-            extra_async = int(async_default_time)
+        if extra_async:
+            del extra['global']['async']
         return extra_async
 
     def init_graph(self, operations_graph):
@@ -372,7 +396,8 @@ class AnsibleConfigurationTool(ConfigurationTool):
                  'when': task_name + '_var' + '.changed'})
         return ansible_tasks
 
-    def get_ansible_tasks_from_interface(self, element_object, target_directory, is_delete, operation, additional_args=None):
+    def get_ansible_tasks_from_interface(self, element_object, target_directory, is_delete, operation,
+                                         additional_args=None):
         if additional_args is None:
             additional_args = {}
         else:
