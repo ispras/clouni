@@ -1,3 +1,5 @@
+import six
+
 from grpc_clouni.api_pb2 import ClouniResponse, ClouniRequest
 import grpc_clouni.api_pb2_grpc as api_pb2_grpc
 import grpc
@@ -36,10 +38,6 @@ def main(args=None):
                         default="ansible",
                         help="Configuration tool which DSL the template would be translated to. "
                              "Default value = \"ansible\"")
-    parser.add_argument('--async',
-                        action='store_true',
-                        default=False,
-                        help='Provider nodes should be created asynchronously')
     parser.add_argument('--extra',
                         default=[],
                         metavar="KEY=VALUE",
@@ -73,7 +71,6 @@ def main(args=None):
     else:
         request.provider = ""
     request.configuration_tool = args.configuration_tool
-    request.async = args.async
 
     extra = {}
     for i in args.extra:
@@ -81,8 +78,6 @@ def main(args=None):
         if len(i_splitted) < 2:
             raise Exception('Failed parsing parameter \'--extra\', required \'key=value\' format')
         extra.update({i_splitted[0]: i_splitted[1]})
-    if args.async and not extra.get('async'):
-        extra['async'] = args.async
 
     for k, v in extra.items():
         if isinstance(v, six.string_types):

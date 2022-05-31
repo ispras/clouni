@@ -47,16 +47,6 @@ class TestAnsibleOpenStackOutput (unittest.TestCase, TestAnsibleProvider):
         file_diff_path = os.path.join('examples', 'tosca-server-example-ansible-delete-openstack.yaml')
         self.diff_files(file_output_path, file_diff_path)
 
-    def test_full_async_translating(self):
-        file_path = os.path.join('examples', 'tosca-server-example.yaml')
-        file_output_path = os.path.join('examples', 'tosca-server-example-output-async.yaml')
-        shell.main(['--template-file', file_path, '--cluster-name', 'test', '--provider', self.PROVIDER, '--async',
-                    '--extra', 'retries=3', 'async=60', 'poll=0', 'delay=1',
-                    '--output-file', file_output_path])
-
-        file_diff_path = os.path.join('examples', 'tosca-server-example-ansible-async-openstack.yaml')
-        self.diff_files(file_output_path, file_diff_path)
-
     def test_full_translating_network(self):
         file_path = os.path.join('examples', 'tosca-network-and-port-example.yaml')
         file_output_path = os.path.join('examples', 'tosca-network-and-port-example-output.yaml')
@@ -73,16 +63,6 @@ class TestAnsibleOpenStackOutput (unittest.TestCase, TestAnsibleProvider):
                     '--output-file', file_output_path])
 
         file_diff_path = os.path.join('examples', 'tosca-network-and-port-example-ansible-delete-openstack.yaml')
-        self.diff_files(file_output_path, file_diff_path)
-
-    def test_full_async_translating_network(self):
-        file_path = os.path.join('examples', 'tosca-network-and-port-example.yaml')
-        file_output_path = os.path.join('examples', 'tosca-network-and-port-example-output-async.yaml')
-        shell.main(['--template-file', file_path, '--cluster-name', 'test', '--provider', self.PROVIDER, '--async',
-                    '--extra', 'retries=3', 'async=60', 'poll=0', 'delay=1',
-                    '--output-file', file_output_path])
-
-        file_diff_path = os.path.join('examples', 'tosca-network-and-port-example-ansible-async-openstack.yaml')
         self.diff_files(file_output_path, file_diff_path)
 
     def test_network_with_compute(self):
@@ -168,11 +148,6 @@ class TestAnsibleOpenStackOutput (unittest.TestCase, TestAnsibleProvider):
         subnet_network_name = task[SUBNET_MODULE_NAME]['network_name']
         self.assertEqual(subnet_network_name, network_name)
 
-    def test_delete_full_async_translating(self):
-        file_path = os.path.join('examples', 'tosca-server-example.yaml')
-        shell.main(['--template-file', file_path, '--cluster-name', 'test', '--provider', self.PROVIDER, '--async',
-                    '--delete', '--extra', 'retries=3', 'async=60', 'poll=0', 'delay=1'])
-
     def test_server_name(self):
         template = copy.deepcopy(self.DEFAULT_TEMPLATE)
         playbook = self.get_ansible_create_output(template)
@@ -188,17 +163,6 @@ class TestAnsibleOpenStackOutput (unittest.TestCase, TestAnsibleProvider):
         self.assertIsNotNone(tasks[2][SERVER_MODULE_NAME])
         server = tasks[2][SERVER_MODULE_NAME]
         self.assertEqual(server['name'], self.NODE_NAME)
-
-    def test_async_meta(self):
-        extra={
-            'global': {
-                'async': True,
-                'retries': 3,
-                'delay': 1,
-                'poll': 0
-            }
-        }
-        super(TestAnsibleOpenStackOutput, self).test_meta(extra=extra)
 
     def test_meta(self, extra=None):
         super(TestAnsibleOpenStackOutput, self).test_meta(extra=extra)
@@ -343,37 +307,6 @@ class TestAnsibleOpenStackOutput (unittest.TestCase, TestAnsibleProvider):
                 modules = [task.get(name)['state'] for name in module_names if task.get(name) is not None]
                 self.assertEqual(modules[0], 'absent')
 
-    @unittest.skip("async will be deleted")
-    def test_delete_full_modules_async(self):
-        extra = {
-            'global': {
-                'async': True,
-                'retries': 3,
-                'delay': 1,
-                'poll': 0
-            }
-        }
-        playbook = self.get_ansible_delete_output_from_file(copy.deepcopy(self.DEFAULT_TEMPLATE),
-                                                  template_filename='examples/tosca-server-example-scalable.yaml', extra=extra)
-        self.assertIsNotNone(playbook[0]['tasks'][0]['include_vars'])
-        self.assertIsNotNone(playbook[4]['tasks'][0]['file'])
-        module_names = ['os_floating_ip','os_server','os_port','os_security_group']
-        delete_task_counter = 0
-        async_task_counter = 0
-        tasks = []
-        for play in playbook:
-            for task in play['tasks']:
-                tasks.append(task)
-        for task in tasks:
-            if task.get('name') is not None:
-                modules = [task.get(name)['state'] for name in module_names if task.get(name) is not None]
-                if modules:
-                    delete_task_counter+=1
-                    self.assertEqual(modules[0], 'absent')
-                else:
-                    async_task_counter+=1
-        self.assertEqual(async_task_counter, delete_task_counter*2)
-
     def test_os_capabilities(self):
         super(TestAnsibleOpenStackOutput, self).test_os_capabilities()
 
@@ -484,6 +417,7 @@ class TestAnsibleOpenStackOutput (unittest.TestCase, TestAnsibleProvider):
                 checked = False
         self.assertTrue(checked)
 
+    @unittest.skip
     def test_get_attribute(self):
         super(TestAnsibleOpenStackOutput, self).test_get_attribute()
 
@@ -495,6 +429,7 @@ class TestAnsibleOpenStackOutput (unittest.TestCase, TestAnsibleProvider):
                 checked = False
         self.assertTrue(checked)
 
+    @unittest.skip
     def test_outputs(self):
         super(TestAnsibleOpenStackOutput, self).test_outputs()
 

@@ -16,7 +16,7 @@ import json, os, sys, yaml
 REQUIRED_CONFIGURATION_PARAMS = (TOSCA_ELEMENTS_DEFINITION_FILE, DEFAULT_ARTIFACTS_DIRECTORY, TOSCA_ELEMENTS_MAP_FILE)
 
 
-def translate(template_file, validate_only, provider, configuration_tool, cluster_name, is_delete=False, if_run=False,
+def translate(template_file, validate_only, provider, configuration_tool, cluster_name, is_delete=False,
               a_file=True, extra=None, log_level='info'):
     """
     Main function, is called by different shells, i.e. bash, Ansible module, grpc
@@ -147,11 +147,10 @@ def translate(template_file, validate_only, provider, configuration_tool, cluste
     extra_full = utils.deep_update_dict(extra, tosca.extra_configuration_tool_params.get(configuration_tool, {}))
 
     configuration_content = tool.to_dsl(tosca.provider, tosca.provider_operations, tosca.reversed_provider_operations, tosca.cluster_name, is_delete,
-                                        if_run=if_run,
                                         artifacts=tool_artifacts, target_directory=default_artifacts_directory,
                                         inputs=tosca.inputs, outputs=tosca.outputs, extra=extra_full)
-
     return configuration_content
+
 
 
 def generate_artifacts(new_artifacts, directory):

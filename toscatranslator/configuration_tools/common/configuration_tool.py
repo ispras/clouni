@@ -24,7 +24,7 @@ class ConfigurationTool(object):
 
         self.tool_config = ConfigurationToolConfiguration(self.TOOL_NAME)
 
-    def to_dsl(self, provider, nodes_relationships_queue, cluster_name, is_delete, if_run=False, artifacts=None,
+    def to_dsl(self, provider, nodes_relationships_queue, cluster_name, is_delete, artifacts=None,
                target_directory=None, inputs=None, outputs=None, extra=None):
         """
         Generate scenarios for configuration tool to execute
