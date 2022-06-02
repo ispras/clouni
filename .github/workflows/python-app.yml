@@ -40,6 +40,23 @@ jobs:
     - name: Install application
       run: |
         python setup.py install
+
+    - name: Create clouds.yaml
+      run: |
+        cat > /tmp/clouds.yaml << EOF
+        clouds:
+          openstack:
+            auth:
+              auth_url: ${{ secrets.AUTH_URL }}
+              username: ${{ secrets.USERNAME }}
+              password: ${{ secrets.PASSWORD }}
+              project_id: ${{ secrets.PROJECT_ID }}
+              project_name: ${{ secrets.PROJECT_NAME }}
+              user_domain_name: "Default"
+            region_name: "regionOne"
+            interface: "public"
+            identity_api_version: 3
+        EOF
     - name: Test with pytest
       run: |
         python -m unittest discover -s testing -t .
