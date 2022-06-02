@@ -124,7 +124,6 @@ class AnsibleConfigurationTool(ConfigurationTool):
                         if not any(item == module_by_type for item in
                                    ansible_config.get('modules_skipping_delete', [])):
                             ansible_play_for_elem['tasks'].extend(copy.deepcopy(ansible_tasks))
-                        ansible_play_for_elem['tasks'].extend(copy.deepcopy(extra_tasks_for_delete))
                 elif v.operation == 'create':
                     if not v.is_software_component:
                         ansible_play_for_elem['tasks'].extend(copy.deepcopy(self.get_ansible_tasks_for_inputs(inputs)))

@@ -472,3 +472,44 @@ class TestAnsibleProvider(BaseAnsibleProvider):
                 for task in play['tasks']:
                     tasks.append(task)
             self.check_outputs(tasks, testing_value)
+
+    def test_tasks_success(self):
+        if hasattr(self, "check_tasks_success"):
+            NODE_NAME = 'tosca_network_example'
+            template = {
+                TOSCA_DEFINITIONS_VERSION: "tosca_simple_yaml_1_0",
+                TOPOLOGY_TEMPLATE: {
+                    NODE_TEMPLATES: {
+                        NODE_NAME: {
+                            'type': 'tosca.nodes.network.Network',
+                            'properties': {
+                                'network_name': 'test_network',
+                                'cidr': '192.168.56.0/24',
+                                'start_ip': '192.168.56.50',
+                                'end_ip': '192.168.56.200',
+                                'gateway_ip': '192.168.56.1',
+                                'network_type': 'geneve'
+                            }
+                        }
+                    }
+                }
+            }
+            playbook = self.get_ansible_create_output(template)
+
+            assert next(iter(playbook), {}).get('tasks')
+
+            tasks = []
+            for play in playbook:
+                for task in play['tasks']:
+                    tasks.append(task)
+            self.check_tasks_success(tasks)
+
+            playbook = self.get_ansible_delete_output(template)
+
+            assert next(iter(playbook), {}).get('tasks')
+
+            tasks = []
+            for play in playbook:
+                for task in play['tasks']:
+                    tasks.append(task)
+            self.check_tasks_success(tasks)

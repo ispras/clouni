@@ -1,5 +1,7 @@
 import unittest
 
+from yaml import Loader
+
 from testing.base import TestAnsibleProvider
 
 import copy, os, re, yaml
@@ -13,6 +15,7 @@ SEC_RULE_MODULE_NAME = 'os_security_group_rule'
 NETWORK_MODULE_NAME = 'os_network'
 SUBNET_MODULE_NAME = 'os_subnet'
 
+SUCCESS_CHECK_FILE = '/tmp/clouni/successful_tasks.yaml'
 
 class TestAnsibleOpenStackOutput (unittest.TestCase, TestAnsibleProvider):
     PROVIDER = 'openstack'
@@ -444,3 +447,16 @@ class TestAnsibleOpenStackOutput (unittest.TestCase, TestAnsibleProvider):
                 checked = True
                 self.assertEqual(task['set_fact']['server_address'], '{{ %s.floating_ip_address }}' % register_var)
         self.assertTrue(checked)
+
+    def test_tasks_success(self):
+        super(TestAnsibleOpenStackOutput, self).test_tasks_success()
+
+    def check_tasks_success(self, tasks):
+        correct = True
+        with open(SUCCESS_CHECK_FILE, "r") as check:
+            succ_tasks = yaml.load(check, Loader=Loader)
+            self.assertEqual(len(tasks), len(succ_tasks))
+            for task in tasks:
+                if task not in succ_tasks:
+                    correct = False
+        self.assertTrue(correct)

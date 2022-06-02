@@ -63,6 +63,9 @@ def run_ansible(ansible_playbook):
             while r.has_next_task():
                 r.run_next_task()
                 succ_task = r.get_prev_task()
+                for status in r.get_last_task_result():
+                    if status.is_unreachable or status.is_failed:
+                        continue
                 if succ_task is not None and succ_task.get_ds() is not None:
                     if 'meta' not in succ_task.get_ds():
                         d = str(succ_task.get_ds())
