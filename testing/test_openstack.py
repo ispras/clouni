@@ -1,4 +1,5 @@
 import unittest
+from shutil import copyfile
 
 from yaml import Loader
 
@@ -16,6 +17,9 @@ NETWORK_MODULE_NAME = 'os_network'
 SUBNET_MODULE_NAME = 'os_subnet'
 
 SUCCESS_CHECK_FILE = '/tmp/clouni/successful_tasks.yaml'
+
+CLOUDS_YAML = '/tmp/clouds.yaml'
+CLOUDS_YAML_NEW = '/tmp/clouni/clouds.yaml'
 
 class TestAnsibleOpenStackOutput (unittest.TestCase, TestAnsibleProvider):
     PROVIDER = 'openstack'
@@ -449,10 +453,13 @@ class TestAnsibleOpenStackOutput (unittest.TestCase, TestAnsibleProvider):
         self.assertTrue(checked)
 
     def test_tasks_success(self):
+        copyfile(CLOUDS_YAML, CLOUDS_YAML_NEW)
         super(TestAnsibleOpenStackOutput, self).test_tasks_success()
+        os.remove(CLOUDS_YAML_NEW)
 
     def check_tasks_success(self, tasks):
         correct = True
+
         with open(SUCCESS_CHECK_FILE, "r") as check:
             succ_tasks = yaml.load(check, Loader=Loader)
             self.assertEqual(len(tasks), len(succ_tasks))

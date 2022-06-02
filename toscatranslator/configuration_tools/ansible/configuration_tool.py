@@ -155,16 +155,16 @@ class AnsibleConfigurationTool(ConfigurationTool):
                 parallel_run_ansible([ansible_play_for_elem], v, q)
                 active.append(v)
         if is_delete:
-            ansible_play_for_elem = dict(
+            last_play = dict(
                 name='Renew id_vars_example.yaml',
                 hosts=self.default_host,
                 tasks=[]
             )
-            ansible_play_for_elem['tasks'].append(copy.deepcopy({FILE: {
+            last_play['tasks'].append(copy.deepcopy({FILE: {
                 PATH: ids_file_path,
                 STATE: 'absent'}}))
-            run_ansible([ansible_play_for_elem])
-            ansible_playbook.append(ansible_play_for_elem)
+            parallel_run_ansible([last_play], None, q)
+            ansible_playbook.append(last_play)
         return yaml.dump(ansible_playbook, default_flow_style=False, sort_keys=False)
 
     def init_graph(self, operations_graph):
