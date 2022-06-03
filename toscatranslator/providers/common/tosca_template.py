@@ -13,15 +13,17 @@ import os, copy, json, yaml, logging, sys, six
 
 SEPARATOR = '.'
 
+
 class ProviderToscaTemplate(object):
     REQUIRED_CONFIG_PARAMS = (TOSCA_ELEMENTS_MAP_FILE, TOSCA_ELEMENTS_DEFINITION_FILE)
     DEPENDENCY_FUNCTIONS = (GET_PROPERTY, GET_ATTRIBUTE, GET_OPERATION_OUTPUT)
     DEFAULT_ARTIFACTS_DIRECTOR = ARTIFACTS
 
-    def __init__(self, tosca_parser_template_object, provider, cluster_name, common_map_files=[]):
+    def __init__(self, tosca_parser_template_object, provider, cluster_name, common_map_files=[], if_run=False):
         self.provider = provider
         self.provider_config = ProviderConfiguration(self.provider)
         self.cluster_name = cluster_name
+        self.if_run = if_run
         for sec in self.REQUIRED_CONFIG_PARAMS:
             if not self.provider_config.config[self.provider_config.MAIN_SECTION].get(sec):
                 logging.error("Provider configuration parameter \'%s\' has missing value" % sec )

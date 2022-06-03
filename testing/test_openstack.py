@@ -38,6 +38,13 @@ class TestAnsibleOpenStackOutput (unittest.TestCase, TestAnsibleProvider):
         file_diff_path = os.path.join('examples', 'tosca-server-example-ansible-openstack.yaml')
         self.diff_files(file_output_path, file_diff_path)
 
+    def test_full_translating_run(self):
+
+        file_path = os.path.join('examples', 'tosca-server-example.yaml')
+        file_output_path = os.path.join('examples', 'tosca-server-example-output.yaml')
+        shell.main(['--template-file', file_path, '--cluster-name', 'test', '--provider', self.PROVIDER,
+                    '--output-file', file_output_path, '--run'])
+
     def test_delete_full_translating(self):
         file_path = os.path.join('examples', 'tosca-server-example.yaml')
         file_output_path = os.path.join('examples', 'tosca-server-example-output-delete.yaml')

@@ -120,7 +120,7 @@ def translate(template_file, validate_only, provider, configuration_tool, cluste
 
     # Parse and generate new TOSCA service template with only provider specific TOSCA types from normative types
     tosca = ProviderToscaTemplate(tosca_parser_template_object, provider, cluster_name,
-                                  common_map_files=default_map_files)
+                                  common_map_files=default_map_files, if_run=if_run)
 
     # Init configuration tool class
     tool = get_configuration_tool_class(configuration_tool)()
@@ -137,8 +137,9 @@ def translate(template_file, validate_only, provider, configuration_tool, cluste
         executor = art.get(EXECUTOR)
         if bool(executor) and executor != configuration_tool:
             art_list = [ art ]
-            new_arts = generate_artifacts(art_list, default_artifacts_directory)
-            tosca.artifacts.extend(new_arts)
+            configuration_class = get_configuration_tool_class(art['executor'])()
+            _, new_art = utils.generate_artifacts(configuration_class, art_list, default_artifacts_directory)
+            tosca.artifacts.append(new_art)
         else:
             tool_artifacts.append(art)
 
@@ -153,20 +154,3 @@ def translate(template_file, validate_only, provider, configuration_tool, cluste
 
     return configuration_content
 
-
-def generate_artifacts(new_artifacts, directory):
-    """
-    From the info of new artifacts generate files which execute
-    :param new_artifacts: list of dicts containing (value, source, parameters, executor, name, configuration_tool)
-    :return: None
-    """
-    r_artifacts = []
-    for art in new_artifacts:
-        filename = os.path.join(directory, art[NAME])
-        configuration_class = get_configuration_tool_class(art[EXECUTOR])()
-        if not configuration_class:
-            sys.exit(1)
-        configuration_class.create_artifact(filename, art)
-        r_artifacts.append(filename)
-
-    return r_artifacts

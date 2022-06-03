@@ -140,7 +140,7 @@ class AnsibleConfigurationTool(ConfigurationTool):
             ansible_playbook.append(software_playbook)
 
         if if_run:
-            run_ansible(ansible_playbook, target_directory)
+            self.run(ansible_playbook, target_directory)
         return yaml.dump(ansible_playbook, default_flow_style=False, sort_keys=False)
 
     def get_extra_async(self, extra, async_default_time):
@@ -615,3 +615,5 @@ class AnsibleConfigurationTool(ConfigurationTool):
             })
         return ansible_tasks
 
+    def run(self, ansible_playbook, target_directory):
+        return run_ansible(ansible_playbook, target_directory)

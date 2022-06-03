@@ -33,6 +33,7 @@ def run_ansible(ansible_playbook, artifacts_directory):
 
     r = runner(playbook_path, am)
 
+    results = []
     while r.has_next_play():
         current_play = r.get_cur_play_name()
         # print("PLAY:", current_play)
@@ -41,6 +42,8 @@ def run_ansible(ansible_playbook, artifacts_directory):
             next_task = r.get_next_task_name()
             # print("\tTASK:", next_task)
 
-            r.run_next_task()
+            task_results = r.run_next_task()
+            results.extend(task_results)
 
     r.finish_ansible()
+    return results

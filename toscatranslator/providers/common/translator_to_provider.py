@@ -17,6 +17,7 @@ ARTIFACT_RANGE_START = 1000
 ARTIFACT_RANGE_END = 9999
 PYTHON_EXECUTOR = 'python'
 PYTHON_SOURCE_DIRECTORY = 'toscatranslator.providers.common.python_sources'
+TMP_DIRECTORY = '/tmp/clouni'
 
 
 def translate_element_from_provider(tmpl_name, node_tmpl):
@@ -104,7 +105,7 @@ def get_structure_of_mapped_param(mapped_param, value, input_value=None, indivis
     sys.exit(1)
 
 
-def restructure_value(mapping_value, self, if_format_str=True, if_upper=True):
+def restructure_value(mapping_value, self, if_format_str=True, if_upper=True, if_run_ansible=False):
     """
     Recursive function which processes the mapping_value to become parameter:value format
     :param mapping_value: the map of non normative parameter:value
@@ -118,7 +119,8 @@ def restructure_value(mapping_value, self, if_format_str=True, if_upper=True):
         for key in MAPPING_VALUE_KEYS:
             mapping_sub_value = mapping_value.get(key)
             if mapping_sub_value is not None:
-                restructured_value = restructure_value(mapping_sub_value, self, key != PARAMETER, False)
+                restructured_value = restructure_value(mapping_sub_value, self, if_format_str= key != PARAMETER,
+                                                       if_upper=False, if_run_ansible=if_run_ansible)
                 if restructured_value is None:
                     logging.critical("Unable to parse the following parameter: %s" % json.dumps(mapping_value))
                     sys.exit(1)
@@ -139,8 +141,8 @@ def restructure_value(mapping_value, self, if_format_str=True, if_upper=True):
             # This case parameter and keyname are None too or they doesn't have sense
             filled_value = dict()
             for k, v in mapping_value.items():
-                filled_k = restructure_value(k, self, if_upper=False)
-                filled_v = restructure_value(v, self, if_upper=False)
+                filled_k = restructure_value(k, self, if_upper=False, if_run_ansible=if_run_ansible)
+                filled_v = restructure_value(v, self, if_upper=False, if_run_ansible=if_run_ansible)
                 filled_value[filled_k] = filled_v
             return filled_value
         if parameter is not None:
@@ -168,23 +170,25 @@ def restructure_value(mapping_value, self, if_format_str=True, if_upper=True):
         if source_name is not None and executor_name is not None:
             if executor_name == PYTHON_EXECUTOR:
                 return utils.execute_function(PYTHON_SOURCE_DIRECTORY, source_name, parameters_dict)
+            else:
+                tool = get_configuration_tool_class(executor_name)()
+                extension = tool.get_artifact_extension()
+
+                seed(time())
+                artifact_name = '_'.join([self[NAME], executor_name, source_name,
+                                          str(randint(ARTIFACT_RANGE_START, ARTIFACT_RANGE_END))]) + extension
+
+                flat_mapping_value.update(
+                    name=artifact_name,
+                    configuration_tool=executor_name
+                )
+
             if not get_configuration_tool_class(executor_name):
                 logging.critical('Unsupported executor/configuration tool name: %s' % executor_name)
                 sys.exit(1)
             if self.get(ARTIFACTS) is None:
                 self[ARTIFACTS] = []
 
-            tool = get_configuration_tool_class(executor_name)()
-            extension = tool.get_artifact_extension()
-
-            seed(time())
-            artifact_name = '_'.join([self[NAME], executor_name, source_name,
-                                      str(randint(ARTIFACT_RANGE_START, ARTIFACT_RANGE_END))]) + extension
-
-            flat_mapping_value.update(
-                name=artifact_name,
-                configuration_tool=executor_name
-            )
             self[ARTIFACTS].append(flat_mapping_value)
             # return the name of artifact
             return artifact_name
@@ -193,7 +197,7 @@ def restructure_value(mapping_value, self, if_format_str=True, if_upper=True):
         sys.exit(1)
 
     elif isinstance(mapping_value, list):
-        return [restructure_value(v, self, if_upper=False) for v in mapping_value]
+        return [restructure_value(v, self, if_upper=False, if_run_ansible=if_run_ansible) for v in mapping_value]
 
     if isinstance(mapping_value, str) and if_format_str:
         # NOTE: the process is needed because using only format function makes string from json
@@ -284,7 +288,7 @@ def get_resulted_mapping_values(parameter, mapping_value, value, self):
         }
     mapping_value_parameter = mapping_value.get(PARAMETER)
     mapping_value_value = mapping_value.get(VALUE)
-     # NOTE at first check if parameter self[buffer] parameter
+    # NOTE at first check if parameter self[buffer] parameter
     if mapping_value_parameter and mapping_value_parameter[:6] == '{self[' and mapping_value_parameter[-2:] == ']}':
         self[VALUE] = value
         self[PARAMETER] = parameter
@@ -586,7 +590,7 @@ def get_keyname_from_type(keyname, node_type):
     return keyname + "_" + utils.snake_case(type_name)
 
 
-def translate_node_from_tosca(restructured_mapping, tpl_name, self):
+def translate_node_from_tosca(restructured_mapping, tpl_name, self, if_run_ansible=False):
     """
     Translator from TOSCA definitions in provider definitions using rules from element_map_to_provider
     :param restructured_mapping: list of dicts(parameter, map, value)
@@ -595,12 +599,14 @@ def translate_node_from_tosca(restructured_mapping, tpl_name, self):
     """
     resulted_structure = {}
 
+    if_run_ansible = True
     for item in restructured_mapping:
         self[PARAMETER] = item[PARAMETER]
         self[VALUE] = item[VALUE]
         mapped_param = restructure_value(
             mapping_value=item[MAP_KEY],
-            self=self
+            self=self,
+            if_run_ansible=if_run_ansible
         )
         structures, keyname = get_structure_of_mapped_param(mapped_param, item[VALUE])
 
@@ -626,7 +632,7 @@ def translate_node_from_tosca(restructured_mapping, tpl_name, self):
 
 def get_source_structure_from_facts(condition, fact_name, value, arguments, executor, target_parameter,
                                     source_parameter,
-                                    source_value):
+                                    source_value, if_run_ansible):
     """
 
     :param condition:
@@ -637,6 +643,7 @@ def get_source_structure_from_facts(condition, fact_name, value, arguments, exec
     :param target_parameter:
     :param source_parameter:
     :param source_value:
+    :param if_run_ansible:
     :return:
     """
 
@@ -661,10 +668,47 @@ def get_source_structure_from_facts(condition, fact_name, value, arguments, exec
                 },
                 VALUE: "tmp_value",
                 EXECUTOR: executor
+            },
+            {
+                SOURCE: 'debug',
+                PARAMETERS: {
+                    'var': 'target_objects'
+                },
+                VALUE: "tmp_value",
+                EXECUTOR: executor
             }
         ]
     else:
         new_global_elements_map_total_implementation = fact_name
+
+    new_ansible_tasks = []
+    configuration_class = None
+    if if_run_ansible and executor == 'ansible':
+        configuration_class = get_configuration_tool_class(executor)()
+        new_ansible_artifacts = copy.deepcopy(new_global_elements_map_total_implementation)
+        for i in range(len(new_ansible_artifacts)):
+            extension = configuration_class.get_artifact_extension()
+
+            seed(time())
+            new_ansible_artifacts[i]['name'] = '_'.join([SOURCE, str(randint(ARTIFACT_RANGE_START, ARTIFACT_RANGE_END))]) + extension
+            new_ansible_artifacts[i]['configuration_tool'] = executor
+        artifacts_with_brackets = replace_brackets(new_ansible_artifacts, False)
+        new_ansible_tasks, _ = utils.generate_artifacts(configuration_class, artifacts_with_brackets, TMP_DIRECTORY,
+                                                        store=False)
+        playbook = {
+            'hosts': 'localhost',
+            'tasks': new_ansible_tasks
+        }
+        results = configuration_class.run([playbook], TMP_DIRECTORY)
+        if_failed = False
+        for result in results:
+            if result.is_failed or result.is_unreachable:
+                logging.error("Task %s has failed because of exception: \n%s" %
+                              (result.task_name, result.result.get('exception', '(Unknown reason)')))
+                if_failed = True
+        if if_failed:
+            sys.exit(1)
+        target_objects = results[-1].result['target_objects']
 
     tag_operation_name = None
     if isinstance(fact_name, six.string_types):
@@ -710,6 +754,7 @@ def get_source_structure_from_facts(condition, fact_name, value, arguments, exec
     target_choose_parameter_new = SEPARATOR.join([target_relationship_type, INTERFACES, target_interface_name,
                                                   choose_operation_name])
 
+    # REMOVE
     new_elements_map = {
         GET_OPERATION_OUTPUT: [
             relationship_name,
@@ -770,7 +815,7 @@ def get_source_structure_from_facts(condition, fact_name, value, arguments, exec
 
 
 def restructure_mapping_facts(elements_map, extra_elements_map=None, target_parameter=None, source_parameter=None,
-                              source_value=None):
+                              source_value=None, if_run_ansible=False):
     """
     Function is used to restructure mapping values with the case of `facts`, `condition`, `arguments`, `value` keys
     :param elements_map:
@@ -799,7 +844,8 @@ def restructure_mapping_facts(elements_map, extra_elements_map=None, target_para
         for k, v in elements_map.items():
             cur_elements, extra_elements_map, new_conditions = restructure_mapping_facts(v, extra_elements_map,
                                                                                          target_parameter,
-                                                                                         source_parameter, source_value)
+                                                                                         source_parameter, source_value,
+                                                                                         if_run_ansible=if_run_ansible)
             new_elements_map.update({k: cur_elements})
             conditions.extend(new_conditions)
 
@@ -883,7 +929,7 @@ def restructure_mapping_facts(elements_map, extra_elements_map=None, target_para
                                                                                    arguments,
                                                                                    executor,
                                                                                    target_parameter, source_parameter,
-                                                                                   source_value)
+                                                                                   source_value, if_run_ansible)
             conditions.append(condition)
             extra_elements_map.extend(cur_extra_elements)
 
@@ -894,7 +940,8 @@ def restructure_mapping_facts(elements_map, extra_elements_map=None, target_para
         for k in elements_map:
             cur_elements, extra_elements_map, new_conditions = restructure_mapping_facts(k, extra_elements_map,
                                                                                          target_parameter,
-                                                                                         source_parameter, source_value)
+                                                                                         source_parameter, source_value,
+                                                                                         if_run_ansible=if_run_ansible)
             new_elements_map.append(cur_elements)
             conditions.extend(new_conditions)
         return new_elements_map, extra_elements_map, conditions
@@ -974,12 +1021,15 @@ def translate(service_tmpl):
         if namespace != service_tmpl.provider:
             restructured_mapping = restructure_mapping(service_tmpl, element, tmpl_name, self)
             restructured_mapping = restructure_mapping_buffer(restructured_mapping, self)
-            restructured_mapping, extra_mappings, new_conditions = restructure_mapping_facts(restructured_mapping)
+            restructured_mapping, extra_mappings, new_conditions = restructure_mapping_facts(
+                restructured_mapping,
+                if_run_ansible=service_tmpl.if_run)
             restructured_mapping.extend(extra_mappings)
             conditions.extend(new_conditions)
             restructured_mapping = restructure_get_attribute(restructured_mapping, service_tmpl, self)
 
-            tpl_structure = translate_node_from_tosca(restructured_mapping, tmpl_name, self)
+            tpl_structure = translate_node_from_tosca(restructured_mapping, tmpl_name, self,
+                                                      if_run_ansible=service_tmpl.if_run)
             for tpl_name, temp_tpl in tpl_structure.items():
                 for node_type, tpl in temp_tpl.items():
                     (_, element_type, _) = utils.tosca_type_parse(node_type)
@@ -994,4 +1044,5 @@ def translate(service_tmpl):
     self_extra = replace_brackets(self[EXTRA], False)
     self_artifacts = replace_brackets(self[ARTIFACTS], False)
 
+    # REMOVE
     return new_element_templates, self_artifacts, conditions, self_extra
