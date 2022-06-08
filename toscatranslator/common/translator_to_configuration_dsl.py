@@ -137,8 +137,9 @@ def translate(template_file, validate_only, provider, configuration_tool, cluste
         executor = art.get(EXECUTOR)
         if bool(executor) and executor != configuration_tool:
             art_list = [ art ]
-            new_arts = generate_artifacts(art_list, default_artifacts_directory)
-            tosca.artifacts.extend(new_arts)
+            configuration_class = get_configuration_tool_class(art['executor'])()
+            _, new_art = utils.generate_artifacts(configuration_class, art_list, default_artifacts_directory)
+            tosca.artifacts.append(new_art)
         else:
             tool_artifacts.append(art)
 
@@ -150,22 +151,3 @@ def translate(template_file, validate_only, provider, configuration_tool, cluste
                                         artifacts=tool_artifacts, target_directory=default_artifacts_directory,
                                         inputs=tosca.inputs, outputs=tosca.outputs, extra=extra_full)
     return configuration_content
-
-
-
-def generate_artifacts(new_artifacts, directory):
-    """
-    From the info of new artifacts generate files which execute
-    :param new_artifacts: list of dicts containing (value, source, parameters, executor, name, configuration_tool)
-    :return: None
-    """
-    r_artifacts = []
-    for art in new_artifacts:
-        filename = os.path.join(directory, art[NAME])
-        configuration_class = get_configuration_tool_class(art[EXECUTOR])()
-        if not configuration_class:
-            sys.exit(1)
-        configuration_class.create_artifact(filename, art)
-        r_artifacts.append(filename)
-
-    return r_artifacts

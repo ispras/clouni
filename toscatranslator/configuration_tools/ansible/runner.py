@@ -55,13 +55,14 @@ def run_ansible(ansible_playbook):
 
     am = argument_maker()
     r = runner(playbook_path, am)
-
+    results = []
     with open(successful_tasks_path, "a") as successful_tasks_file:
         while r.has_next_play():
             current_play = r.get_cur_play_name()
 
             while r.has_next_task():
-                r.run_next_task()
+                task_results = r.run_next_task()
+                results.extend(task_results)
                 succ_task = r.get_prev_task()
                 for status in r.get_last_task_result():
                     if status.is_unreachable or status.is_failed:
@@ -73,13 +74,17 @@ def run_ansible(ansible_playbook):
                             yaml.dump([ast.literal_eval(d)], default_flow_style=False, sort_keys=False))
 
     r.finish_ansible()
+    return results
 
 
-def run_and_finish(ansible_playbook, node, q):
-    run_ansible(ansible_playbook)
-    if node is not None:
-        q.put(node.name)
+def run_and_finish(ansible_playbook, name, q):
+    results = run_ansible(ansible_playbook)
+    if name is not None:
+        if name == 'artifacts':
+            q.put(results)
+        else:
+            q.put(name)
 
 
-def parallel_run_ansible(ansible_playbook, node, q):
-    Process(target=run_and_finish, args=(ansible_playbook, node, q)).start()
+def parallel_run_ansible(ansible_playbook, name, q):
+    Process(target=run_and_finish, args=(ansible_playbook, name, q)).start()

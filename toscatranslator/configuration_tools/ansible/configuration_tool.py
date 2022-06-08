@@ -71,22 +71,22 @@ class AnsibleConfigurationTool(ConfigurationTool):
         elements.prepare()
 
         ansible_playbook = []
-        prepare_for_run(target_directory)
+        self.prepare_for_run(target_directory)
         q = Queue()
         active = []
         first = True
 
         while elements.is_active():
             node_name = None
-            try:
-                node_name = q.get_nowait()
-            except:
-                time.sleep(1)
-            if node_name is not None:
-                for node in active:
-                    if node.name == node_name:
-                        active.remove(node)
-                        elements.done(node)
+            #try:
+            #    node_name = q.get_nowait()
+            #except:
+            #    time.sleep(1)
+            #if node_name is not None:
+            #    for node in active:
+            #        if node.name == node_name:
+            #            active.remove(node)
+            #            elements.done(node)
             for v in elements.get_ready():
                 if is_delete:
                     if v.operation == 'create':
@@ -152,8 +152,9 @@ class AnsibleConfigurationTool(ConfigurationTool):
                         self.get_ansible_tasks_from_interface(v, target_directory, is_delete, v.operation,
                                                               additional_args=extra)))
                 ansible_playbook.append(ansible_play_for_elem)
-                parallel_run_ansible([ansible_play_for_elem], v, q)
+                #self.parallel_run([ansible_play_for_elem], v.name, q)
                 active.append(v)
+                elements.done(v)
         if is_delete:
             last_play = dict(
                 name='Renew id_vars_example.yaml',
@@ -163,7 +164,7 @@ class AnsibleConfigurationTool(ConfigurationTool):
             last_play['tasks'].append(copy.deepcopy({FILE: {
                 PATH: ids_file_path,
                 STATE: 'absent'}}))
-            parallel_run_ansible([last_play], None, q)
+            #self.parallel_run([last_play], None, q)
             ansible_playbook.append(last_play)
         return yaml.dump(ansible_playbook, default_flow_style=False, sort_keys=False)
 
@@ -587,3 +588,10 @@ class AnsibleConfigurationTool(ConfigurationTool):
                 }
             })
         return ansible_tasks
+
+    # мб надо будет поменять схему
+    def prepare_for_run(self, target_directory):
+        prepare_for_run(target_directory)
+
+    def parallel_run(self, ansible_play, name, q):
+        parallel_run_ansible(ansible_play, name, q)

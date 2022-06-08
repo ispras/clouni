@@ -1,3 +1,5 @@
+from multiprocessing import Queue
+
 from toscatranslator.common import utils
 from toscatranslator.common.tosca_reserved_keys import *
 from toscatranslator.configuration_tools.combined.combine_configuration_tools import get_configuration_tool_class
@@ -17,6 +19,7 @@ ARTIFACT_RANGE_START = 1000
 ARTIFACT_RANGE_END = 9999
 PYTHON_EXECUTOR = 'python'
 PYTHON_SOURCE_DIRECTORY = 'toscatranslator.providers.common.python_sources'
+TMP_DIRECTORY = '/tmp/clouni'
 
 
 def translate_element_from_provider(tmpl_name, node_tmpl):
@@ -118,7 +121,8 @@ def restructure_value(mapping_value, self, if_format_str=True, if_upper=True):
         for key in MAPPING_VALUE_KEYS:
             mapping_sub_value = mapping_value.get(key)
             if mapping_sub_value is not None:
-                restructured_value = restructure_value(mapping_sub_value, self, key != PARAMETER, False)
+                restructured_value = restructure_value(mapping_sub_value, self, if_format_str= key != PARAMETER,
+                                                       if_upper=False)
                 if restructured_value is None:
                     logging.critical("Unable to parse the following parameter: %s" % json.dumps(mapping_value))
                     sys.exit(1)
@@ -168,23 +172,25 @@ def restructure_value(mapping_value, self, if_format_str=True, if_upper=True):
         if source_name is not None and executor_name is not None:
             if executor_name == PYTHON_EXECUTOR:
                 return utils.execute_function(PYTHON_SOURCE_DIRECTORY, source_name, parameters_dict)
+            else:
+                tool = get_configuration_tool_class(executor_name)()
+                extension = tool.get_artifact_extension()
+
+                seed(time())
+                artifact_name = '_'.join([self[NAME], executor_name, source_name,
+                                          str(randint(ARTIFACT_RANGE_START, ARTIFACT_RANGE_END))]) + extension
+
+                flat_mapping_value.update(
+                    name=artifact_name,
+                    configuration_tool=executor_name
+                )
+
             if not get_configuration_tool_class(executor_name):
                 logging.critical('Unsupported executor/configuration tool name: %s' % executor_name)
                 sys.exit(1)
             if self.get(ARTIFACTS) is None:
                 self[ARTIFACTS] = []
 
-            tool = get_configuration_tool_class(executor_name)()
-            extension = tool.get_artifact_extension()
-
-            seed(time())
-            artifact_name = '_'.join([self[NAME], executor_name, source_name,
-                                      str(randint(ARTIFACT_RANGE_START, ARTIFACT_RANGE_END))]) + extension
-
-            flat_mapping_value.update(
-                name=artifact_name,
-                configuration_tool=executor_name
-            )
             self[ARTIFACTS].append(flat_mapping_value)
             # return the name of artifact
             return artifact_name
@@ -284,7 +290,7 @@ def get_resulted_mapping_values(parameter, mapping_value, value, self):
         }
     mapping_value_parameter = mapping_value.get(PARAMETER)
     mapping_value_value = mapping_value.get(VALUE)
-     # NOTE at first check if parameter self[buffer] parameter
+    # NOTE at first check if parameter self[buffer] parameter
     if mapping_value_parameter and mapping_value_parameter[:6] == '{self[' and mapping_value_parameter[-2:] == ']}':
         self[VALUE] = value
         self[PARAMETER] = parameter
@@ -628,7 +634,6 @@ def get_source_structure_from_facts(condition, fact_name, value, arguments, exec
                                     source_parameter,
                                     source_value):
     """
-
     :param condition:
     :param fact_name:
     :param value:
@@ -661,10 +666,20 @@ def get_source_structure_from_facts(condition, fact_name, value, arguments, exec
                 },
                 VALUE: "tmp_value",
                 EXECUTOR: executor
+            },
+            {
+                SOURCE: 'debug',
+                PARAMETERS: {
+                    'var': 'target_objects'
+                },
+                VALUE: "tmp_value",
+                EXECUTOR: executor
             }
         ]
     else:
         new_global_elements_map_total_implementation = fact_name
+
+    execute(new_global_elements_map_total_implementation, executor)
 
     tag_operation_name = None
     if isinstance(fact_name, six.string_types):
@@ -709,65 +724,9 @@ def get_source_structure_from_facts(condition, fact_name, value, arguments, exec
                                                  total_operation_name])
     target_choose_parameter_new = SEPARATOR.join([target_relationship_type, INTERFACES, target_interface_name,
                                                   choose_operation_name])
-
-    new_elements_map = {
-        GET_OPERATION_OUTPUT: [
-            relationship_name,
-            target_interface_name,
-            choose_operation_name,
-            value
-        ]
-    }
-    new_global_elements_map_total = {
-        PARAMETER: target_total_parameter_new,
-        KEYNAME: relationship_name,
-        VALUE: {
-            IMPLEMENTATION: new_global_elements_map_total_implementation
-        }
-    }
-    new_global_elements_map_choose = {
-        PARAMETER: target_choose_parameter_new,
-        KEYNAME: relationship_name,
-        VALUE: {
-            IMPLEMENTATION: [
-                condition + ".yaml",
-                {
-                    SOURCE: SET_FACT_SOURCE,
-                    PARAMETERS: {
-                        value: "\{\{ matched_object[\"" + value + "\"] \}\}"
-                    },
-                    VALUE: "tmp_value",
-                    EXECUTOR: executor
-                }
-            ],
-            INPUTS: {
-                "input_facts": {
-                    GET_OPERATION_OUTPUT: [
-                        SELF,
-                        target_interface_name,
-                        total_operation_name,
-                        "target_objects"
-                    ]
-                },
-                "input_args": arguments
-            }
-        }
-    }
-    new_global_elements_map = [
-        {
-            PARAMETER: source_parameter,
-            MAP_KEY: new_global_elements_map_choose,
-            VALUE: source_value
-        },
-        {
-            PARAMETER: source_parameter,
-            MAP_KEY: new_global_elements_map_total,
-            VALUE: source_value
-        }
-    ]
-
-    return new_elements_map, new_global_elements_map
-
+    # execute(new_global_elements_map_choose_implementation, executor)
+    # это какой то ужас...
+    return None
 
 def restructure_mapping_facts(elements_map, extra_elements_map=None, target_parameter=None, source_parameter=None,
                               source_value=None):
@@ -879,13 +838,10 @@ def restructure_mapping_facts(elements_map, extra_elements_map=None, target_para
             if not get_configuration_tool_class(executor):
                 logging.critical("Unsupported executor name \'%s\'" % json.dumps(executor))
                 sys.exit(1)
-            new_elements_map, cur_extra_elements = get_source_structure_from_facts(condition, fact_name, value,
-                                                                                   arguments,
-                                                                                   executor,
-                                                                                   target_parameter, source_parameter,
-                                                                                   source_value)
+            new_elements_map = get_source_structure_from_facts(condition, fact_name, value, arguments, executor,
+                                                                                    target_parameter, source_parameter,
+                                                                                    source_value)
             conditions.append(condition)
-            extra_elements_map.extend(cur_extra_elements)
 
         return new_elements_map, extra_elements_map, conditions
 
@@ -974,7 +930,8 @@ def translate(service_tmpl):
         if namespace != service_tmpl.provider:
             restructured_mapping = restructure_mapping(service_tmpl, element, tmpl_name, self)
             restructured_mapping = restructure_mapping_buffer(restructured_mapping, self)
-            restructured_mapping, extra_mappings, new_conditions = restructure_mapping_facts(restructured_mapping)
+            restructured_mapping, extra_mappings, new_conditions = restructure_mapping_facts(
+                restructured_mapping)
             restructured_mapping.extend(extra_mappings)
             conditions.extend(new_conditions)
             restructured_mapping = restructure_get_attribute(restructured_mapping, service_tmpl, self)
@@ -994,4 +951,41 @@ def translate(service_tmpl):
     self_extra = replace_brackets(self[EXTRA], False)
     self_artifacts = replace_brackets(self[ARTIFACTS], False)
 
+    # REMOVE
     return new_element_templates, self_artifacts, conditions, self_extra
+
+def execute(new_global_elements_map_total_implementation, executor):
+    if executor == 'ansible':
+        configuration_class = get_configuration_tool_class(executor)()
+        new_ansible_artifacts = copy.deepcopy(new_global_elements_map_total_implementation)
+        for i in range(len(new_ansible_artifacts)):
+            extension = configuration_class.get_artifact_extension()
+
+            seed(time())
+            new_ansible_artifacts[i]['name'] = '_'.join(
+                [SOURCE, str(randint(ARTIFACT_RANGE_START, ARTIFACT_RANGE_END))]) + extension
+            new_ansible_artifacts[i]['configuration_tool'] = executor
+        artifacts_with_brackets = replace_brackets(new_ansible_artifacts, False)
+        new_ansible_tasks, _ = utils.generate_artifacts(configuration_class, artifacts_with_brackets, TMP_DIRECTORY,
+                                                        store=False)
+
+        q = Queue()
+        playbook = {
+            'hosts': 'localhost',
+            'tasks': new_ansible_tasks
+        }
+        configuration_class.prepare_for_run(TMP_DIRECTORY)
+        configuration_class.parallel_run([playbook], 'artifacts', q)
+
+        # есть такая проблема что если в текущем процессе был запущен runner cotea то все последующие запуски
+        # других плейбуков из этого процесса невозможны т.к. запускаться будет первоначальный плейбук, причем даже если
+        # этот процесс форкнуть то эффект остается тк что то там внутри cotea сохраняется в контексте процесса
+        results = q.get()
+        if_failed = False
+        for result in results:
+            if result.is_failed or result.is_unreachable:
+                logging.error("Task %s has failed because of exception: \n%s" %
+                              (result.task_name, result.result.get('exception', '(Unknown reason)')))
+                if_failed = True
+        if if_failed:
+            sys.exit(1)
