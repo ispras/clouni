@@ -82,7 +82,9 @@ def generate_artifacts(configuration_class, new_artifacts, directory, store=True
         # filename = os.path.join(directory, art['name'])
         tasks.extend(configuration_class.create_artifact_data(art))
         # r_artifacts.append(filename)
-    print(tasks)
+    if not os.path.isdir(directory):
+        os.makedirs(directory)
+
     with open(filename, "w") as f:
         filedata = yaml.dump(tasks, default_flow_style=False, sort_keys=False)
         f.write(filedata)
