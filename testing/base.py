@@ -483,11 +483,11 @@ class TestAnsibleProvider(BaseAnsibleProvider):
                         NODE_NAME: {
                             'type': 'tosca.nodes.network.Network',
                             'properties': {
-                                'network_name': 'test_network',
-                                'cidr': '192.168.56.0/24',
-                                'start_ip': '192.168.56.50',
-                                'end_ip': '192.168.56.200',
-                                'gateway_ip': '192.168.56.1',
+                                'network_name': 'tosca_network_example',
+                                'cidr': '192.168.107.0/24',
+                                'start_ip': '192.168.107.50',
+                                'end_ip': '192.168.107.200',
+                                'gateway_ip': '192.168.107.1',
                                 'network_type': 'geneve'
                             }
                         }

@@ -453,9 +453,12 @@ class TestAnsibleOpenStackOutput (unittest.TestCase, TestAnsibleProvider):
         self.assertTrue(checked)
 
     def test_tasks_success(self):
-        copyfile(CLOUDS_YAML, CLOUDS_YAML_NEW)
-        super(TestAnsibleOpenStackOutput, self).test_tasks_success()
-        os.remove(CLOUDS_YAML_NEW)
+        if os.path.isfile(CLOUDS_YAML):
+            copyfile(CLOUDS_YAML, CLOUDS_YAML_NEW)
+            super(TestAnsibleOpenStackOutput, self).test_tasks_success()
+            os.remove(CLOUDS_YAML_NEW)
+        else:
+            super(TestAnsibleOpenStackOutput, self).test_tasks_success()
 
     def check_tasks_success(self, tasks):
         correct = True

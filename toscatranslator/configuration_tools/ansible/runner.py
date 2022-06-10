@@ -84,6 +84,8 @@ def run_and_finish(ansible_playbook, name, q):
             q.put(results)
         else:
             q.put(name)
+    else:
+        q.put('Done')
 
 
 def parallel_run_ansible(ansible_playbook, name, q):

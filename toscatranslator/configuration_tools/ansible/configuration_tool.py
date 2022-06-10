@@ -164,6 +164,10 @@ class AnsibleConfigurationTool(ConfigurationTool):
                 PATH: ids_file_path,
                 STATE: 'absent'}}))
             self.parallel_run([last_play], None, q)
+            done = q.get()
+            if done != 'Done':
+                logging.error("Something wrong with multiprocessing queue")
+                sys.exit(1)
             ansible_playbook.append(last_play)
         return yaml.dump(ansible_playbook, default_flow_style=False, sort_keys=False)
 
@@ -242,6 +246,7 @@ class AnsibleConfigurationTool(ConfigurationTool):
 
         configuration_args = {}
         for arg_key, arg in element_object.configuration_args.items():
+            # надо перенесети на этап маппинга все что тут
             if isinstance(arg, dict):
                 node_filter_key = arg.get(SOURCE, {}).get(NODE_FILTER)
                 node_filter_value = arg.get(VALUE)
