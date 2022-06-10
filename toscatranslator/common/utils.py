@@ -3,6 +3,8 @@ import os
 import importlib
 import sys
 import logging
+
+import six
 import yaml
 
 from random import randint,seed
@@ -92,3 +94,22 @@ def generate_artifacts(configuration_class, new_artifacts, directory, store=True
 
     # return r_artifacts
     return tasks, filename
+
+def replace_brackets(data, with_splash=True):
+    if isinstance(data, six.string_types):
+        if with_splash:
+            return data.replace("{", "\{").replace("}", "\}")
+        else:
+            return data.replace("\\\\{", "{").replace("\\{", "{").replace("\{", "{") \
+                .replace("\\\\}", "}").replace("\\}", "}").replace("\}", "}")
+    if isinstance(data, dict):
+        r = {}
+        for k, v in data.items():
+            r[replace_brackets(k)] = replace_brackets(v, with_splash)
+        return r
+    if isinstance(data, list):
+        r = []
+        for i in data:
+            r.append(replace_brackets(i, with_splash))
+        return r
+    return data

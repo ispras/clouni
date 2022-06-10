@@ -212,27 +212,6 @@ def restructure_value(mapping_value, self, if_format_str=True, if_upper=True):
         mapping_value, _ = format_value(mapping_value, self, False)
     return mapping_value
 
-
-def replace_brackets(data, with_splash=True):
-    if isinstance(data, six.string_types):
-        if with_splash:
-            return data.replace("{", "\{").replace("}", "\}")
-        else:
-            return data.replace("\\\\{", "{").replace("\\{", "{").replace("\{", "{") \
-                .replace("\\\\}", "}").replace("\\}", "}").replace("\}", "}")
-    if isinstance(data, dict):
-        r = {}
-        for k, v in data.items():
-            r[replace_brackets(k)] = replace_brackets(v, with_splash)
-        return r
-    if isinstance(data, list):
-        r = []
-        for i in data:
-            r.append(replace_brackets(i, with_splash))
-        return r
-    return data
-
-
 def format_value(value, params, if_replace_brackets=True):
     is_buffer = False
     params_without_buffer = copy.deepcopy(params)
@@ -256,11 +235,11 @@ def format_value(value, params, if_replace_brackets=True):
             dict_val = temp_val.replace("\'", "\"")
             dict_val = json.loads(dict_val)
             if if_replace_brackets:
-                dict_val = replace_brackets(dict_val)
+                dict_val = utils.replace_brackets(dict_val)
             return dict_val, is_buffer
         except json.decoder.JSONDecodeError:
             if if_replace_brackets:
-                temp_val = replace_brackets(temp_val)
+                temp_val = utils.replace_brackets(temp_val)
             return temp_val, is_buffer
     if isinstance(value, list):
         r = []
@@ -721,47 +700,8 @@ def get_source_structure_from_facts( condition, fact_name, value, arguments, exe
     ]
 
     new_global_elements_map_total_implementation += addition_for_elements_map_total_implementation
-    if executor == 'ansible':
-        configuration_class = get_configuration_tool_class(executor)()
-        new_ansible_artifacts = copy.deepcopy(new_global_elements_map_total_implementation)
-        for i in range(len(new_ansible_artifacts)):
-            extension = configuration_class.get_artifact_extension()
 
-            seed(time())
-            new_ansible_artifacts[i]['name'] = '_'.join(
-                [SOURCE, str(randint(ARTIFACT_RANGE_START, ARTIFACT_RANGE_END))]) + extension
-            new_ansible_artifacts[i]['configuration_tool'] = executor
-        artifacts_with_brackets = replace_brackets(new_ansible_artifacts, False)
-        new_ansible_tasks, _ = utils.generate_artifacts(configuration_class, artifacts_with_brackets, TMP_DIRECTORY,
-                                                        store=False)
-
-        q = Queue()
-        playbook = {
-            'hosts': 'localhost',
-            'tasks': new_ansible_tasks
-        }
-        configuration_class.prepare_for_run(TMP_DIRECTORY)
-        configuration_class.parallel_run([playbook], 'artifacts', q)
-
-        # есть такая проблема что если в текущем процессе был запущен runner cotea то все последующие запуски
-        # других плейбуков из этого процесса невозможны т.к. запускаться будет первоначальный плейбук, причем даже если
-        # этот процесс форкнуть то эффект остается тк что то там внутри cotea сохраняется в контексте процесса
-        results = q.get()
-        value = None
-        if_failed = False
-        for result in results:
-            if result.is_failed or result.is_unreachable:
-                logging.error("Task %s has failed because of exception: \n%s" %
-                              (result.task_name, result.result.get('exception', '(Unknown reason)')))
-                if_failed = True
-            if 'results' in result.result and len(result.result['results']) > 0 and 'ansible_facts' in \
-                    result.result['results'][0] and 'matched_object' in result.result['results'][0]['ansible_facts']:
-                value = result.result['results'][0]['ansible_facts']['matched_object'][target_parameter.split('.')[-1]]
-        if if_failed:
-            value = 'not_found'
-            # временное решение чтоб работали тесты
-
-        return value
+    return execute(executor, new_global_elements_map_total_implementation, target_parameter)
 
 
 def restructure_mapping_facts(elements_map, self, extra_elements_map=None, target_parameter=None, source_parameter=None,
@@ -983,9 +923,52 @@ def translate(service_tmpl):
             new_element_templates = utils.deep_update_dict(new_element_templates, new_element)
 
     conditions = set(conditions)
-    self_extra = replace_brackets(self[EXTRA], False)
-    self_artifacts = replace_brackets(self[ARTIFACTS], False)
+    self_extra = utils.replace_brackets(self[EXTRA], False)
+    self_artifacts = utils.replace_brackets(self[ARTIFACTS], False)
 
     # REMOVE
     return new_element_templates, self_artifacts, conditions, self_extra
 
+
+def execute(executor, new_global_elements_map_total_implementation, target_parameter):
+    if executor == 'ansible':
+        configuration_class = get_configuration_tool_class(executor)()
+        new_ansible_artifacts = copy.deepcopy(new_global_elements_map_total_implementation)
+        for i in range(len(new_ansible_artifacts)):
+            extension = configuration_class.get_artifact_extension()
+
+            seed(time())
+            new_ansible_artifacts[i]['name'] = '_'.join(
+                [SOURCE, str(randint(ARTIFACT_RANGE_START, ARTIFACT_RANGE_END))]) + extension
+            new_ansible_artifacts[i]['configuration_tool'] = executor
+        artifacts_with_brackets = utils.replace_brackets(new_ansible_artifacts, False)
+        new_ansible_tasks, _ = utils.generate_artifacts(configuration_class, artifacts_with_brackets, TMP_DIRECTORY,
+                                                        store=False)
+
+        q = Queue()
+        playbook = {
+            'hosts': 'localhost',
+            'tasks': new_ansible_tasks
+        }
+        configuration_class.prepare_for_run(TMP_DIRECTORY)
+        configuration_class.parallel_run([playbook], 'artifacts', q)
+
+        # есть такая проблема что если в текущем процессе был запущен runner cotea то все последующие запуски
+        # других плейбуков из этого процесса невозможны т.к. запускаться будет первоначальный плейбук, причем даже если
+        # этот процесс форкнуть то эффект остается тк что то там внутри cotea сохраняется в контексте процесса
+        results = q.get()
+        value = None
+        if_failed = False
+        for result in results:
+            if result.is_failed or result.is_unreachable:
+                logging.error("Task %s has failed because of exception: \n%s" %
+                              (result.task_name, result.result.get('exception', '(Unknown reason)')))
+                if_failed = True
+            if 'results' in result.result and len(result.result['results']) > 0 and 'ansible_facts' in \
+                    result.result['results'][0] and 'matched_object' in result.result['results'][0]['ansible_facts']:
+                value = result.result['results'][0]['ansible_facts']['matched_object'][target_parameter.split('.')[-1]]
+        if if_failed:
+            value = 'not_found'
+            # временное решение чтоб работали тесты
+        return value
+    return None

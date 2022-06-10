@@ -1,8 +1,10 @@
 import time
 from multiprocessing import Queue
+from random import seed, randint
 
 from graphlib import TopologicalSorter
 
+from toscatranslator.common.tosca_reserved_keys import *
 from toscatranslator.common import utils
 from toscatranslator.common.tosca_reserved_keys import PARAMETERS, VALUE, EXTRA, SOURCE, INPUTS, NODE_FILTER, NAME, \
     NODES, GET_OPERATION_OUTPUT, IMPLEMENTATION, ANSIBLE, GET_INPUT
@@ -17,12 +19,17 @@ from multiprocessing.connection import Listener
 import copy, sys, yaml, os, itertools, six, logging
 from shutil import copyfile, rmtree
 
+
+ARTIFACT_RANGE_START = 1000
+ARTIFACT_RANGE_END = 9999
+
 ANSIBLE_RESERVED_KEYS = \
     (REGISTER, PATH, FILE, STATE, LINEINFILE, SET_FACT, IS_DEFINED, IS_UNDEFINED, IMPORT_TASKS_MODULE) = \
     ('register', 'path', 'file', 'state', 'lineinfile', 'set_fact', ' is defined', 'is_undefined', 'include')
 
 REQUIRED_CONFIG_PARAMS = ( INITIAL_ARTIFACTS_DIRECTORY, DEFAULT_HOST) = ("initial_artifacts_directory", "default_host")
 TMP_DIR = '/tmp/clouni'
+SET_FACT_SOURCE = "set_fact"
 
 class AnsibleConfigurationTool(ConfigurationTool):
     TOOL_NAME = ANSIBLE
@@ -278,34 +285,100 @@ class AnsibleConfigurationTool(ConfigurationTool):
                             sys.exit(1)
 
                     include_path = self.copy_condition_to_the_directory('equals', target_directory)
-                    ansible_tasks_temp = [
+                    tmp_ansible_tasks = [
                         {
-                            node_filter_source: {},
-                            REGISTER: NODE_FILTER_FACTS_REGISTER
+                            SOURCE: node_filter_source,
+                            VALUE: NODE_FILTER_FACTS_REGISTER,
+                            EXECUTOR: self.TOOL_NAME,
+                            PARAMETERS: {}
                         },
                         {
-                            SET_FACT: {
-                                "input_facts": self.rap_ansible_variable(NODE_FILTER_FACTS_VALUE)
-                            }
+                            SOURCE: SET_FACT_SOURCE,
+                            PARAMETERS: {
+                                "target_objects": self.rap_ansible_variable(NODE_FILTER_FACTS_VALUE)
+                            },
+                            VALUE: "tmp_value",
+                            EXECUTOR: self.TOOL_NAME
                         },
                         {
-                            SET_FACT: {
+                            SOURCE: 'debug',
+                            PARAMETERS: {
+                                'var': 'target_objects'
+                            },
+                            VALUE: "tmp_value",
+                            EXECUTOR: self.TOOL_NAME
+                        },
+                        {
+                            SOURCE: SET_FACT_SOURCE,
+                            PARAMETERS: {
+                                "input_facts": '{{ target_objects }}'
+                            },
+                            EXECUTOR: self.TOOL_NAME,
+                            VALUE: "tmp_value"
+                        },
+                        {
+                            SOURCE: SET_FACT_SOURCE,
+                            PARAMETERS: {
                                 "input_args": node_filter_params
-                            }
+                            },
+                            EXECUTOR: self.TOOL_NAME,
+                            VALUE: "tmp_value"
                         },
                         {
-                            IMPORT_TASKS_MODULE: include_path
+                            SOURCE: IMPORT_TASKS_MODULE,
+                            PARAMETERS: include_path,
+                            EXECUTOR: self.TOOL_NAME,
+                            VALUE: "tmp_value"
                         },
                         {
-                            SET_FACT: {
-                                node_filter_value_with_id: self.rap_ansible_variable(
-                                    'matched_object[\"' + node_filter_value + '\"]')
-                            }
+                            SOURCE: SET_FACT_SOURCE,
+                            PARAMETERS: {
+                                node_filter_value: "\{\{ matched_object[\"" + node_filter_value + "\"] \}\}"
+                            },
+                            VALUE: "tmp_value",
+                            EXECUTOR: self.TOOL_NAME
                         }
                     ]
-                    # self.copy_conditions_to_the_directory({'equals'}, target_directory)
-                    ansible_tasks.extend(ansible_tasks_temp)
-                    arg = self.rap_ansible_variable(node_filter_value_with_id)
+                    new_ansible_artifacts = copy.deepcopy(tmp_ansible_tasks)
+                    for i in range(len(new_ansible_artifacts)):
+                        extension = self.get_artifact_extension()
+                        seed(time.time())
+                        new_ansible_artifacts[i]['name'] = '_'.join(
+                            [SOURCE, str(randint(ARTIFACT_RANGE_START, ARTIFACT_RANGE_END))]) + extension
+                        new_ansible_artifacts[i]['configuration_tool'] = self.TOOL_NAME
+                    artifacts_with_brackets = utils.replace_brackets(new_ansible_artifacts, False)
+                    new_ansible_tasks, _ = utils.generate_artifacts(self, artifacts_with_brackets,
+                                                                    target_directory,
+                                                                    store=False)
+
+                    q = Queue()
+                    playbook = {
+                        'hosts': 'localhost',
+                        'tasks': new_ansible_tasks
+                    }
+                    self.prepare_for_run(target_directory)
+                    self.parallel_run([playbook], 'artifacts', q)
+
+                    # есть такая проблема что если в текущем процессе был запущен runner cotea то все последующие запуски
+                    # других плейбуков из этого процесса невозможны т.к. запускаться будет первоначальный плейбук, причем даже если
+                    # этот процесс форкнуть то эффект остается тк что то там внутри cotea сохраняется в контексте процесса
+                    results = q.get()
+                    value = None
+                    if_failed = False
+                    for result in results:
+                        if result.is_failed or result.is_unreachable:
+                            logging.error("Task %s has failed because of exception: \n%s" %
+                                          (result.task_name, result.result.get('exception', '(Unknown reason)')))
+                            if_failed = True
+                        if 'results' in result.result and len(result.result['results']) > 0 and 'ansible_facts' in \
+                                result.result['results'][0] and 'matched_object' in result.result['results'][0][
+                            'ansible_facts']:
+                            value = result.result['results'][0]['ansible_facts']['matched_object'][node_filter_value]
+                    if if_failed:
+                        value = 'not_found'
+                        # временное решение чтоб работали тесты
+
+                    arg = str(value)
             configuration_args[arg_key] = arg
 
         post_tasks = []
