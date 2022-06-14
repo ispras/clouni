@@ -29,7 +29,6 @@ ANSIBLE_RESERVED_KEYS = \
 
 REQUIRED_CONFIG_PARAMS = ( INITIAL_ARTIFACTS_DIRECTORY, DEFAULT_HOST) = ("initial_artifacts_directory", "default_host")
 TMP_DIR = '/tmp/clouni'
-SET_FACT_SOURCE = "set_fact"
 
 class AnsibleConfigurationTool(ConfigurationTool):
     TOOL_NAME = ANSIBLE
@@ -134,14 +133,9 @@ class AnsibleConfigurationTool(ConfigurationTool):
                 elif v.operation == 'create':
                     if not v.is_software_component:
                         ansible_play_for_elem['tasks'].extend(copy.deepcopy(self.get_ansible_tasks_for_inputs(inputs)))
-                        for val in self.global_operations_queue:
-                            if v.name in val:
-                                ansible_play_for_elem['tasks'].extend(
-                                    copy.deepcopy(self.get_ansible_tasks_from_operation(val, target_directory)))
                         ansible_tasks = self.get_ansible_tasks_for_create(v, target_directory, node_filter_config,
                                                                           description_by_type, module_by_type,
                                                                           additional_args=extra)
-
                         ansible_tasks.extend(
                             self.get_ansible_tasks_from_interface(v, target_directory, is_delete, v.operation,
                                                                   additional_args=extra))
@@ -244,141 +238,9 @@ class AnsibleConfigurationTool(ConfigurationTool):
                                                      additional_args_element)
 
         ansible_tasks = []
-        if not node_filter_config:
-            node_filter_config = {}
-        node_filter_source_prefix = node_filter_config.get('node_filter_source_prefix', '')
-        node_filter_source_postfix = node_filter_config.get('node_filter_source_postfix', '')
-        node_filter_exceptions = node_filter_config.get('node_filter_exceptions', '')
-        node_filter_inner_variable = node_filter_config.get('node_filter_inner_variable')
 
         configuration_args = {}
         for arg_key, arg in element_object.configuration_args.items():
-            # надо перенесети на этап маппинга все что тут
-            if isinstance(arg, dict):
-                node_filter_key = arg.get(SOURCE, {}).get(NODE_FILTER)
-                node_filter_value = arg.get(VALUE)
-                node_filter_params = arg.get(PARAMETERS)
-
-                if node_filter_key and node_filter_value and node_filter_params:
-                    node_filter_source = node_filter_source_prefix + node_filter_key + node_filter_source_postfix
-                    if node_filter_exceptions.get(node_filter_key):
-                        node_filter_source = node_filter_exceptions[node_filter_key]
-
-                    node_filter_value_with_id = node_filter_value + '_' + str(
-                        utils.get_random_int(OUTPUT_ID_RANGE_START, OUTPUT_ID_RANGE_END))
-
-                    NODE_FILTER_FACTS = 'node_filter_facts'
-                    NODE_FILTER_FACTS_REGISTER = NODE_FILTER_FACTS + '_raw'
-                    NODE_FILTER_FACTS_VALUE = NODE_FILTER_FACTS_REGISTER
-                    if node_filter_inner_variable:
-                        if isinstance(node_filter_inner_variable, dict):
-                            node_filter_inner_variable = node_filter_inner_variable.get(node_filter_key, '')
-                        if isinstance(node_filter_inner_variable, six.string_types):
-                            node_filter_inner_variable = [node_filter_inner_variable]
-                        if isinstance(node_filter_inner_variable, list):
-                            for v in node_filter_inner_variable:
-                                NODE_FILTER_FACTS_VALUE += '[\"' + v + '\"]'
-                        else:
-                            logging.error("Provider configuration parameter "
-                                          "\'ansible.node_filter: node_filter_inner_variable\' is missing "
-                                          "or has unsupported value \'%s\'" % node_filter_inner_variable)
-                            sys.exit(1)
-
-                    include_path = self.copy_condition_to_the_directory('equals', target_directory)
-                    tmp_ansible_tasks = [
-                        {
-                            SOURCE: node_filter_source,
-                            VALUE: NODE_FILTER_FACTS_REGISTER,
-                            EXECUTOR: self.TOOL_NAME,
-                            PARAMETERS: {}
-                        },
-                        {
-                            SOURCE: SET_FACT_SOURCE,
-                            PARAMETERS: {
-                                "target_objects": self.rap_ansible_variable(NODE_FILTER_FACTS_VALUE)
-                            },
-                            VALUE: "tmp_value",
-                            EXECUTOR: self.TOOL_NAME
-                        },
-                        {
-                            SOURCE: 'debug',
-                            PARAMETERS: {
-                                'var': 'target_objects'
-                            },
-                            VALUE: "tmp_value",
-                            EXECUTOR: self.TOOL_NAME
-                        },
-                        {
-                            SOURCE: SET_FACT_SOURCE,
-                            PARAMETERS: {
-                                "input_facts": '{{ target_objects }}'
-                            },
-                            EXECUTOR: self.TOOL_NAME,
-                            VALUE: "tmp_value"
-                        },
-                        {
-                            SOURCE: SET_FACT_SOURCE,
-                            PARAMETERS: {
-                                "input_args": node_filter_params
-                            },
-                            EXECUTOR: self.TOOL_NAME,
-                            VALUE: "tmp_value"
-                        },
-                        {
-                            SOURCE: IMPORT_TASKS_MODULE,
-                            PARAMETERS: include_path,
-                            EXECUTOR: self.TOOL_NAME,
-                            VALUE: "tmp_value"
-                        },
-                        {
-                            SOURCE: SET_FACT_SOURCE,
-                            PARAMETERS: {
-                                node_filter_value: "\{\{ matched_object[\"" + node_filter_value + "\"] \}\}"
-                            },
-                            VALUE: "tmp_value",
-                            EXECUTOR: self.TOOL_NAME
-                        }
-                    ]
-                    new_ansible_artifacts = copy.deepcopy(tmp_ansible_tasks)
-                    for i in range(len(new_ansible_artifacts)):
-                        extension = self.get_artifact_extension()
-                        seed(time.time())
-                        new_ansible_artifacts[i]['name'] = '_'.join(
-                            [SOURCE, str(randint(ARTIFACT_RANGE_START, ARTIFACT_RANGE_END))]) + extension
-                        new_ansible_artifacts[i]['configuration_tool'] = self.TOOL_NAME
-                    artifacts_with_brackets = utils.replace_brackets(new_ansible_artifacts, False)
-                    new_ansible_tasks, _ = utils.generate_artifacts(self, artifacts_with_brackets,
-                                                                    target_directory,
-                                                                    store=False)
-
-                    q = Queue()
-                    playbook = {
-                        'hosts': 'localhost',
-                        'tasks': new_ansible_tasks
-                    }
-                    self.prepare_for_run(target_directory)
-                    self.parallel_run([playbook], 'artifacts', q)
-
-                    # есть такая проблема что если в текущем процессе был запущен runner cotea то все последующие запуски
-                    # других плейбуков из этого процесса невозможны т.к. запускаться будет первоначальный плейбук, причем даже если
-                    # этот процесс форкнуть то эффект остается тк что то там внутри cotea сохраняется в контексте процесса
-                    results = q.get()
-                    value = None
-                    if_failed = False
-                    for result in results:
-                        if result.is_failed or result.is_unreachable:
-                            logging.error("Task %s has failed because of exception: \n%s" %
-                                          (result.task_name, result.result.get('exception', '(Unknown reason)')))
-                            if_failed = True
-                        if 'results' in result.result and len(result.result['results']) > 0 and 'ansible_facts' in \
-                                result.result['results'][0] and 'matched_object' in result.result['results'][0][
-                            'ansible_facts']:
-                            value = result.result['results'][0]['ansible_facts']['matched_object'][node_filter_value]
-                    if if_failed:
-                        value = 'not_found'
-                        # временное решение чтоб работали тесты
-
-                    arg = str(value)
             configuration_args[arg_key] = arg
 
         post_tasks = []

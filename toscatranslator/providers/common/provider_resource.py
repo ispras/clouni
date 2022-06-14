@@ -1,17 +1,23 @@
 import sys
 
+import six
+
 from toscatranslator.common import utils
-from toscatranslator.common.tosca_reserved_keys import PROPERTIES, ARTIFACTS, NAME, CAPABILITIES, \
-    REQUIREMENTS, TYPE, RELATIONSHIP, DEFAULT
 
 from toscatranslator.providers.common.all_requirements import ProviderRequirements
 
 import copy, logging
+from toscatranslator.common.tosca_reserved_keys import *
+from toscatranslator.providers.common.provider_configuration import ProviderConfiguration
+from toscatranslator.providers.common.translator_to_provider import execute
 
+SET_FACT_SOURCE = "set_fact"
+IMPORT_TASKS_MODULE = "include"
+TMP_DIRECTORY = '/tmp/clouni'
 
 class ProviderResource(object):
 
-    def __init__(self, provider, tmpl, node_name, node_type, is_software_component=False, is_relationship=False,
+    def __init__(self, provider, configuration_tool, tmpl, node_name, node_type, is_software_component=False, is_relationship=False,
                  relation_target_source = dict()):
         """
 
@@ -45,6 +51,7 @@ class ProviderResource(object):
             value = self.tmpl.get(PROPERTIES, {}).get(key, None)
             if value is not None:
                 self.configuration_args[key] = value
+
 
         # NOTE: filling the parameters from openstack definition to parse from input template
         if is_relationship:
@@ -87,6 +94,100 @@ class ProviderResource(object):
                     self.configuration_args[key] = list(v.get_value() for v in req)
                 else:
                     self.configuration_args[key] = req.get_value()
+
+            if configuration_tool == 'ansible':
+                provider_config = ProviderConfiguration(provider)
+                node_filter_config = provider_config.get_subsection(ANSIBLE, NODE_FILTER)
+                if not node_filter_config:
+                    node_filter_config = {}
+                node_filter_source_prefix = node_filter_config.get('node_filter_source_prefix', '')
+                node_filter_source_postfix = node_filter_config.get('node_filter_source_postfix', '')
+                node_filter_exceptions = node_filter_config.get('node_filter_exceptions', '')
+                node_filter_inner_variable = node_filter_config.get('node_filter_inner_variable')
+                for arg_key, arg in self.configuration_args.items():
+                    if isinstance(arg, dict):
+                        node_filter_key = arg.get(SOURCE, {}).get(NODE_FILTER)
+                        node_filter_value = arg.get(VALUE)
+                        node_filter_params = arg.get(PARAMETERS)
+
+                        if node_filter_key and node_filter_value and node_filter_params:
+                            node_filter_source = node_filter_source_prefix + node_filter_key + node_filter_source_postfix
+                            if node_filter_exceptions.get(node_filter_key):
+                                node_filter_source = node_filter_exceptions[node_filter_key]
+
+                            NODE_FILTER_FACTS = 'node_filter_facts'
+                            NODE_FILTER_FACTS_REGISTER = NODE_FILTER_FACTS + '_raw'
+                            NODE_FILTER_FACTS_VALUE = NODE_FILTER_FACTS_REGISTER
+                            if node_filter_inner_variable:
+                                if isinstance(node_filter_inner_variable, dict):
+                                    node_filter_inner_variable = node_filter_inner_variable.get(node_filter_key, '')
+                                if isinstance(node_filter_inner_variable, six.string_types):
+                                    node_filter_inner_variable = [node_filter_inner_variable]
+                                if isinstance(node_filter_inner_variable, list):
+                                    for v in node_filter_inner_variable:
+                                        NODE_FILTER_FACTS_VALUE += '[\"' + v + '\"]'
+                                else:
+                                    logging.error("Provider configuration parameter "
+                                                  "\'ansible.node_filter: node_filter_inner_variable\' is missing "
+                                                  "or has unsupported value \'%s\'" % node_filter_inner_variable)
+                                    sys.exit(1)
+
+                            tmp_ansible_tasks = [
+                                {
+                                    SOURCE: node_filter_source,
+                                    VALUE: NODE_FILTER_FACTS_REGISTER,
+                                    EXECUTOR: configuration_tool,
+                                    PARAMETERS: {}
+                                },
+                                {
+                                    SOURCE: SET_FACT_SOURCE,
+                                    PARAMETERS: {
+                                        "target_objects": "\\{\\{ " + NODE_FILTER_FACTS_VALUE + " \\}\\}"
+                                    },
+                                    VALUE: "tmp_value",
+                                    EXECUTOR: configuration_tool
+                                },
+                                {
+                                    SOURCE: 'debug',
+                                    PARAMETERS: {
+                                        'var': 'target_objects'
+                                    },
+                                    VALUE: "tmp_value",
+                                    EXECUTOR: configuration_tool
+                                },
+                                {
+                                    SOURCE: SET_FACT_SOURCE,
+                                    PARAMETERS: {
+                                        "input_facts": '{{ target_objects }}'
+                                    },
+                                    EXECUTOR: configuration_tool,
+                                    VALUE: "tmp_value"
+                                },
+                                {
+                                    SOURCE: SET_FACT_SOURCE,
+                                    PARAMETERS: {
+                                        "input_args": node_filter_params
+                                    },
+                                    EXECUTOR: configuration_tool,
+                                    VALUE: "tmp_value"
+                                },
+                                {
+                                    SOURCE: IMPORT_TASKS_MODULE,
+                                    PARAMETERS: "artifacts/equals.yaml",
+                                    EXECUTOR: configuration_tool,
+                                    VALUE: "tmp_value"
+                                },
+                                {
+                                    SOURCE: SET_FACT_SOURCE,
+                                    PARAMETERS: {
+                                        node_filter_value: "\{\{ matched_object[\"" + node_filter_value + "\"] \}\}"
+                                    },
+                                    VALUE: "tmp_value",
+                                    EXECUTOR: configuration_tool
+                                }
+                            ]
+                            arg = str(execute(configuration_tool, tmp_ansible_tasks, node_filter_value))
+                    self.configuration_args[arg_key] = arg
 
     @property
     def requirement_definitions(self):

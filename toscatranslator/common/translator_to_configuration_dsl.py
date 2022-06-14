@@ -119,7 +119,7 @@ def translate(template_file, validate_only, provider, configuration_tool, cluste
     logging.info("Default TOSCA template map file to be used \'%s\'" % json.dumps(default_map_files))
 
     # Parse and generate new TOSCA service template with only provider specific TOSCA types from normative types
-    tosca = ProviderToscaTemplate(tosca_parser_template_object, provider, cluster_name,
+    tosca = ProviderToscaTemplate(tosca_parser_template_object, provider, configuration_tool, cluster_name,
                                   common_map_files=default_map_files)
 
     # Init configuration tool class

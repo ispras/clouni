@@ -21,8 +21,9 @@ class ProviderToscaTemplate(object):
     DEPENDENCY_FUNCTIONS = (GET_PROPERTY, GET_ATTRIBUTE, GET_OPERATION_OUTPUT)
     DEFAULT_ARTIFACTS_DIRECTOR = ARTIFACTS
 
-    def __init__(self, tosca_parser_template_object, provider, cluster_name, common_map_files=[]):
+    def __init__(self, tosca_parser_template_object, provider, configuration_tool, cluster_name, common_map_files=[]):
         self.provider = provider
+        self.configuration_tool = configuration_tool
         self.provider_config = ProviderConfiguration(self.provider)
         self.cluster_name = cluster_name
         for sec in self.REQUIRED_CONFIG_PARAMS:
@@ -104,7 +105,7 @@ class ProviderToscaTemplate(object):
                 logging.error('Unexpected values: node \'%s\' not a software component and has a provider \'%s\'. '
                               'Node will be ignored' % (node.name, namespace))
             else:
-                provider_node_instance = ProviderResource(self.provider, node, node_name,
+                provider_node_instance = ProviderResource(self.provider, self.configuration_tool, node, node_name,
                                                           self.definitions[node[TYPE]],
                                                           is_software_component=is_software_component)
                 provider_nodes[node_name] = provider_node_instance
@@ -113,7 +114,7 @@ class ProviderToscaTemplate(object):
     def _provider_relations(self):
         provider_relations = dict()
         for rel_name, rel_body in self.relationship_templates.items():
-            provider_rel_instance = ProviderResource(self.provider, rel_body, rel_name,
+            provider_rel_instance = ProviderResource(self.provider, self.configuration_tool, rel_body, rel_name,
                                                      self.definitions[rel_body[TYPE]],
                                                      is_relationship=True,
                                                      relation_target_source=self._relation_target_source)
@@ -333,9 +334,8 @@ class ProviderToscaTemplate(object):
         return r
 
     def translate_to_provider(self):
-        new_element_templates, new_artifacts, conditions_set, new_extra = translate_to_provider(self)
+        new_element_templates, new_artifacts, new_extra = translate_to_provider(self)
 
-        self.used_conditions_set = conditions_set
         dict_tpl = {}
         if new_element_templates.get(NODES):
             dict_tpl[NODE_TEMPLATES] = new_element_templates[NODES]

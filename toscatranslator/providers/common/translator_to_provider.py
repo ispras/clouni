@@ -716,7 +716,7 @@ def restructure_mapping_facts(elements_map, self, extra_elements_map=None, targe
     :param source_value:
     :return:
     """
-    conditions = []
+
     elements_map = copy.deepcopy(elements_map)
     if not extra_elements_map:
         extra_elements_map = []
@@ -733,11 +733,10 @@ def restructure_mapping_facts(elements_map, self, extra_elements_map=None, targe
                 target_parameter = cur_parameter
         new_elements_map = dict()
         for k, v in elements_map.items():
-            cur_elements, extra_elements_map, new_conditions = restructure_mapping_facts(v, self, extra_elements_map,
+            cur_elements, extra_elements_map = restructure_mapping_facts(v, self, extra_elements_map,
                                                                                          target_parameter,
                                                                                          source_parameter, source_value)
             new_elements_map.update({k: cur_elements})
-            conditions.extend(new_conditions)
 
         if isinstance(new_elements_map.get(PARAMETER, ''), dict):
             separated_target_parameter = target_parameter.split(SEPARATOR)
@@ -816,22 +815,19 @@ def restructure_mapping_facts(elements_map, self, extra_elements_map=None, targe
                 sys.exit(1)
             new_elements_map = get_source_structure_from_facts(condition, fact_name, value, arguments, executor,
                                             target_parameter, source_value)
-            conditions.append(condition)
 
-        return new_elements_map, extra_elements_map, conditions
+        return new_elements_map, extra_elements_map
 
     if isinstance(elements_map, list):
         new_elements_map = []
         for k in elements_map:
-            cur_elements, extra_elements_map, new_conditions = restructure_mapping_facts(k, self, extra_elements_map,
+            cur_elements, extra_elements_map = restructure_mapping_facts(k, self, extra_elements_map,
                                                                                          target_parameter,
                                                                                          source_parameter, source_value)
             new_elements_map.append(cur_elements)
-            conditions.extend(new_conditions)
-        return new_elements_map, extra_elements_map, conditions
+        return new_elements_map, extra_elements_map
 
-    return elements_map, extra_elements_map, conditions
-
+    return elements_map, extra_elements_map
 
 def restructure_get_attribute(data, service_tmpl, self):
     r = data
@@ -892,7 +888,6 @@ def translate(service_tmpl):
     element_templates.update(copy.copy(service_tmpl.relationship_templates))
 
     new_element_templates = {}
-    conditions = []
     self = dict()
     self[ARTIFACTS] = []
     self[EXTRA] = dict()
@@ -906,9 +901,8 @@ def translate(service_tmpl):
         if namespace != service_tmpl.provider:
             restructured_mapping = restructure_mapping(service_tmpl, element, tmpl_name, self)
             restructured_mapping = restructure_mapping_buffer(restructured_mapping, self)
-            restructured_mapping, extra_mappings, new_conditions = restructure_mapping_facts(restructured_mapping, self)
+            restructured_mapping, extra_mappings = restructure_mapping_facts(restructured_mapping, self)
             restructured_mapping.extend(extra_mappings)
-            conditions.extend(new_conditions)
             restructured_mapping = restructure_get_attribute(restructured_mapping, service_tmpl, self)
 
             tpl_structure = translate_node_from_tosca(restructured_mapping, tmpl_name, self)
@@ -922,12 +916,11 @@ def translate(service_tmpl):
             new_element = translate_element_from_provider(tmpl_name, element)
             new_element_templates = utils.deep_update_dict(new_element_templates, new_element)
 
-    conditions = set(conditions)
     self_extra = utils.replace_brackets(self[EXTRA], False)
     self_artifacts = utils.replace_brackets(self[ARTIFACTS], False)
 
     # REMOVE
-    return new_element_templates, self_artifacts, conditions, self_extra
+    return new_element_templates, self_artifacts, self_extra
 
 
 def execute(executor, new_global_elements_map_total_implementation, target_parameter):
