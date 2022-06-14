@@ -68,6 +68,7 @@ def get_random_int(start, end):
     r = randint(start, end)
     return r
 
+
 def generate_artifacts(configuration_class, new_artifacts, directory, store=True):
     """
     From the info of new artifacts generate files which execute

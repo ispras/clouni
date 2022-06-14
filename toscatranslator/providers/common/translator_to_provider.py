@@ -1,4 +1,5 @@
 import ast
+import os
 from multiprocessing import Queue
 
 import yaml
@@ -211,6 +212,7 @@ def restructure_value(mapping_value, self, if_format_str=True, if_upper=True):
         # NOTE: the process is needed because using only format function makes string from json
         mapping_value, _ = format_value(mapping_value, self, False)
     return mapping_value
+
 
 def format_value(value, params, if_replace_brackets=True):
     is_buffer = False
@@ -615,7 +617,7 @@ def translate_node_from_tosca(restructured_mapping, tpl_name, self):
     return resulted_structure
 
 
-def get_source_structure_from_facts( condition, fact_name, value, arguments, executor, target_parameter, source_value):
+def get_source_structure_from_facts(condition, fact_name, value, arguments, executor, target_parameter, source_value):
     """
     :param condition:
     :param fact_name:
@@ -734,8 +736,8 @@ def restructure_mapping_facts(elements_map, self, extra_elements_map=None, targe
         new_elements_map = dict()
         for k, v in elements_map.items():
             cur_elements, extra_elements_map = restructure_mapping_facts(v, self, extra_elements_map,
-                                                                                         target_parameter,
-                                                                                         source_parameter, source_value)
+                                                                         target_parameter,
+                                                                         source_parameter, source_value)
             new_elements_map.update({k: cur_elements})
 
         if isinstance(new_elements_map.get(PARAMETER, ''), dict):
@@ -814,7 +816,7 @@ def restructure_mapping_facts(elements_map, self, extra_elements_map=None, targe
                 logging.critical("Unsupported executor name \'%s\'" % json.dumps(executor))
                 sys.exit(1)
             new_elements_map = get_source_structure_from_facts(condition, fact_name, value, arguments, executor,
-                                            target_parameter, source_value)
+                                                               target_parameter, source_value)
 
         return new_elements_map, extra_elements_map
 
@@ -822,12 +824,13 @@ def restructure_mapping_facts(elements_map, self, extra_elements_map=None, targe
         new_elements_map = []
         for k in elements_map:
             cur_elements, extra_elements_map = restructure_mapping_facts(k, self, extra_elements_map,
-                                                                                         target_parameter,
-                                                                                         source_parameter, source_value)
+                                                                         target_parameter,
+                                                                         source_parameter, source_value)
             new_elements_map.append(cur_elements)
         return new_elements_map, extra_elements_map
 
     return elements_map, extra_elements_map
+
 
 def restructure_get_attribute(data, service_tmpl, self):
     r = data
@@ -935,8 +938,10 @@ def execute(executor, new_global_elements_map_total_implementation, target_param
                 [SOURCE, str(randint(ARTIFACT_RANGE_START, ARTIFACT_RANGE_END))]) + extension
             new_ansible_artifacts[i]['configuration_tool'] = executor
         artifacts_with_brackets = utils.replace_brackets(new_ansible_artifacts, False)
-        new_ansible_tasks, _ = utils.generate_artifacts(configuration_class, artifacts_with_brackets, configuration_class.initial_artifacts_directory,
-                                                        store=False)
+        new_ansible_tasks, filename = utils.generate_artifacts(configuration_class, artifacts_with_brackets,
+                                                               configuration_class.initial_artifacts_directory,
+                                                               store=False)
+        os.remove(filename)
 
         q = Queue()
         playbook = {
