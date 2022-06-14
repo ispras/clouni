@@ -935,7 +935,7 @@ def execute(executor, new_global_elements_map_total_implementation, target_param
                 [SOURCE, str(randint(ARTIFACT_RANGE_START, ARTIFACT_RANGE_END))]) + extension
             new_ansible_artifacts[i]['configuration_tool'] = executor
         artifacts_with_brackets = utils.replace_brackets(new_ansible_artifacts, False)
-        new_ansible_tasks, _ = utils.generate_artifacts(configuration_class, artifacts_with_brackets, TMP_DIRECTORY,
+        new_ansible_tasks, _ = utils.generate_artifacts(configuration_class, artifacts_with_brackets, configuration_class.initial_artifacts_directory,
                                                         store=False)
 
         q = Queue()
@@ -943,7 +943,7 @@ def execute(executor, new_global_elements_map_total_implementation, target_param
             'hosts': 'localhost',
             'tasks': new_ansible_tasks
         }
-        configuration_class.prepare_for_run(TMP_DIRECTORY)
+        configuration_class.prepare_for_run(configuration_class.initial_artifacts_directory)
         configuration_class.parallel_run([playbook], 'artifacts', q)
 
         # есть такая проблема что если в текущем процессе был запущен runner cotea то все последующие запуски
