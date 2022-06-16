@@ -1,3 +1,4 @@
 netaddr==0.7.19 # for using 'ipaddr' in ip_contains.yaml Ansible artifact
 pyyaml
 six
+-r requirements-cotea.txt
