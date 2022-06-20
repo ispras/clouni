@@ -140,8 +140,6 @@ def translate(template_file, validate_only, provider, configuration_tool, cluste
             configuration_class = get_configuration_tool_class(art['executor'])()
             _, new_art = utils.generate_artifacts(configuration_class, art_list, default_artifacts_directory)
             tosca.artifacts.append(new_art)
-            print(new_art)
-            sys.exit(0)
         else:
             tool_artifacts.append(art)
 

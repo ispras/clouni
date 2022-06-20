@@ -485,7 +485,7 @@ node_types:
          capability: openstack.capabilities.Node
          node: openstack.nodes.Port
          relationship: openstack.relationships.DependsOn
-         occurrences: [0, UNBOUNDED]
+         occurrences: [ 0, UNBOUNDED ]
       - security_groups:
           capability: openstack.capabilities.Node
           node: openstack.nodes.SecurityGroup

@@ -891,6 +891,7 @@ def translate(service_tmpl):
     element_templates.update(copy.copy(service_tmpl.relationship_templates))
 
     new_element_templates = {}
+    template_mapping = {}
     self = dict()
     self[ARTIFACTS] = []
     self[EXTRA] = dict()
@@ -913,6 +914,10 @@ def translate(service_tmpl):
                 for node_type, tpl in temp_tpl.items():
                     (_, element_type, _) = utils.tosca_type_parse(node_type)
                     tpl[TYPE] = node_type
+                    if tmpl_name not in template_mapping:
+                        template_mapping[tmpl_name] = {tpl_name}
+                    else:
+                        template_mapping[tmpl_name].add(tpl_name)
                     new_element_templates[element_type] = new_element_templates.get(element_type, {})
                     new_element_templates[element_type].update({tpl_name: copy.deepcopy(tpl)})
         else:
@@ -923,7 +928,7 @@ def translate(service_tmpl):
     self_artifacts = utils.replace_brackets(self[ARTIFACTS], False)
 
     # REMOVE
-    return new_element_templates, self_artifacts, self_extra
+    return new_element_templates, self_artifacts, self_extra, template_mapping
 
 
 def execute(executor, new_global_elements_map_total_implementation, target_parameter):

@@ -15,6 +15,7 @@ import os, copy, json, yaml, logging, sys, six
 
 SEPARATOR = '.'
 
+LIFECICLE = ['create', 'configure', 'start', 'stop', 'delete']
 
 class ProviderToscaTemplate(object):
     REQUIRED_CONFIG_PARAMS = (TOSCA_ELEMENTS_MAP_FILE, TOSCA_ELEMENTS_DEFINITION_FILE)
@@ -57,6 +58,7 @@ class ProviderToscaTemplate(object):
 
         self.node_templates = {}
         self.relationship_templates = {}
+        self.template_mapping = {}
         for tmpl in topology_template.nodetemplates:
             self.node_templates[tmpl.name] = tmpl.entity_tpl
 
@@ -74,6 +76,13 @@ class ProviderToscaTemplate(object):
         self.node_templates = self.resolve_get_property_functions(self.node_templates)
         self.relationship_templates = self.resolve_get_property_functions(self.relationship_templates)
 
+        # resolving template dependencies fo normative templates
+        self.template_dependencies = dict()
+        self._relation_target_source = dict()
+        self.resolve_in_template_dependencies()
+
+        self.normative_graph = self.normative_graph_dependency()
+
         self.translate_to_provider()
         self.make_extended_notations()
 
@@ -89,8 +98,15 @@ class ProviderToscaTemplate(object):
         self.provider_nodes = self._provider_nodes()
         self.provider_relations = self._provider_relations()
 
+        self.normative_graph = self.translate_normative_graph()
+
         # self.provider_node_names_by_priority = self._sort_nodes_by_priority()
         self.provider_operations, self.reversed_provider_operations = self.sort_nodes_and_operations_by_graph_dependency()
+
+        # self.sub_graph_elements = []
+        # for key, value in self.template_mapping.items():
+        #    self.sub_graph_elements += [self.sort_nodes_and_operations_by_graph_dependency(value)]
+
 
     def _provider_nodes(self):
         """
@@ -133,51 +149,52 @@ class ProviderToscaTemplate(object):
 
         return provider_nodes_by_name
 
+    def translate_normative_graph(self):
+        dependencies = {}
+        for temp, dep in self.normative_graph.items():
+            for elem in dep:
+                for key, val in self.template_mapping.items():
+                    if elem == key:
+                        for tpl in self.template_mapping[temp]:
+                            for el_tpl in self.template_mapping[elem]:
+                                if tpl not in dependencies:
+                                    dependencies[tpl] = {el_tpl}
+                                else:
+                                    dependencies[tpl].add(el_tpl)
+        return dependencies
+
+    def normative_graph_dependency(self):
+        nodes = set(self.node_templates.keys())
+        nodes = nodes.union(set(self.relationship_templates.keys()))
+        dependencies = {}
+        for templ_name in nodes:
+            set_intersection = nodes.intersection(self.template_dependencies.get(templ_name, set()))
+            utils.deep_update_dict(dependencies, {templ_name: set_intersection})
+        return dependencies
+
     def sort_nodes_and_operations_by_graph_dependency(self):
         nodes = set(self.provider_nodes.keys())
         nodes = nodes.union(set(self.provider_relations.keys()))
         dependencies = {}
-        lifecycle = ['configure', 'start', 'stop', 'delete']
-        reversed_full_lifecycle = lifecycle[::-1] + ['create']
         for templ_name in nodes:
             set_intersection = nodes.intersection(self.template_dependencies.get(templ_name, set()))
             templ = self.provider_nodes.get(templ_name, self.provider_relations.get(templ_name))
             (_, element_type, _) = utils.tosca_type_parse(templ.type)
             if element_type == NODES and 'interfaces' in templ.tmpl and 'Standard' in templ.tmpl['interfaces']:
-                new_operations = ['create']
-                for elem in lifecycle:
-                    if elem in templ.tmpl['interfaces']['Standard']:
-                        new_operations.append(elem)
-                if len(new_operations) == 1:
-                    utils.deep_update_dict(dependencies, {templ_name + ':create': set_intersection})
-                else:
-                    for i in range(1, len(new_operations)):
-                        utils.deep_update_dict(dependencies, {
-                            templ_name + ':' + new_operations[i]: {templ_name + ':' + new_operations[i - 1]}})
-                    utils.deep_update_dict(dependencies, {templ_name + ':' + new_operations[0]: set_intersection})
+                for op in LIFECICLE:
+                    if op in templ.tmpl['interfaces']['Standard'] or op == 'create':
+                        templ.operations += [op]
             else:
-                utils.deep_update_dict(dependencies, {templ_name + ':create': set_intersection})
-        new_dependencies = {}
-        for key, value in dependencies.items():
-            new_set = set()
-            for elem in value:
-                for oper in reversed_full_lifecycle:
-                    if elem + ":" + oper in dependencies:
-                        new_set.add(elem + ":" + oper)
-                        break
-                    elif elem in dependencies:
-                        new_set.add(elem)
-                        break
-            new_dependencies[key] = new_set
-        templ_mappling = {}
-        for elem in new_dependencies:
-            templ_name = elem.split(':')[0]
-            templ = copy.deepcopy(self.provider_nodes.get(templ_name, self.provider_relations.get(templ_name)))
-            templ.operation = elem.split(':')[1]
-            templ_mappling[elem] = templ
+                templ.operations = ['create']
+            utils.deep_update_dict(dependencies, {templ_name: set_intersection})
         templ_dependencies = {}
         reversed_templ_dependencies = {}
-        for key, value in new_dependencies.items():
+        templ_mappling = {}
+        dependencies = utils.deep_update_dict(dependencies, self.normative_graph)
+        for elem in dependencies:
+            templ = self.provider_nodes.get(elem, self.provider_relations.get(elem))
+            templ_mappling[elem] = templ
+        for key, value in dependencies.items():
             new_set = set()
             for elem in value:
                 new_set.add(templ_mappling[elem])
@@ -334,9 +351,10 @@ class ProviderToscaTemplate(object):
         return r
 
     def translate_to_provider(self):
-        new_element_templates, new_artifacts, new_extra = translate_to_provider(self)
+        new_element_templates, new_artifacts, new_extra, template_mapping = translate_to_provider(self)
 
         dict_tpl = {}
+        self.template_mapping = template_mapping
         if new_element_templates.get(NODES):
             dict_tpl[NODE_TEMPLATES] = new_element_templates[NODES]
         if new_element_templates.get(RELATIONSHIPS):
