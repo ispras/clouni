@@ -241,27 +241,15 @@ tosca.nodes.Compute:
             value:
               - "{self[value]}"
           - parameter: openstack.nodes.SecurityGroupRule.properties.protocol
-            value: "\\{\\{ {self[keyname]}_protocols[item | int] | default(omit) \\}\\}"
-          - parameter: openstack.nodes.SecurityGroupRule.properties.port_range_min
-            value: "\\{\\{ {self[keyname]}_ports[item | int] | default(omit) \\}\\}"
-          - parameter: openstack.nodes.SecurityGroupRule.properties.port_range_max
-            value: "\\{\\{ {self[keyname]}_ports[item | int] | default(omit) \\}\\}"
-          - parameter: openstack.nodes.SecurityGroupRule.interfaces.Prepare.preconfigure.implementation
-            value:
-              - value: "tmp"
-                source: set_fact
-                executor: ansible
-                parameters:
-                  "{self[keyname]}_protocols": "{self[buffer][endpoint][protocol]}"
-              - value: "tmp"
-                source: set_fact
-                executor: ansible
-                parameters:
-                  "{self[keyname]}_ports": "{self[buffer][endpoint][port]}"
+            value: "{self[value]}"
         properties.port:
           - parameter: "{self[buffer][endpoint][port]}"
             value:
               - "{self[value]}"
+          - parameter: openstack.nodes.SecurityGroupRule.properties.port_range_min
+            value: "{self[value]}"
+          - parameter: openstack.nodes.SecurityGroupRule.properties.port_range_max
+            value: "{self[value]}"
         properties.secure:
           error: true
           reason: Not supported by OpenStack

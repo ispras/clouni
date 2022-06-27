@@ -19,19 +19,12 @@ import ast
 TMP_DIR = '/tmp/clouni'
 
 
-def prepare_for_run(artifacts_directory):
+def prepare_for_run():
     os.makedirs(TMP_DIR, exist_ok=True)
     tmp_current_dir = os.path.join(TMP_DIR)
     successful_tasks_path = os.path.join(tmp_current_dir, 'successful_tasks.yaml')
-    if not os.path.isdir(artifacts_directory):
-        os.makedirs(artifacts_directory)
     if not os.path.isdir(TMP_DIR):
         os.makedirs(tmp_current_dir)
-    if not os.path.isabs(artifacts_directory):
-        tmp_artifacts_directory = os.path.join(tmp_current_dir, artifacts_directory)
-        if not os.path.isdir(tmp_artifacts_directory):
-            os.makedirs(tmp_artifacts_directory)
-        copy_tree(artifacts_directory, tmp_artifacts_directory)
     if os.path.isfile(successful_tasks_path):
         os.remove(successful_tasks_path)
 

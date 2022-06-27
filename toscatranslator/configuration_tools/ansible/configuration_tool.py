@@ -27,7 +27,7 @@ ANSIBLE_RESERVED_KEYS = \
     (REGISTER, PATH, FILE, STATE, LINEINFILE, SET_FACT, IS_DEFINED, IS_UNDEFINED, IMPORT_TASKS_MODULE) = \
     ('register', 'path', 'file', 'state', 'lineinfile', 'set_fact', ' is defined', 'is_undefined', 'include')
 
-REQUIRED_CONFIG_PARAMS = ( INITIAL_ARTIFACTS_DIRECTORY, DEFAULT_HOST) = ("initial_artifacts_directory", "default_host")
+REQUIRED_CONFIG_PARAMS = (INITIAL_ARTIFACTS_DIRECTORY, DEFAULT_HOST) = ("initial_artifacts_directory", "default_host")
 TMP_DIR = '/tmp/clouni'
 
 class AnsibleConfigurationTool(ConfigurationTool):
@@ -77,7 +77,7 @@ class AnsibleConfigurationTool(ConfigurationTool):
         elements.prepare()
 
         ansible_playbook = []
-        self.prepare_for_run(target_directory)
+        self.prepare_for_run()
         q = Queue()
         active = []
         first = True
@@ -240,18 +240,14 @@ class AnsibleConfigurationTool(ConfigurationTool):
         for arg_key, arg in element_object.configuration_args.items():
             configuration_args[arg_key] = arg
 
-        post_tasks = []
         for interface_name, interface in self.get_interfaces_from_node(element_object).items():
             if interface_name == 'Prepare':
                 for op_name, op in interface.items():
-                    if op_name == 'preconfigure' or op_name == 'configure':
+                    if op_name == 'configure':
                         op_key = '_'.join([element_object.name, interface_name.lower(), op_name])
                         if not self.global_operations_info.get(op_key, {}).get(OUTPUT_IDS):
                             tasks_from_op = self.get_ansible_tasks_from_operation(op_key, target_directory, True)
-                            if op_name == 'preconfigure':
-                                ansible_tasks.extend(tasks_from_op)
-                            else:
-                                post_tasks.extend(tasks_from_op)
+                            ansible_tasks.extend(tasks_from_op)
         ansible_args = copy.copy(element_object.configuration_args)
         ansible_args[STATE] = 'present'
         task_name = element_object.name.replace('-', '_')
@@ -261,7 +257,6 @@ class AnsibleConfigurationTool(ConfigurationTool):
         ansible_task_as_dict[REGISTER] = task_name
         ansible_task_as_dict.update(additional_args)
         ansible_tasks.append(ansible_task_as_dict)
-        ansible_tasks.extend(post_tasks)
         return ansible_tasks
 
     def get_ansible_tasks_for_delete(self, element_object, description_by_type, module_by_type, additional_args=None):
@@ -318,7 +313,7 @@ class AnsibleConfigurationTool(ConfigurationTool):
                     implementations = [implementations]
                 scripts.extend(implementations)
                 for script in implementations:
-                    import_file = os.path.join(target_directory, os.path.basename(script))
+                    import_file = os.path.join(TMP_DIR, target_directory, os.path.basename(script))
                     os.makedirs(os.path.dirname(import_file), exist_ok=True)
                     copyfile(script, import_file)
                     if interface_operation.get(INPUTS) is not None:
@@ -440,29 +435,8 @@ class AnsibleConfigurationTool(ConfigurationTool):
             f.write(filedata)
             logging.info("Artifact for executor %s was created: %s" % (self.TOOL_NAME, filename))
 
-    def copy_condition_to_the_directory(self, cond, target_directory):
-        os.makedirs(target_directory, exist_ok=True)
-        tool_artifacts_dir = os.path.join(os.path.dirname(os.path.realpath(__file__)), self.initial_artifacts_directory)
-        filename = os.path.join(tool_artifacts_dir, cond + self.get_artifact_extension())
-        if not os.path.isfile(filename):
-            logging.error("File containing condition \'%s\' not found in \'%s\'" % (cond, filename))
-            sys.exit(1)
-        target_filename = os.path.join(target_directory, cond + self.get_artifact_extension())
-        copyfile(filename, target_filename)
-        return target_filename
-
     def copy_conditions_to_the_directory(self, conditions_set, target_directory):
-        os.makedirs(target_directory, exist_ok=True)
-        tool_artifacts_dir = os.path.join(os.path.dirname(os.path.realpath(__file__)), self.initial_artifacts_directory)
-        for cond in conditions_set:
-            filename = os.path.join(tool_artifacts_dir, cond + self.get_artifact_extension())
-            if not os.path.isfile(filename):
-                logging.error("Error loading condition file \'%s\'" % filename)
-            else:
-                target_filename = os.path.join(target_directory, cond + self.get_artifact_extension())
-                copyfile(filename, target_filename)
-                logging.info(
-                    "File \'%s\' was successfully copied to the directory \'%s\'" % (filename, target_directory))
+        return
 
     def get_extra_tasks_for_delete(self, task_name, path):
         ansible_tasks_for_create = []
@@ -525,9 +499,8 @@ class AnsibleConfigurationTool(ConfigurationTool):
             })
         return ansible_tasks
 
-    # мб надо будет поменять схему
-    def prepare_for_run(self, target_directory):
-        prepare_for_run(target_directory)
+    def prepare_for_run(self):
+        prepare_for_run()
 
     def parallel_run(self, ansible_play, name, q):
         parallel_run_ansible(ansible_play, name, q)

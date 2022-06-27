@@ -4,6 +4,8 @@ from multiprocessing import Queue
 
 import yaml
 
+from distutils.dir_util import copy_tree
+
 from toscatranslator.common import utils
 from toscatranslator.common.tosca_reserved_keys import *
 from toscatranslator.configuration_tools.combined.combine_configuration_tools import get_configuration_tool_class
@@ -24,7 +26,7 @@ ARTIFACT_RANGE_START = 1000
 ARTIFACT_RANGE_END = 9999
 PYTHON_EXECUTOR = 'python'
 PYTHON_SOURCE_DIRECTORY = 'toscatranslator.providers.common.python_sources'
-TMP_DIRECTORY = '/tmp/clouni'
+TMP_DIRECTORY = '/tmp/clouni/'
 
 
 def translate_element_from_provider(tmpl_name, node_tmpl):
@@ -702,8 +704,7 @@ def get_source_structure_from_facts(condition, fact_name, value, arguments, exec
     ]
 
     new_global_elements_map_total_implementation += addition_for_elements_map_total_implementation
-
-    return execute(executor, new_global_elements_map_total_implementation, target_parameter)
+    return execute(executor, new_global_elements_map_total_implementation, value)
 
 
 def restructure_mapping_facts(elements_map, self, extra_elements_map=None, target_parameter=None, source_parameter=None,
@@ -953,7 +954,9 @@ def execute(executor, new_global_elements_map_total_implementation, target_param
             'hosts': 'localhost',
             'tasks': new_ansible_tasks
         }
-        configuration_class.prepare_for_run(configuration_class.initial_artifacts_directory)
+
+        copy_tree(utils.get_project_root_path() + '/toscatranslator/configuration_tools/ansible/artifacts',
+                  TMP_DIRECTORY + configuration_class.initial_artifacts_directory)
         configuration_class.parallel_run([playbook], 'artifacts', q)
 
         # есть такая проблема что если в текущем процессе был запущен runner cotea то все последующие запуски

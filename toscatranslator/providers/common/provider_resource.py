@@ -1,8 +1,10 @@
+import os
 import sys
 
 import six
 
 from toscatranslator.common import utils
+from toscatranslator.configuration_tools.ansible.runner import prepare_for_run
 
 from toscatranslator.providers.common.all_requirements import ProviderRequirements
 
@@ -213,6 +215,7 @@ class ProviderResource(object):
                 requirement_defs_list_with_name_added.append(copy_req_def)
 
         return requirement_defs_list_with_name_added
+
     def set_defaults(self):
         for prop_name, prop_def in self.type_definition.get(PROPERTIES, {}).items():
             value = self.tmpl.get(PROPERTIES, {}).get(prop_name)
