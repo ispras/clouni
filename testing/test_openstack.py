@@ -76,7 +76,7 @@ class TestAnsibleOpenStackOutput (unittest.TestCase, TestAnsibleProvider):
         file_path = os.path.join('examples', 'tosca-network-and-server-example.yaml')
         template = self.read_template(file_path)
         playbook = self.get_ansible_create_output(template, file_path, delete_template=False)
-        self.assertEqual(len(playbook), 5)
+        self.assertEqual(len(playbook), 4)
         for elem in playbook:
             self.assertIsInstance(elem, dict)
             self.assertIsNotNone(elem['tasks'])
@@ -158,7 +158,7 @@ class TestAnsibleOpenStackOutput (unittest.TestCase, TestAnsibleProvider):
     def test_server_name(self):
         template = copy.deepcopy(self.DEFAULT_TEMPLATE)
         playbook = self.get_ansible_create_output(template)
-        self.assertEqual(len(playbook), 2)
+        self.assertEqual(len(playbook), 1)
         for play in playbook:
             self.assertIsInstance(play, dict)
             self.assertIsNotNone(play['tasks'])
@@ -166,7 +166,7 @@ class TestAnsibleOpenStackOutput (unittest.TestCase, TestAnsibleProvider):
         for play in playbook:
             for task in play['tasks']:
                 tasks.append(task)
-        self.assertEqual(len(tasks), 18)
+        self.assertEqual(len(tasks), 12)
         self.assertIsNotNone(tasks[2][SERVER_MODULE_NAME])
         server = tasks[2][SERVER_MODULE_NAME]
         self.assertEqual(server['name'], self.NODE_NAME)
@@ -303,7 +303,7 @@ class TestAnsibleOpenStackOutput (unittest.TestCase, TestAnsibleProvider):
         playbook = self.get_ansible_delete_output_from_file(copy.deepcopy(self.DEFAULT_TEMPLATE),
                                                   template_filename='examples/tosca-server-example-scalable.yaml')
         self.assertIsNotNone(playbook[0]['tasks'][0]['include_vars'])
-        self.assertIsNotNone(playbook[4]['tasks'][0]['file'])
+        self.assertIsNotNone(playbook[3]['tasks'][0]['file'])
         module_names= ['os_floating_ip','os_server','os_port','os_security_group',]
         tasks = []
         for play in playbook:
@@ -373,35 +373,21 @@ class TestAnsibleOpenStackOutput (unittest.TestCase, TestAnsibleProvider):
             if tasks[i].get('os_floating_ip', None) != None:
                 fip_var = tasks[i]['register']
 
-                self.assertIsNotNone(tasks[i+1].get('set_fact', None))
-                self.assertEqual(tasks[i+1]['set_fact'].get('host_ip', None),
-                                 '{{ '+ fip_var + '.floating_ip.floating_ip_address }}')
+                self.assertIsNotNone(tasks[i + 6].get('set_fact', {}).get('ansible_user'))
+                self.assertIsNotNone(tasks[i + 7].get('set_fact', None))
+                self.assertEqual(tasks[i + 7]['set_fact'].get('host_ip', None),
+                                 '{{ ' + fip_var + '.floating_ip.floating_ip_address }}')
 
-                self.assertIsNotNone(tasks[i+2].get('add_host', None))
-                self.assertEqual(tasks[i+2]['add_host'].get('hostname', None),
-                                 '{{ host_ip }}')
-                self.assertEqual(tasks[i+2]['add_host'].get('groups', None),
-                                 self.NODE_NAME)
-
-                self.assertIsNotNone(tasks[i+3].get('shell', None))
-                self.assertEqual(tasks[i+3]['shell'],
-                                 'ssh-keyscan {{ host_ip }},`dig +short {{ host_ip }}`')
-                self.assertIsNotNone(tasks[i+3].get('register', None))
-                self.assertEqual(tasks[i+3]['register'],
-                                 'host_key')
-
-                self.assertIsNotNone(tasks[i+4].get('known_hosts', None))
-                self.assertEqual(tasks[i+4]['known_hosts'].get('name', None),
-                                 '{{ host_ip }}')
-                self.assertEqual(tasks[i+4]['known_hosts'].get('key', None),
-                                 '{{ host_key.stdout }}')
+                self.assertEqual(tasks[i + 8].get('set_fact', {}).get('group'), self.NODE_NAME + '_public_address')
+                self.assertIsNotNone(tasks[i + 9].get('include', None))
+                self.assertEqual(tasks[i + 9]['include'], '/tmp/clouni/artifacts/add_host.yaml')
                 checked = True
         self.assertTrue(checked)
 
         tasks = tasks2
         self.assertEqual(len(tasks), 2)
         self.assertEqual(tasks[0].get('set_fact', {}).get('version', None), 0.1)
-        self.assertEqual(tasks[1].get('include', None), "artifacts/ansible-server-example.yaml")
+        self.assertEqual(tasks[1].get('include', None), "/tmp/clouni/artifacts/ansible-server-example.yaml")
 
     def test_get_input(self):
         super(TestAnsibleOpenStackOutput, self).test_get_input()
@@ -470,3 +456,19 @@ class TestAnsibleOpenStackOutput (unittest.TestCase, TestAnsibleProvider):
                 if task not in succ_tasks:
                     correct = False
         self.assertTrue(correct)
+
+    def test_host_ip_parameter(self):
+        super(TestAnsibleOpenStackOutput, self).test_host_ip_parameter()
+
+    def check_host_ip_parameter(self, tasks, testing_value):
+        for i in range(len(tasks)):
+            if tasks[i].get('os_server'):
+                self.assertEqual(tasks[i]['os_server']['nics'][0]['net-name'], testing_value)
+                ansible_user = tasks[i + 6].get('set_fact', {}).get('ansible_user')
+                host_ip = tasks[i + 7].get('set_fact', {}).get('host_ip')
+                group = tasks[i + 8].get('set_fact', {}).get('group')
+                include = tasks[i + 9].get('include')
+                self.assertEqual(ansible_user, 'cirros')
+                self.assertEqual(host_ip, '{{ tosca_server_example_server.server.public_v4 }}')
+                self.assertEqual(group, 'tosca_server_example_private_address')
+                self.assertEqual(include, '/tmp/clouni/artifacts/add_host.yaml')

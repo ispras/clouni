@@ -428,10 +428,13 @@ def get_restructured_mapping_item(key_prefix, parameter, mapping_value, value, s
                     arg_key_prefix = ''
                 arg_parameter = k if not parameter else SEPARATOR.join([parameter, k])
                 item = get_restructured_mapping_item(arg_key_prefix, arg_parameter, arg_map, v, self)
-                if isinstance(item, list):
+                if item:
+                    if not isinstance(item, list):
+                        item = [item]
+                    if k == '*':
+                        for i in item:
+                            i[PARAMETER] = _k.join(i[PARAMETER].rsplit(k, 1))
                     r.extend(item)
-                elif item is not None:
-                    r.append(item)
         return r
 
     if isinstance(value, list):
@@ -597,6 +600,7 @@ def translate_node_from_tosca(restructured_mapping, tpl_name, self):
             mapping_value=item[MAP_KEY],
             self=self
         )
+
         structures, keyname = get_structure_of_mapped_param(mapped_param, item[VALUE])
 
         for structure in structures:
@@ -619,19 +623,16 @@ def translate_node_from_tosca(restructured_mapping, tpl_name, self):
     return resulted_structure
 
 
-def get_source_structure_from_facts(condition, fact_name, value, arguments, executor, target_parameter, source_value):
+def get_source_structure_from_facts(condition, fact_name, value, arguments, executor, source_value):
     """
     :param condition:
     :param fact_name:
     :param value:
     :param arguments:
     :param executor
-    :param target_parameter:
-    :param source_parameter:
     :param source_value:
     :return:
     """
-
     if isinstance(arguments, list):
         for i in range(len(arguments)):
             if isinstance(arguments[i], str) and 'self' in arguments[i]:
@@ -704,7 +705,7 @@ def get_source_structure_from_facts(condition, fact_name, value, arguments, exec
     ]
 
     new_global_elements_map_total_implementation += addition_for_elements_map_total_implementation
-    return execute(executor, new_global_elements_map_total_implementation, value)
+    return execute(new_global_elements_map_total_implementation, value)
 
 
 def restructure_mapping_facts(elements_map, self, extra_elements_map=None, target_parameter=None, source_parameter=None,
@@ -816,8 +817,8 @@ def restructure_mapping_facts(elements_map, self, extra_elements_map=None, targe
             if not get_configuration_tool_class(executor):
                 logging.critical("Unsupported executor name \'%s\'" % json.dumps(executor))
                 sys.exit(1)
-            new_elements_map = get_source_structure_from_facts(condition, fact_name, value, arguments, executor,
-                                                               target_parameter, source_value)
+            new_value = get_source_structure_from_facts(condition, fact_name, value, arguments, executor, source_value)
+            return new_value, extra_elements_map
 
         return new_elements_map, extra_elements_map
 
@@ -831,7 +832,6 @@ def restructure_mapping_facts(elements_map, self, extra_elements_map=None, targe
         return new_elements_map, extra_elements_map
 
     return elements_map, extra_elements_map
-
 
 def restructure_get_attribute(data, service_tmpl, self):
     r = data
@@ -905,6 +905,7 @@ def translate(service_tmpl):
 
         if namespace != service_tmpl.provider:
             restructured_mapping = restructure_mapping(service_tmpl, element, tmpl_name, self)
+            restructured_mapping = sort_host_ip_parameter(restructured_mapping, service_tmpl.host_ip_parameter)
             restructured_mapping = restructure_mapping_buffer(restructured_mapping, self)
             restructured_mapping, extra_mappings = restructure_mapping_facts(restructured_mapping, self)
             restructured_mapping.extend(extra_mappings)
@@ -927,48 +928,50 @@ def translate(service_tmpl):
 
     self_extra = utils.replace_brackets(self[EXTRA], False)
     self_artifacts = utils.replace_brackets(self[ARTIFACTS], False)
+    execute(self_artifacts)
 
-    # REMOVE
-    return new_element_templates, self_artifacts, self_extra, template_mapping
+    return new_element_templates, self_extra, template_mapping
 
 
-def execute(executor, new_global_elements_map_total_implementation, target_parameter):
-    if executor == 'ansible':
-        configuration_class = get_configuration_tool_class(executor)()
-        new_ansible_artifacts = copy.deepcopy(new_global_elements_map_total_implementation)
-        for i in range(len(new_ansible_artifacts)):
-            extension = configuration_class.get_artifact_extension()
+def execute(new_global_elements_map_total_implementation, target_parameter=None):
+    default_executor = 'ansible'
+    configuration_class = get_configuration_tool_class(default_executor)()
+    new_ansible_artifacts = copy.deepcopy(new_global_elements_map_total_implementation)
+    for i in range(len(new_ansible_artifacts)):
+        new_ansible_artifacts[i]['configuration_tool'] = new_ansible_artifacts[i]['executor']
+        configuration_class = get_configuration_tool_class(new_ansible_artifacts[i]['configuration_tool'])()
+        extension = configuration_class.get_artifact_extension()
 
-            seed(time())
-            new_ansible_artifacts[i]['name'] = '_'.join(
-                [SOURCE, str(randint(ARTIFACT_RANGE_START, ARTIFACT_RANGE_END))]) + extension
-            new_ansible_artifacts[i]['configuration_tool'] = executor
-        artifacts_with_brackets = utils.replace_brackets(new_ansible_artifacts, False)
-        new_ansible_tasks, filename = utils.generate_artifacts(configuration_class, artifacts_with_brackets,
+        seed(time())
+        new_ansible_artifacts[i]['name'] = '_'.join(
+            [SOURCE, str(randint(ARTIFACT_RANGE_START, ARTIFACT_RANGE_END))]) + extension
+    artifacts_with_brackets = utils.replace_brackets(new_ansible_artifacts, False)
+    new_ansible_tasks, filename = utils.generate_artifacts(configuration_class, artifacts_with_brackets,
                                                                configuration_class.initial_artifacts_directory,
                                                                store=False)
-        os.remove(filename)
+    os.remove(filename)
 
-        q = Queue()
-        playbook = {
-            'hosts': 'localhost',
-            'tasks': new_ansible_tasks
-        }
+    q = Queue()
+    playbook = {
+        'hosts': 'localhost',
+        'tasks': new_ansible_tasks
+    }
 
-        copy_tree(utils.get_project_root_path() + '/toscatranslator/configuration_tools/ansible/artifacts',
-                  TMP_DIRECTORY + configuration_class.initial_artifacts_directory)
-        configuration_class.parallel_run([playbook], 'artifacts', q)
+    copy_tree(utils.get_project_root_path() + '/toscatranslator/configuration_tools/ansible/artifacts',
+              TMP_DIRECTORY + configuration_class.initial_artifacts_directory)
+    configuration_class.parallel_run([playbook], 'artifacts', q)
 
-        # есть такая проблема что если в текущем процессе был запущен runner cotea то все последующие запуски
-        # других плейбуков из этого процесса невозможны т.к. запускаться будет первоначальный плейбук, причем даже если
-        # этот процесс форкнуть то эффект остается тк что то там внутри cotea сохраняется в контексте процесса
-        results = q.get()
-        value = None
+    # есть такая проблема что если в текущем процессе был запущен runner cotea то все последующие запуски
+    # других плейбуков из этого процесса невозможны т.к. запускаться будет первоначальный плейбук, причем даже если
+    # этот процесс форкнуть то эффект остается тк что то там внутри cotea сохраняется в контексте процесса
+    results = q.get()
+    if target_parameter is not None:
+        value = 'not_found'
         if_failed = False
         for result in results:
             if result.is_failed or result.is_unreachable:
                 logging.error("Task %s has failed because of exception: \n%s" %
-                              (result.task_name, result.result.get('exception', '(Unknown reason)')))
+                                (result.task_name, result.result.get('exception', '(Unknown reason)')))
                 if_failed = True
             if 'results' in result.result and len(result.result['results']) > 0 and 'ansible_facts' in \
                     result.result['results'][0] and 'matched_object' in result.result['results'][0]['ansible_facts']:
@@ -978,3 +981,18 @@ def execute(executor, new_global_elements_map_total_implementation, target_param
             # временное решение чтоб работали тесты
         return value
     return None
+
+
+def sort_host_ip_parameter(restructured_mapping, host_ip_parameter):
+    host_ip_mapping_key = SEPARATOR.join(['tosca.nodes.Compute', PROPERTIES, host_ip_parameter])
+    mapping_equal = []
+    mapping_match = []
+    mapping_not_matched = []
+    for map in restructured_mapping:
+        if map[PARAMETER] == host_ip_mapping_key:
+            mapping_equal.append(map)
+        elif re.match(host_ip_mapping_key + '*', map[PARAMETER]):
+            mapping_match.append(map)
+        else:
+            mapping_not_matched.append(map)
+    return mapping_equal + mapping_match + mapping_not_matched

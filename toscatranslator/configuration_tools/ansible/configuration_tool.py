@@ -240,14 +240,6 @@ class AnsibleConfigurationTool(ConfigurationTool):
         for arg_key, arg in element_object.configuration_args.items():
             configuration_args[arg_key] = arg
 
-        for interface_name, interface in self.get_interfaces_from_node(element_object).items():
-            if interface_name == 'Prepare':
-                for op_name, op in interface.items():
-                    if op_name == 'configure':
-                        op_key = '_'.join([element_object.name, interface_name.lower(), op_name])
-                        if not self.global_operations_info.get(op_key, {}).get(OUTPUT_IDS):
-                            tasks_from_op = self.get_ansible_tasks_from_operation(op_key, target_directory, True)
-                            ansible_tasks.extend(tasks_from_op)
         ansible_args = copy.copy(element_object.configuration_args)
         ansible_args[STATE] = 'present'
         task_name = element_object.name.replace('-', '_')
@@ -315,7 +307,8 @@ class AnsibleConfigurationTool(ConfigurationTool):
                 for script in implementations:
                     import_file = os.path.join(TMP_DIR, target_directory, os.path.basename(script))
                     os.makedirs(os.path.dirname(import_file), exist_ok=True)
-                    copyfile(script, import_file)
+                    if script != import_file:
+                        copyfile(script, import_file)
                     if interface_operation.get(INPUTS) is not None:
                         for input_name, input_value in interface_operation[INPUTS].items():
                             ansible_tasks.append({

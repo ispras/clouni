@@ -22,8 +22,9 @@ class ProviderToscaTemplate(object):
     DEPENDENCY_FUNCTIONS = (GET_PROPERTY, GET_ATTRIBUTE, GET_OPERATION_OUTPUT)
     DEFAULT_ARTIFACTS_DIRECTOR = ARTIFACTS
 
-    def __init__(self, tosca_parser_template_object, provider, configuration_tool, cluster_name, common_map_files=[]):
+    def __init__(self, tosca_parser_template_object, provider, configuration_tool,  cluster_name, host_ip_parameter, common_map_files=[]):
         self.provider = provider
+        self.host_ip_parameter = host_ip_parameter
         self.configuration_tool = configuration_tool
         self.provider_config = ProviderConfiguration(self.provider)
         self.cluster_name = cluster_name
@@ -122,7 +123,7 @@ class ProviderToscaTemplate(object):
                               'Node will be ignored' % (node.name, namespace))
             else:
                 provider_node_instance = ProviderResource(self.provider, self.configuration_tool, node, node_name,
-                                                          self.definitions[node[TYPE]],
+                                                          self.host_ip_parameter, self.definitions[node[TYPE]],
                                                           is_software_component=is_software_component)
                 provider_nodes[node_name] = provider_node_instance
         return provider_nodes
@@ -131,7 +132,7 @@ class ProviderToscaTemplate(object):
         provider_relations = dict()
         for rel_name, rel_body in self.relationship_templates.items():
             provider_rel_instance = ProviderResource(self.provider, self.configuration_tool, rel_body, rel_name,
-                                                     self.definitions[rel_body[TYPE]],
+                                                     self.host_ip_parameter, self.definitions[rel_body[TYPE]],
                                                      is_relationship=True,
                                                      relation_target_source=self._relation_target_source)
             provider_relations[rel_name] = provider_rel_instance
@@ -351,7 +352,7 @@ class ProviderToscaTemplate(object):
         return r
 
     def translate_to_provider(self):
-        new_element_templates, new_artifacts, new_extra, template_mapping = translate_to_provider(self)
+        new_element_templates, new_extra, template_mapping = translate_to_provider(self)
 
         dict_tpl = {}
         self.template_mapping = template_mapping
@@ -379,7 +380,6 @@ class ProviderToscaTemplate(object):
             logging.exception("Failed to parse intermidiate non-normative TOSCA template with OpenStack tosca-parser")
             sys.exit(1)
 
-        self.artifacts.extend(new_artifacts)
         self.extra_configuration_tool_params = utils.deep_update_dict(self.extra_configuration_tool_params, new_extra)
 
         self.node_templates = new_element_templates.get(NODES, {})

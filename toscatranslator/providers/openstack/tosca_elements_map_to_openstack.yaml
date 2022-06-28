@@ -6,35 +6,15 @@ tosca.nodes.Compute:
       meta: openstack.nodes.Server.attributes.meta
   - properties:
       meta: openstack.nodes.Server.properties.meta
-  - parameter: '{self[buffer][add_host][hostname]}'
-    value: "\\{\\{ host_ip \\}\\}"
-  - parameter: openstack.nodes.FloatingIp.requirements
+  - parameter: openstack.nodes.Server.properties.auto_ip
+    value: false
+  - parameter: openstack.nodes.Server.interfaces.Standard.configure
     value:
-      parameter: server
-      value:
-        node: "{self[keyname]}_server"
-  - parameter:  openstack.nodes.FloatingIp.interfaces.Prepare.configure.implementation
-    value:
-    - executor: ansible
-      source: set_fact
-      parameters:
-        host_ip: '\\{\\{ {self[keyname]}_floating_ip.floating_ip.floating_ip_address \\}\\}'
-      value: temp_value
-    - executor: ansible
-      source: add_host
-      parameters: '{self[buffer][add_host]}'
-      value: temp_value
-    - executor: ansible
-      source: shell
-      parameters: 'ssh-keyscan \\{\\{ host_ip \\}\\},`dig +short \\{\\{ host_ip \\}\\}`'
-      value: host_key
-    - executor: ansible
-      source: known_hosts
-      parameters:
-        path: ~/.ssh/known_hosts
-        name: "\\{\\{ host_ip \\}\\}"
-        key: "\\{\\{ host_key.stdout \\}\\}"
-      value: temp_value
+      implementation: /tmp/clouni/artifacts/add_host.yaml
+      inputs:
+        ansible_user: "{self[buffer][add_host][ansible_user]}"
+        host_ip: '\\{\\{ {self[keyname]}_server.server.public_v4 \\}\\}'
+        group: "{self[name]}_private_address"
   - properties:
       tosca_name:
         parameter: "{self[name]}"
@@ -88,8 +68,11 @@ tosca.nodes.Compute:
           value:
           - port-name: "{self[name]}_port_0"
       public_address:
-        - parameter: openstack.nodes.Server.properties.auto_ip
-          value: false
+        - parameter: openstack.nodes.FloatingIp.requirements
+          value:
+            parameter: server
+            value:
+              node: "{self[keyname]}_server"
         - parameter: openstack.nodes.FloatingIp
           value:
             - properties.floating_ip_address
@@ -137,8 +120,13 @@ tosca.nodes.Compute:
                           - allocation_pool_start
                           - allocation_pool_end
                           - "{self[value]}"
-        - parameter: '{self[buffer][add_host][groups]}'
-          value: '{self[keyname]}'
+        - parameter: openstack.nodes.FloatingIp.interfaces.Standard.configure
+          value:
+            implementation: /tmp/clouni/artifacts/add_host.yaml
+            inputs:
+              ansible_user: "{self[buffer][add_host][ansible_user]}"
+              host_ip: '\\{\\{ {self[keyname]}_floating_ip.floating_ip.floating_ip_address \\}\\}'
+              group: "{self[name]}_public_address"
       networks.*.network_name:
         parameter: openstack.nodes.Server.properties.nics
         value:
@@ -235,21 +223,33 @@ tosca.nodes.Compute:
               node: "{self[keyname]}_security_group"
           - parameter: "{self[extra][ansible][{self[keyname]}_security_group_rule][with_sequence]}"
             value: "start=0 end=\\{\\{ [{self[keyname]}_protocols | length,
-            {self[keyname]}_ports | length] | max - 1 \\}\\} format=%d"
+                  {self[keyname]}_ports | length] | max - 1 \\}\\} format=%d"
         properties.protocol:
           - parameter: "{self[buffer][endpoint][protocol]}"
             value:
               - "{self[value]}"
           - parameter: openstack.nodes.SecurityGroupRule.properties.protocol
-            value: "{self[value]}"
+            value: "\\{\\{ {self[keyname]}_protocols[item | int] | default(omit) \\}\\}"
+          - parameter: openstack.nodes.SecurityGroupRule.properties.port_range_min
+            value: "\\{\\{ {self[keyname]}_ports[item | int] | default(omit) \\}\\}"
+          - parameter: openstack.nodes.SecurityGroupRule.properties.port_range_max
+            value: "\\{\\{ {self[keyname]}_ports[item | int] | default(omit) \\}\\}"
+          - parameter: openstack.nodes.SecurityGroupRule.interfaces.Prepare.configure.implementation
+            value:
+              - value: "tmp"
+                source: set_fact
+                executor: ansible
+                parameters:
+                  "{self[keyname]}_protocols": "{self[buffer][endpoint][protocol]}"
+              - value: "tmp"
+                source: set_fact
+                executor: ansible
+                parameters:
+                  "{self[keyname]}_ports": "{self[buffer][endpoint][port]}"
         properties.port:
           - parameter: "{self[buffer][endpoint][port]}"
             value:
               - "{self[value]}"
-          - parameter: openstack.nodes.SecurityGroupRule.properties.port_range_min
-            value: "{self[value]}"
-          - parameter: openstack.nodes.SecurityGroupRule.properties.port_range_max
-            value: "{self[value]}"
         properties.secure:
           error: true
           reason: Not supported by OpenStack

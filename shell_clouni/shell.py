@@ -20,6 +20,7 @@ class TranslatorShell(object):
         self.configuration_tool = args.configuration_tool
         self.cluster_name = args.cluster_name
         self.extra = {}
+        self.host_ip_parameter = args.host_parameter
         self.log_level = args.log_level
 
         for i in args.extra:
@@ -40,7 +41,7 @@ class TranslatorShell(object):
 
         self.working_dir = os.getcwd()
         output = translate(self.template_file, self.validate_only, self.provider, self.configuration_tool,
-                           self.cluster_name, is_delete=self.is_delete,
+                           self.cluster_name, host_ip_parameter=self.host_ip_parameter, is_delete=self.is_delete,
                            extra={'global': self.extra}, log_level=self.log_level)
         self.output_print(output)
 
@@ -86,6 +87,9 @@ class TranslatorShell(object):
                             default='info',
                             choices=['debug', 'info', 'warning', 'error', 'critical'],
                             help='Set log level for tool')
+        parser.add_argument('--host-parameter',
+                            default='public_address',
+                            help="Specify Compute property to be used as host IP for software components that hosted on the Compute. Valid values: public_address and private_address")
         return parser
 
     def output_print(self, output_msg):
