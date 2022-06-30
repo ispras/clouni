@@ -22,8 +22,9 @@ class ProviderToscaTemplate(object):
     DEPENDENCY_FUNCTIONS = (GET_PROPERTY, GET_ATTRIBUTE, GET_OPERATION_OUTPUT)
     DEFAULT_ARTIFACTS_DIRECTOR = ARTIFACTS
 
-    def __init__(self, tosca_parser_template_object, provider, configuration_tool,  cluster_name, host_ip_parameter, common_map_files=[]):
+    def __init__(self, tosca_parser_template_object, provider, configuration_tool,  cluster_name, host_ip_parameter, is_delete, common_map_files=[]):
         self.provider = provider
+        self.is_delete = is_delete
         self.host_ip_parameter = host_ip_parameter
         self.configuration_tool = configuration_tool
         self.provider_config = ProviderConfiguration(self.provider)
@@ -122,7 +123,7 @@ class ProviderToscaTemplate(object):
                 logging.error('Unexpected values: node \'%s\' not a software component and has a provider \'%s\'. '
                               'Node will be ignored' % (node.name, namespace))
             else:
-                provider_node_instance = ProviderResource(self.provider, self.configuration_tool, node, node_name,
+                provider_node_instance = ProviderResource(self.provider, self.is_delete, self.configuration_tool, node, node_name,
                                                           self.host_ip_parameter, self.definitions[node[TYPE]],
                                                           is_software_component=is_software_component)
                 provider_nodes[node_name] = provider_node_instance

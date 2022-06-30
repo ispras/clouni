@@ -19,7 +19,7 @@ TMP_DIRECTORY = '/tmp/clouni'
 
 class ProviderResource(object):
 
-    def __init__(self, provider, configuration_tool, tmpl, node_name, host_ip_parameter, node_type, is_software_component=False, is_relationship=False,
+    def __init__(self, provider, is_delete, configuration_tool, tmpl, node_name, host_ip_parameter, node_type, is_software_component=False, is_relationship=False,
                  relation_target_source = dict()):
         """
 
@@ -44,6 +44,7 @@ class ProviderResource(object):
         self.target = None
         self.source = None
         self.operations = []
+        self.is_delete = is_delete
 
         self.set_defaults()
         # NOTE: Get the parameters from template using provider definition
@@ -190,7 +191,7 @@ class ProviderResource(object):
                                     EXECUTOR: configuration_tool
                                 }
                             ]
-                            arg = str(execute(tmp_ansible_tasks, node_filter_value))
+                            arg = str(execute(tmp_ansible_tasks, self.is_delete, node_filter_value))
                     self.configuration_args[arg_key] = arg
 
     @property

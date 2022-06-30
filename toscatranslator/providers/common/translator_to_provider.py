@@ -623,7 +623,7 @@ def translate_node_from_tosca(restructured_mapping, tpl_name, self):
     return resulted_structure
 
 
-def get_source_structure_from_facts(condition, fact_name, value, arguments, executor, source_value):
+def get_source_structure_from_facts(condition, fact_name, value, arguments, executor, source_value, is_delete):
     """
     :param condition:
     :param fact_name:
@@ -705,10 +705,10 @@ def get_source_structure_from_facts(condition, fact_name, value, arguments, exec
     ]
 
     new_global_elements_map_total_implementation += addition_for_elements_map_total_implementation
-    return execute(new_global_elements_map_total_implementation, value)
+    return execute(new_global_elements_map_total_implementation, is_delete, value)
 
 
-def restructure_mapping_facts(elements_map, self, extra_elements_map=None, target_parameter=None, source_parameter=None,
+def restructure_mapping_facts(elements_map, self, is_delete, extra_elements_map=None, target_parameter=None, source_parameter=None,
                               source_value=None):
     """
     Function is used to restructure mapping values with the case of `facts`, `condition`, `arguments`, `value` keys
@@ -737,7 +737,7 @@ def restructure_mapping_facts(elements_map, self, extra_elements_map=None, targe
                 target_parameter = cur_parameter
         new_elements_map = dict()
         for k, v in elements_map.items():
-            cur_elements, extra_elements_map = restructure_mapping_facts(v, self, extra_elements_map,
+            cur_elements, extra_elements_map = restructure_mapping_facts(v, self, is_delete, extra_elements_map,
                                                                          target_parameter,
                                                                          source_parameter, source_value)
             new_elements_map.update({k: cur_elements})
@@ -817,7 +817,7 @@ def restructure_mapping_facts(elements_map, self, extra_elements_map=None, targe
             if not get_configuration_tool_class(executor):
                 logging.critical("Unsupported executor name \'%s\'" % json.dumps(executor))
                 sys.exit(1)
-            new_value = get_source_structure_from_facts(condition, fact_name, value, arguments, executor, source_value)
+            new_value = get_source_structure_from_facts(condition, fact_name, value, arguments, executor, source_value, is_delete)
             return new_value, extra_elements_map
 
         return new_elements_map, extra_elements_map
@@ -825,7 +825,7 @@ def restructure_mapping_facts(elements_map, self, extra_elements_map=None, targe
     if isinstance(elements_map, list):
         new_elements_map = []
         for k in elements_map:
-            cur_elements, extra_elements_map = restructure_mapping_facts(k, self, extra_elements_map,
+            cur_elements, extra_elements_map = restructure_mapping_facts(k, self, is_delete, extra_elements_map,
                                                                          target_parameter,
                                                                          source_parameter, source_value)
             new_elements_map.append(cur_elements)
@@ -907,7 +907,7 @@ def translate(service_tmpl):
             restructured_mapping = restructure_mapping(service_tmpl, element, tmpl_name, self)
             restructured_mapping = sort_host_ip_parameter(restructured_mapping, service_tmpl.host_ip_parameter)
             restructured_mapping = restructure_mapping_buffer(restructured_mapping, self)
-            restructured_mapping, extra_mappings = restructure_mapping_facts(restructured_mapping, self)
+            restructured_mapping, extra_mappings = restructure_mapping_facts(restructured_mapping, self, service_tmpl.is_delete)
             restructured_mapping.extend(extra_mappings)
             restructured_mapping = restructure_get_attribute(restructured_mapping, service_tmpl, self)
 
@@ -928,58 +928,59 @@ def translate(service_tmpl):
 
     self_extra = utils.replace_brackets(self[EXTRA], False)
     self_artifacts = utils.replace_brackets(self[ARTIFACTS], False)
-    execute(self_artifacts)
+    execute(self_artifacts, service_tmpl.is_delete)
 
     return new_element_templates, self_extra, template_mapping
 
 
-def execute(new_global_elements_map_total_implementation, target_parameter=None):
-    default_executor = 'ansible'
-    configuration_class = get_configuration_tool_class(default_executor)()
-    new_ansible_artifacts = copy.deepcopy(new_global_elements_map_total_implementation)
-    for i in range(len(new_ansible_artifacts)):
-        new_ansible_artifacts[i]['configuration_tool'] = new_ansible_artifacts[i]['executor']
-        configuration_class = get_configuration_tool_class(new_ansible_artifacts[i]['configuration_tool'])()
-        extension = configuration_class.get_artifact_extension()
+def execute(new_global_elements_map_total_implementation, is_delete, target_parameter=None):
+    if not is_delete:
+        default_executor = 'ansible'
+        configuration_class = get_configuration_tool_class(default_executor)()
+        new_ansible_artifacts = copy.deepcopy(new_global_elements_map_total_implementation)
+        for i in range(len(new_ansible_artifacts)):
+            new_ansible_artifacts[i]['configuration_tool'] = new_ansible_artifacts[i]['executor']
+            configuration_class = get_configuration_tool_class(new_ansible_artifacts[i]['configuration_tool'])()
+            extension = configuration_class.get_artifact_extension()
 
-        seed(time())
-        new_ansible_artifacts[i]['name'] = '_'.join(
-            [SOURCE, str(randint(ARTIFACT_RANGE_START, ARTIFACT_RANGE_END))]) + extension
-    artifacts_with_brackets = utils.replace_brackets(new_ansible_artifacts, False)
-    new_ansible_tasks, filename = utils.generate_artifacts(configuration_class, artifacts_with_brackets,
-                                                               configuration_class.initial_artifacts_directory,
-                                                               store=False)
-    os.remove(filename)
+            seed(time())
+            new_ansible_artifacts[i]['name'] = '_'.join(
+                [SOURCE, str(randint(ARTIFACT_RANGE_START, ARTIFACT_RANGE_END))]) + extension
+        artifacts_with_brackets = utils.replace_brackets(new_ansible_artifacts, False)
+        new_ansible_tasks, filename = utils.generate_artifacts(configuration_class, artifacts_with_brackets,
+                                                                   configuration_class.initial_artifacts_directory,
+                                                                   store=False)
+        os.remove(filename)
 
-    q = Queue()
-    playbook = {
-        'hosts': 'localhost',
-        'tasks': new_ansible_tasks
-    }
+        q = Queue()
+        playbook = {
+            'hosts': 'localhost',
+            'tasks': new_ansible_tasks
+        }
 
-    copy_tree(utils.get_project_root_path() + '/toscatranslator/configuration_tools/ansible/artifacts',
-              TMP_DIRECTORY + configuration_class.initial_artifacts_directory)
-    configuration_class.parallel_run([playbook], 'artifacts', q)
+        copy_tree(utils.get_project_root_path() + '/toscatranslator/configuration_tools/ansible/artifacts',
+                  TMP_DIRECTORY + configuration_class.initial_artifacts_directory)
+        configuration_class.parallel_run([playbook], 'artifacts', q)
 
-    # есть такая проблема что если в текущем процессе был запущен runner cotea то все последующие запуски
-    # других плейбуков из этого процесса невозможны т.к. запускаться будет первоначальный плейбук, причем даже если
-    # этот процесс форкнуть то эффект остается тк что то там внутри cotea сохраняется в контексте процесса
-    results = q.get()
-    if target_parameter is not None:
-        value = 'not_found'
-        if_failed = False
-        for result in results:
-            if result.is_failed or result.is_unreachable:
-                logging.error("Task %s has failed because of exception: \n%s" %
-                                (result.task_name, result.result.get('exception', '(Unknown reason)')))
-                if_failed = True
-            if 'results' in result.result and len(result.result['results']) > 0 and 'ansible_facts' in \
-                    result.result['results'][0] and 'matched_object' in result.result['results'][0]['ansible_facts']:
-                value = result.result['results'][0]['ansible_facts']['matched_object'][target_parameter.split('.')[-1]]
-        if if_failed:
+        # есть такая проблема что если в текущем процессе был запущен runner cotea то все последующие запуски
+        # других плейбуков из этого процесса невозможны т.к. запускаться будет первоначальный плейбук, причем даже если
+        # этот процесс форкнуть то эффект остается тк что то там внутри cotea сохраняется в контексте процесса
+        results = q.get()
+        if target_parameter is not None:
             value = 'not_found'
-            # временное решение чтоб работали тесты
-        return value
+            if_failed = False
+            for result in results:
+                if result.is_failed or result.is_unreachable:
+                    logging.error("Task %s has failed because of exception: \n%s" %
+                                    (result.task_name, result.result.get('exception', '(Unknown reason)')))
+                    if_failed = True
+                if 'results' in result.result and len(result.result['results']) > 0 and 'ansible_facts' in \
+                        result.result['results'][0] and 'matched_object' in result.result['results'][0]['ansible_facts']:
+                    value = result.result['results'][0]['ansible_facts']['matched_object'][target_parameter.split('.')[-1]]
+            if if_failed:
+                value = 'not_found'
+                # временное решение чтоб работали тесты
+            return value
     return None
 
 
