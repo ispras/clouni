@@ -357,8 +357,20 @@ tosca.nodes.network.Port:
           value: "{self[value]}"
   - requirements:
     - link.node:
-          parameter: openstack.nodes.Port.requirements.network.node
-          value: "{self[value]}_subnet"
+        parameter: openstack.nodes.Port.requirements.network.node
+        value: "{self[value]}_subnet"
+    - link.relationship:
+        parameter: openstack.nodes.Port.requirements.network.relationship
+        value: "{self[value]}_links_to"
+
+tosca.nodes.SoftwareComponent:
+  - requirements:
+    - host.node:
+        parameter: tosca.nodes.SoftwareComponent.requirements.host.node
+        value: "{self[value]}_server"
+    - host.relationship:
+        parameter: tosca.nodes.SoftwareComponent.requirements.host.relationship
+        value: "{self[value]}_hosted_on"
 
 tosca.relationships.DependsOn:
   - requirements: openstack.relationships.DependsOn.requirements
@@ -366,3 +378,45 @@ tosca.relationships.DependsOn:
   - properties: openstack.relationships.DependsOn.properties
   - capabilities: openstack.relationships.DependsOn.capabilities
   - interfaces: openstack.relationships.DependsOn.interfaces
+
+tosca.relationships.HostedOn:
+  - requirements: openstack.relationships.HostedOn.requirements
+  - attributes: openstack.relationships.HostedOn.attributes
+  - properties: openstack.relationships.HostedOn.properties
+  - capabilities: openstack.relationships.HostedOn.capabilities
+  - interfaces: openstack.relationships.HostedOn.interfaces
+
+tosca.relationships.ConnectsTo:
+  - requirements: openstack.relationships.ConnectsTo.requirements
+  - attributes: openstack.relationships.ConnectsTo.attributes
+  - properties: openstack.relationships.ConnectsTo.properties
+  - capabilities: openstack.relationships.ConnectsTo.capabilities
+  - interfaces: openstack.relationships.ConnectsTo.interfaces
+
+tosca.relationships.AttachesTo:
+  - requirements: openstack.relationships.AttachesTo.requirements
+  - attributes: openstack.relationships.AttachesTo.attributes
+  - properties: openstack.relationships.AttachesTo.properties
+  - capabilities: openstack.relationships.AttachesTo.capabilities
+  - interfaces: openstack.relationships.AttachesTo.interfaces
+
+tosca.relationships.RoutesTo:
+  - requirements: openstack.relationships.RoutesTo.requirements
+  - attributes: openstack.relationships.RoutesTo.attributes
+  - properties: openstack.relationships.RoutesTo.properties
+  - capabilities: openstack.relationships.RoutesTo.capabilities
+  - interfaces: openstack.relationships.RoutesTo.interfaces
+
+tosca.relationships.network.LinksTo:
+  - requirements: openstack.relationships.network.LinksTo.requirements
+  - attributes: openstack.relationships.network.LinksTo.attributes
+  - properties: openstack.relationships.network.LinksTo.properties
+  - capabilities: openstack.relationships.network.LinksTo.capabilities
+  - interfaces: openstack.relationships.network.LinksTo.interfaces
+
+tosca.relationships.network.BindsTo:
+  - requirements: openstack.relationships.network.BindsTo.requirements
+  - attributes: openstack.relationships.network.BindsTo.attributes
+  - properties: openstack.relationships.network.BindsTo.properties
+  - capabilities: openstack.relationships.network.BindsTo.capabilities
+  - interfaces: openstack.relationships.network.BindsTo.interfaces
