@@ -125,7 +125,7 @@ tosca.nodes.Compute:
             implementation: /tmp/clouni/artifacts/add_host.yaml
             inputs:
               ansible_user: "{self[buffer][add_host][ansible_user]}"
-              host_ip: '\\{\\{ {self[keyname]}_floating_ip.floating_ip.floating_ip_address \\}\\}'
+              host_ip: '\\{\\{ {self[keyname]}_floating_ip.floating_ip_address \\}\\}'
               group: "{self[name]}_public_address"
       networks.*.network_name:
         parameter: openstack.nodes.Server.properties.nics
@@ -211,78 +211,66 @@ tosca.nodes.Compute:
                 is_only_numb: true
               value: default_tmp
       endpoint:
-        properties.ip_address:
-          - openstack.nodes.SecurityGroupRule.properties.remote_ip_prefix
-          - parameter: openstack.nodes.SecurityGroup.properties.name
-            value: "{self[name]}_security_group"
-          - parameter: openstack.nodes.Server.requirements.security_groups
-            value:
-              node: "{self[keyname]}_security_group"
-          - parameter: openstack.nodes.SecurityGroupRule.requirements.security_group
-            value:
-              node: "{self[keyname]}_security_group"
-          - parameter: "{self[extra][ansible][{self[keyname]}_security_group_rule][with_sequence]}"
-            value: "start=0 end=\\{\\{ [{self[keyname]}_protocols | length,
-                  {self[keyname]}_ports | length] | max - 1 \\}\\} format=%d"
-        properties.protocol:
-          - parameter: "{self[buffer][endpoint][protocol]}"
-            value:
-              - "{self[value]}"
-          - parameter: openstack.nodes.SecurityGroupRule.properties.protocol
-            value: "\\{\\{ {self[keyname]}_protocols[item | int] | default(omit) \\}\\}"
-          - parameter: openstack.nodes.SecurityGroupRule.properties.port_range_min
-            value: "\\{\\{ {self[keyname]}_ports[item | int] | default(omit) \\}\\}"
-          - parameter: openstack.nodes.SecurityGroupRule.properties.port_range_max
-            value: "\\{\\{ {self[keyname]}_ports[item | int] | default(omit) \\}\\}"
-          - parameter: openstack.nodes.SecurityGroupRule.interfaces.Prepare.configure.implementation
-            value:
-              - value: "tmp"
-                source: set_fact
-                executor: ansible
-                parameters:
-                  "{self[keyname]}_protocols": "{self[buffer][endpoint][protocol]}"
-              - value: "tmp"
-                source: set_fact
-                executor: ansible
-                parameters:
-                  "{self[keyname]}_ports": "{self[buffer][endpoint][port]}"
-        properties.port:
-          - parameter: "{self[buffer][endpoint][port]}"
-            value:
-              - "{self[value]}"
-        properties.secure:
-          error: true
-          reason: Not supported by OpenStack
-        properties.url_path:
-          error: true
-          reason: Not supported by OpenStack
-        properties.port_name:
-          error: true
-          reason: Not supported by OpenStack
-        properties.network_name:
-          error: true
-          reason: Not supported by OpenStack
-        properties.initiator.target:
-          parameter: openstack.nodes.SecurityGroupRule.properties.direction
-          value: ingress
-        properties.initiator.source:
-          parameter: openstack.nodes.SecurityGroupRule.properties.direction
-          value: egress
-        properties.initiator.peer:
-          parameter: openstack.nodes.SecurityGroupRule.properties.direction
-          value: peer
-        properties.ports.*.protocol:
-          - parameter: "{self[buffer][endpoint][protocol]}"
-            value:
-              - "{self[value]}"
-        properties.ports.*.source:
-          - parameter: "{self[buffer][endpoint][port]}"
-            value:
-              - "{self[value]}"
-        properties.ports.*.target:
-          - parameter: "{self[buffer][endpoint][port]}"
-            value:
-              - "{self[value]}"
+        - properties:
+            ip_address:
+              - openstack.nodes.SecurityGroupRule.properties.remote_ip_prefix
+              - parameter: openstack.nodes.SecurityGroup.properties.name
+                value: "{self[name]}_security_group"
+              - parameter: openstack.nodes.Server.requirements.security_groups
+                value:
+                  node: "{self[keyname]}_security_group"
+              - parameter: openstack.nodes.SecurityGroupRule.requirements.security_group
+                value:
+                  node: "{self[keyname]}_security_group"
+              - parameter: "{self[extra][ansible][{self[keyname]}_security_group_rule][with_sequence]}"
+                value: "start=0 end=\\{\\{ [protocol | length, port | length] | max - 1 \\}\\} format=%d"
+            protocol:
+              - parameter: "{self[extra][ansible][{self[keyname]}_security_group_rule][vars][protocol]}"
+                value:
+                  - "{self[value]}"
+              - parameter: openstack.nodes.SecurityGroupRule.properties.protocol
+                value: "\\{\\{ protocol[item | int] | default(omit) \\}\\}"
+              - parameter: openstack.nodes.SecurityGroupRule.properties.port_range_min
+                value: "\\{\\{ port[item | int] | default(omit) \\}\\}"
+              - parameter: openstack.nodes.SecurityGroupRule.properties.port_range_max
+                value: "\\{\\{ port[item | int] | default(omit) \\}\\}"
+            port:
+              - parameter: "{self[extra][ansible][{self[keyname]}_security_group_rule][vars][port]}"
+                value:
+                  - "{self[value]}"
+            secure:
+              error: true
+              reason: Not supported by OpenStack
+            url_path:
+              error: true
+              reason: Not supported by OpenStack
+            port_name:
+              error: true
+              reason: Not supported by OpenStack
+            network_name:
+              error: true
+              reason: Not supported by OpenStack
+            initiator.target:
+              parameter: openstack.nodes.SecurityGroupRule.properties.direction
+              value: ingress
+            initiator.source:
+              parameter: openstack.nodes.SecurityGroupRule.properties.direction
+              value: egress
+            initiator.peer:
+              parameter: openstack.nodes.SecurityGroupRule.properties.direction
+              value: peer
+            ports.*.protocol:
+              - parameter: "{self[extra][ansible][{self[keyname]}_security_group_rule][vars][protocol]}"
+                value:
+                  - "{self[value]}"
+            ports.*.source:
+              - parameter: "{self[extra][ansible][{self[keyname]}_security_group_rule][vars][port]}"
+                value:
+                  - "{self[value]}"
+            ports.*.target:
+              - parameter: "{self[extra][ansible][{self[keyname]}_security_group_rule][vars][port]}"
+                value:
+                  - "{self[value]}"
       os.properties.architecture: "{self[buffer][os][architecture]}"
       os.properties.type:
         - "{self[buffer][os][type]}"

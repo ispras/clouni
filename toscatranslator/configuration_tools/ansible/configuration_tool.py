@@ -25,7 +25,7 @@ ARTIFACT_RANGE_END = 9999
 
 ANSIBLE_RESERVED_KEYS = \
     (REGISTER, PATH, FILE, STATE, LINEINFILE, SET_FACT, IS_DEFINED, IS_UNDEFINED, IMPORT_TASKS_MODULE) = \
-    ('register', 'path', 'file', 'state', 'lineinfile', 'set_fact', ' is defined', 'is_undefined', 'include')
+    ('register', 'path', 'file', 'state', 'lineinfile', 'set_fact', ' is defined', ' is undefined', 'include')
 
 REQUIRED_CONFIG_PARAMS = (INITIAL_ARTIFACTS_DIRECTORY, DEFAULT_HOST) = ("initial_artifacts_directory", "default_host")
 TMP_DIR = '/tmp/clouni'
@@ -433,6 +433,19 @@ class AnsibleConfigurationTool(ConfigurationTool):
 
     def get_extra_tasks_for_delete(self, task_name, path):
         ansible_tasks_for_create = []
+        ansible_tasks_for_create.append({
+            'set_fact': {
+                'tmp_val': '{{ item.value }}'
+            },
+            'with_dict': '{{ ' + task_name + ' }}',
+            'when': task_name + '.id' + IS_UNDEFINED + ' and ' + 'item.value.id' + IS_DEFINED
+        })
+        ansible_tasks_for_create.append({
+            'set_fact': {
+                task_name: '{{ tmp_val }}'
+            },
+            'when': 'tmp_val' + IS_DEFINED
+        })
         ansible_tasks_for_create.append({
             'set_fact': {
                 task_name + '_list': self.rap_ansible_variable(

@@ -1,0 +1,29 @@
+- add_host:
+    hostname: '{{ group }}'
+    ansible_ssh_host: '{{ host_ip }}'
+    ansible_ssh_user: '{{ ansible_user }}'
+    ansible_ssh_pass: '{{ ansible_sudo_pass | default(omit) }}'
+  when: host_ip is defined and host_ip != ''
+- shell: |
+    check_ssh() {
+        while [ 1 = 1 ]; do
+                ssh-keyscan {{ host_ip }},`dig +short {{ host_ip }}`
+                rc=$?
+                case $rc in
+                    0)        return $rc;;
+                esac
+                echo "ssh not working. Sleeping..."
+                sleep 5
+            done
+    }
+    check_ssh
+  when: host_ip is defined and host_ip != ''
+- shell: ssh-keyscan {{ host_ip }},`dig +short {{ host_ip }}`
+  register: host_key
+  ignore_errors: true
+  when: host_ip is defined and host_ip != ''
+- known_hosts:
+    path: ~/.ssh/known_hosts
+    name: '{{ host_ip }}'
+    key: '{{ host_key.stdout }}'
+  when: host_key is defined and host_ip is defined and host_ip != '' and host_key.rc == 1
