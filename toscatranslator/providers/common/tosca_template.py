@@ -132,7 +132,7 @@ class ProviderToscaTemplate(object):
     def _provider_relations(self):
         provider_relations = dict()
         for rel_name, rel_body in self.relationship_templates.items():
-            provider_rel_instance = ProviderResource(self.provider, self.configuration_tool, rel_body, rel_name,
+            provider_rel_instance = ProviderResource(self.provider, self.is_delete, self.configuration_tool, rel_body, rel_name,
                                                      self.host_ip_parameter, self.definitions[rel_body[TYPE]],
                                                      is_relationship=True,
                                                      relation_target_source=self._relation_target_source)
