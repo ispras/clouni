@@ -95,14 +95,18 @@ class AnsibleConfigurationTool(ConfigurationTool):
                         elements.done(node)
             for v in elements.get_ready():
                 if is_delete:
-                    v.operations = ['delete']
-                logging.debug("Creating ansible play: %s" % v.name)
+                    if v.operation == 'create':
+                        v.operation = 'delete'
+                    else:
+                        elements.done(v)
+                        continue
+                logging.debug("Creating ansible play from operation: %s" % v.name + ':' + v.operation)
                 extra_tasks_for_delete = self.get_extra_tasks_for_delete(v.name.replace('-', '_'), ids_file_path)
                 description_prefix, module_prefix = self.get_module_prefixes(is_delete, ansible_config)
                 description_by_type = self.ansible_description_by_type(v.type_name, description_prefix)
                 module_by_type = self.ansible_module_by_type(v.type_name, module_prefix)
                 ansible_play_for_elem = dict(
-                    name=description_prefix + ' ' + provider + ' cluster: ' + v.name,
+                    name=description_prefix + ' ' + provider + ' cluster: ' + v.name + ':' + v.operation,
                     hosts=self.default_host,
                     tasks=[]
                 )
@@ -114,41 +118,63 @@ class AnsibleConfigurationTool(ConfigurationTool):
                     ansible_play_for_elem['tasks'].append(copy.deepcopy({FILE: {
                         PATH: ids_file_path,
                         STATE: 'touch'}}))
-                for op in v.operations:
-                    if op == 'delete':
-                        # подумать а что если там будет явно задана операция delete в interfaces?
-                        if not v.is_software_component:
-                            ansible_play_for_elem['tasks'].append(copy.deepcopy({'include_vars': ids_file_path}))
-                            ansible_tasks = self.get_ansible_tasks_for_delete(v, description_by_type, module_by_type,
-                                                                              additional_args=extra)
-                            ansible_tasks.extend(
-                                self.get_ansible_tasks_from_interface(v, target_directory, is_delete, op,
-                                                                      additional_args=extra))
-                            if not any(item == module_by_type for item in
-                                       ansible_config.get('modules_skipping_delete', [])):
-                                ansible_play_for_elem['tasks'].extend(copy.deepcopy(ansible_tasks))
-                    elif op == 'create':
-                        if not v.is_software_component:
-                            ansible_play_for_elem['tasks'].extend(copy.deepcopy(self.get_ansible_tasks_for_inputs(inputs)))
-                            ansible_tasks = self.get_ansible_tasks_for_create(v, target_directory, node_filter_config,
-                                                                              description_by_type, module_by_type,
-                                                                              additional_args=extra)
-                            ansible_tasks.extend(
-                                self.get_ansible_tasks_from_interface(v, target_directory, is_delete, op,
-                                                                      additional_args=extra))
-
+                if v.operation == 'delete':
+                    # подумать а что если там будет явно задана операция delete в interfaces?
+                    if not v.is_software_component:
+                        ansible_play_for_elem['tasks'].append(copy.deepcopy({'include_vars': ids_file_path}))
+                        ansible_tasks = self.get_ansible_tasks_for_delete(v, description_by_type, module_by_type,
+                                                                          additional_args=extra)
+                        ansible_tasks.extend(
+                            self.get_ansible_tasks_from_interface(v, target_directory, is_delete, v.operation,
+                                                                  additional_args=extra))
+                        if not any(item == module_by_type for item in
+                                   ansible_config.get('modules_skipping_delete', [])):
                             ansible_play_for_elem['tasks'].extend(copy.deepcopy(ansible_tasks))
-                            ansible_play_for_elem['tasks'].extend(copy.deepcopy(extra_tasks_for_delete))
+                elif v.operation == 'create':
+                    if not v.is_software_component:
+                        ansible_play_for_elem['tasks'].extend(copy.deepcopy(self.get_ansible_tasks_for_inputs(inputs)))
+                        ansible_tasks = self.get_ansible_tasks_for_create(v, target_directory, node_filter_config,
+                                                                          description_by_type, module_by_type,
+                                                                          additional_args=extra)
+                        ansible_tasks.extend(
+                            self.get_ansible_tasks_from_interface(v, target_directory, is_delete, v.operation,
+                                                                  additional_args=extra))
 
-                        else:
-                            ansible_play_for_elem['hosts'] = v.host
-                            ansible_play_for_elem['tasks'].extend(copy.deepcopy(
-                                self.get_ansible_tasks_from_interface(v, target_directory, is_delete, op,
-                                                                      additional_args=extra)))
+                        ansible_play_for_elem['tasks'].extend(copy.deepcopy(ansible_tasks))
+                        ansible_play_for_elem['tasks'].extend(copy.deepcopy(extra_tasks_for_delete))
+
                     else:
+                        ansible_play_for_elem['hosts'] = v.host
                         ansible_play_for_elem['tasks'].extend(copy.deepcopy(
-                            self.get_ansible_tasks_from_interface(v, target_directory, is_delete, op,
+                            self.get_ansible_tasks_from_interface(v, target_directory, is_delete, v.operation,
                                                                   additional_args=extra)))
+                else:
+                    (_, element_type, _) = utils.tosca_type_parse(v.type)
+                    if element_type == NODES:
+                        if v.is_software_component:
+                            ansible_play_for_elem['hosts'] = v.host
+                    elif element_type == RELATIONSHIPS:
+                        if v.operation == 'pre_configure_target' or v.operation == 'post_configure_target' or v.operation == 'add_source':
+                            for elem in operations_graph:
+                                if elem.name == v.target:
+                                    if elem.is_software_component:
+                                        ansible_play_for_elem['hosts'] = elem.host
+                                    break
+                        elif v.operation == 'pre_configure_source' or v.operation == 'post_configure_source':
+                            for elem in operations_graph:
+                                if elem.name == v.source:
+                                    if elem.is_software_component:
+                                        ansible_play_for_elem['hosts'] = elem.host
+                                    break
+                        else:
+                            logging.error("Unsupported operation for relationship in operation graph")
+                            sys.exit(1)
+                    else:
+                        logging.error("Unsupported element type in operation graph")
+                        sys.exit(1)
+                    ansible_play_for_elem['tasks'].extend(copy.deepcopy(
+                        self.get_ansible_tasks_from_interface(v, target_directory, is_delete, v.operation,
+                                                              additional_args=extra)))
                 ansible_playbook.append(ansible_play_for_elem)
                 self.parallel_run([ansible_play_for_elem], v.name, q)
                 active.append(v)
@@ -179,7 +205,7 @@ class AnsibleConfigurationTool(ConfigurationTool):
             self.global_operations_info[op_name] = self.replace_all_get_functions(op)
         for v in elements_queue:
             (_, element_type, _) = utils.tosca_type_parse(v.type)
-            if element_type == NODES:
+            if element_type == NODES or element_type == RELATIONSHIPS:
                 new_conf_args = self.replace_all_get_functions(v.configuration_args)
                 v.configuration_args = new_conf_args
             else:
@@ -297,19 +323,29 @@ class AnsibleConfigurationTool(ConfigurationTool):
                                                      additional_args_element)
         ansible_tasks = []
         scripts = []
+
+        primary = False
         for interface_name, interface in self.get_interfaces_from_node(element_object).items():
             interface_operation = interface.get(operation, {})
-            implementations = interface_operation.get(IMPLEMENTATION)
-            if interface_name == 'Standard' and implementations is not None:
+            if isinstance(interface_operation, six.string_types):
+                implementations = interface_operation
+                primary = True
+            else:
+                implementations = interface_operation.get(IMPLEMENTATION)
+            (_, element_type, _) = utils.tosca_type_parse(element_object.type)
+            if (interface_name == 'Standard' and element_type == NODES or interface_name == 'Configure' and element_type == RELATIONSHIPS) and implementations is not None:
                 if isinstance(implementations, six.string_types):
                     implementations = [implementations]
+                if isinstance(implementations, dict) and 'primary' in implementations and isinstance(implementations['primary'], six.string_types):
+                    implementations = [implementations['primary']]
+                    primary = True
                 scripts.extend(implementations)
                 for script in implementations:
                     import_file = os.path.join(TMP_DIR, target_directory, os.path.basename(script))
                     os.makedirs(os.path.dirname(import_file), exist_ok=True)
                     if script != import_file:
                         copyfile(script, import_file)
-                    if interface_operation.get(INPUTS) is not None:
+                    if not primary and interface_operation.get(INPUTS) is not None:
                         for input_name, input_value in interface_operation[INPUTS].items():
                             ansible_tasks.append({
                                 SET_FACT: {
@@ -321,7 +357,6 @@ class AnsibleConfigurationTool(ConfigurationTool):
                     }
                     new_ansible_task.update(additional_args)
                     ansible_tasks.append(new_ansible_task)
-
         return ansible_tasks
 
     def ansible_description_by_type(self, provider_source_obj_type, description_prefix):

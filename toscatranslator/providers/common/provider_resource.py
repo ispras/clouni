@@ -43,7 +43,7 @@ class ProviderResource(object):
         self.self = node_name
         self.target = None
         self.source = None
-        self.operations = []
+        self.operation = None
         self.is_delete = is_delete
 
         self.set_defaults()

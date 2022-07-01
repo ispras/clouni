@@ -1,0 +1,7 @@
+topology_template:
+  node_templates:
+    tosca_server_example:
+      properties:
+        public_address: 10.10.18.217
+      type: tosca.nodes.Compute
+tosca_definitions_version: tosca_simple_yaml_1_0

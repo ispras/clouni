@@ -373,14 +373,14 @@ class TestAnsibleOpenStackOutput (unittest.TestCase, TestAnsibleProvider):
             if tasks[i].get('os_floating_ip', None) != None:
                 fip_var = tasks[i]['register']
 
-                self.assertIsNotNone(tasks[i + 8].get('set_fact', {}).get('ansible_user'))
-                self.assertIsNotNone(tasks[i + 9].get('set_fact', None))
-                self.assertEqual(tasks[i + 9]['set_fact'].get('host_ip', None),
-                                 '{{ ' + fip_var + '.floating_ip_address }}')
+                self.assertIsNotNone(tasks[i + 1].get('set_fact', {}).get('ansible_user'))
+                self.assertIsNotNone(tasks[i + 2].get('set_fact', None))
+                self.assertEqual(tasks[i + 2]['set_fact'].get('host_ip', None),
+                                 '{{ ' + fip_var + '.floating_ip.floating_ip_address }}')
 
-                self.assertEqual(tasks[i + 10].get('set_fact', {}).get('group'), self.NODE_NAME + '_public_address')
-                self.assertIsNotNone(tasks[i + 11].get('include', None))
-                self.assertEqual(tasks[i + 11]['include'], '/tmp/clouni/artifacts/add_host.yaml')
+                self.assertEqual(tasks[i + 3].get('set_fact', {}).get('group'), self.NODE_NAME + '_public_address')
+                self.assertIsNotNone(tasks[i + 4].get('include', None))
+                self.assertEqual(tasks[i + 4]['include'], '/tmp/clouni/artifacts/add_host.yaml')
                 checked = True
         self.assertTrue(checked)
 
@@ -464,10 +464,10 @@ class TestAnsibleOpenStackOutput (unittest.TestCase, TestAnsibleProvider):
         for i in range(len(tasks)):
             if tasks[i].get('os_server'):
                 self.assertEqual(tasks[i]['os_server']['nics'][0]['net-name'], testing_value)
-                ansible_user = tasks[i + 8].get('set_fact', {}).get('ansible_user')
-                host_ip = tasks[i + 9].get('set_fact', {}).get('host_ip')
-                group = tasks[i + 10].get('set_fact', {}).get('group')
-                include = tasks[i + 11].get('include')
+                ansible_user = tasks[i + 1].get('set_fact', {}).get('ansible_user')
+                host_ip = tasks[i + 2].get('set_fact', {}).get('host_ip')
+                group = tasks[i + 3].get('set_fact', {}).get('group')
+                include = tasks[i + 4].get('include')
                 self.assertEqual(ansible_user, 'cirros')
                 self.assertEqual(host_ip, '{{ tosca_server_example_server.server.public_v4 }}')
                 self.assertEqual(group, 'tosca_server_example_private_address')

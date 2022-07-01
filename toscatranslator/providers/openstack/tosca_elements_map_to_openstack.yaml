@@ -8,7 +8,7 @@ tosca.nodes.Compute:
       meta: openstack.nodes.Server.properties.meta
   - parameter: openstack.nodes.Server.properties.auto_ip
     value: false
-  - parameter: openstack.nodes.Server.interfaces.Standard.configure
+  - parameter: openstack.nodes.Server.interfaces.Standard.create
     value:
       implementation: /tmp/clouni/artifacts/add_host.yaml
       inputs:
@@ -120,12 +120,12 @@ tosca.nodes.Compute:
                           - allocation_pool_start
                           - allocation_pool_end
                           - "{self[value]}"
-        - parameter: openstack.nodes.FloatingIp.interfaces.Standard.configure
+        - parameter: openstack.nodes.FloatingIp.interfaces.Standard.create
           value:
             implementation: /tmp/clouni/artifacts/add_host.yaml
             inputs:
               ansible_user: "{self[buffer][add_host][ansible_user]}"
-              host_ip: '\\{\\{ {self[keyname]}_floating_ip.floating_ip_address \\}\\}'
+              host_ip: '\\{\\{ {self[keyname]}_floating_ip.floating_ip.floating_ip_address \\}\\}'
               group: "{self[name]}_public_address"
       networks.*.network_name:
         parameter: openstack.nodes.Server.properties.nics
@@ -371,6 +371,8 @@ tosca.nodes.SoftwareComponent:
     - host.relationship:
         parameter: tosca.nodes.SoftwareComponent.requirements.host.relationship
         value: "{self[value]}_hosted_on"
+  - properties: tosca.nodes.SoftwareComponent.properties
+  - interfaces: tosca.nodes.SoftwareComponent.interfaces
 
 tosca.relationships.DependsOn:
   - requirements: openstack.relationships.DependsOn.requirements

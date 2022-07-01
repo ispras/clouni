@@ -17,12 +17,14 @@ SEPARATOR = '.'
 
 LIFECICLE = ['create', 'configure', 'start', 'stop', 'delete']
 
+
 class ProviderToscaTemplate(object):
     REQUIRED_CONFIG_PARAMS = (TOSCA_ELEMENTS_MAP_FILE, TOSCA_ELEMENTS_DEFINITION_FILE)
     DEPENDENCY_FUNCTIONS = (GET_PROPERTY, GET_ATTRIBUTE, GET_OPERATION_OUTPUT)
     DEFAULT_ARTIFACTS_DIRECTOR = ARTIFACTS
 
-    def __init__(self, tosca_parser_template_object, provider, configuration_tool,  cluster_name, host_ip_parameter, is_delete, common_map_files=[]):
+    def __init__(self, tosca_parser_template_object, provider, configuration_tool, cluster_name, host_ip_parameter,
+                 is_delete, common_map_files=[]):
         self.provider = provider
         self.is_delete = is_delete
         self.host_ip_parameter = host_ip_parameter
@@ -83,7 +85,7 @@ class ProviderToscaTemplate(object):
         self._relation_target_source = dict()
         self.resolve_in_template_dependencies()
 
-        self.normative_graph = self.normative_graph_dependency()
+        self.normative_nodes_graph = self.normative_nodes_graph_dependency()
 
         self.translate_to_provider()
         self.make_extended_notations()
@@ -100,7 +102,7 @@ class ProviderToscaTemplate(object):
         self.provider_nodes = self._provider_nodes()
         self.provider_relations = self._provider_relations()
 
-        self.normative_graph = self.translate_normative_graph()
+        self.normative_nodes_graph = self.translate_normative_graph()
 
         # self.provider_node_names_by_priority = self._sort_nodes_by_priority()
         self.provider_operations, self.reversed_provider_operations = self.sort_nodes_and_operations_by_graph_dependency()
@@ -108,7 +110,6 @@ class ProviderToscaTemplate(object):
         # self.sub_graph_elements = []
         # for key, value in self.template_mapping.items():
         #    self.sub_graph_elements += [self.sort_nodes_and_operations_by_graph_dependency(value)]
-
 
     def _provider_nodes(self):
         """
@@ -123,7 +124,8 @@ class ProviderToscaTemplate(object):
                 logging.error('Unexpected values: node \'%s\' not a software component and has a provider \'%s\'. '
                               'Node will be ignored' % (node.name, namespace))
             else:
-                provider_node_instance = ProviderResource(self.provider, self.is_delete, self.configuration_tool, node, node_name,
+                provider_node_instance = ProviderResource(self.provider, self.is_delete, self.configuration_tool, node,
+                                                          node_name,
                                                           self.host_ip_parameter, self.definitions[node[TYPE]],
                                                           is_software_component=is_software_component)
                 provider_nodes[node_name] = provider_node_instance
@@ -132,7 +134,8 @@ class ProviderToscaTemplate(object):
     def _provider_relations(self):
         provider_relations = dict()
         for rel_name, rel_body in self.relationship_templates.items():
-            provider_rel_instance = ProviderResource(self.provider, self.is_delete, self.configuration_tool, rel_body, rel_name,
+            provider_rel_instance = ProviderResource(self.provider, self.is_delete, self.configuration_tool, rel_body,
+                                                     rel_name,
                                                      self.host_ip_parameter, self.definitions[rel_body[TYPE]],
                                                      is_relationship=True,
                                                      relation_target_source=self._relation_target_source)
@@ -153,7 +156,7 @@ class ProviderToscaTemplate(object):
 
     def translate_normative_graph(self):
         dependencies = {}
-        for temp, dep in self.normative_graph.items():
+        for temp, dep in self.normative_nodes_graph.items():
             for elem in dep:
                 for key, val in self.template_mapping.items():
                     if elem == key:
@@ -165,38 +168,122 @@ class ProviderToscaTemplate(object):
                                     dependencies[tpl].add(el_tpl)
         return dependencies
 
-    def normative_graph_dependency(self):
+    def normative_nodes_graph_dependency(self):
         nodes = set(self.node_templates.keys())
-        nodes = nodes.union(set(self.relationship_templates.keys()))
         dependencies = {}
         for templ_name in nodes:
             set_intersection = nodes.intersection(self.template_dependencies.get(templ_name, set()))
             utils.deep_update_dict(dependencies, {templ_name: set_intersection})
         return dependencies
 
+    def update_relationships(self, new_dependencies, templ_name, direction, rel_name, post_op, banned_ops=[]):
+        utils.deep_update_dict(new_dependencies, {
+            templ_name + SEPARATOR + rel_name: {direction + SEPARATOR + post_op}})
+        for key, value in new_dependencies.items():
+            for elem in value:
+                if elem == direction + SEPARATOR + post_op and key != templ_name + SEPARATOR + rel_name and key not in [
+                    templ_name + SEPARATOR + x for x in banned_ops]:
+                    utils.deep_update_dict(new_dependencies,
+                                           {key: {templ_name + SEPARATOR + rel_name}})
+        return new_dependencies
+
     def sort_nodes_and_operations_by_graph_dependency(self):
         nodes = set(self.provider_nodes.keys())
         nodes = nodes.union(set(self.provider_relations.keys()))
         dependencies = {}
+        lifecycle = ['configure', 'start', 'stop', 'delete']
+        reversed_full_lifecycle = lifecycle[::-1] + ['create']
         for templ_name in nodes:
             set_intersection = nodes.intersection(self.template_dependencies.get(templ_name, set()))
             templ = self.provider_nodes.get(templ_name, self.provider_relations.get(templ_name))
             (_, element_type, _) = utils.tosca_type_parse(templ.type)
-            if element_type == NODES and 'interfaces' in templ.tmpl and 'Standard' in templ.tmpl['interfaces']:
-                for op in LIFECICLE:
-                    if op in templ.tmpl['interfaces']['Standard'] or op == 'create':
-                        templ.operations += [op]
-            else:
-                templ.operations = ['create']
-            utils.deep_update_dict(dependencies, {templ_name: set_intersection})
+            if element_type == NODES:
+                if 'interfaces' in templ.tmpl and 'Standard' in templ.tmpl['interfaces']:
+                    new_operations = ['create']
+                    for elem in lifecycle:
+                        if elem in templ.tmpl['interfaces']['Standard']:
+                            new_operations.append(elem)
+                    if len(new_operations) == 1:
+                        utils.deep_update_dict(dependencies, {templ_name + SEPARATOR + 'create': set_intersection})
+                    else:
+                        for i in range(1, len(new_operations)):
+                            utils.deep_update_dict(dependencies, {
+                                templ_name + SEPARATOR + new_operations[i]: {
+                                    templ_name + SEPARATOR + new_operations[i - 1]}})
+                        utils.deep_update_dict(dependencies,
+                                               {templ_name + SEPARATOR + new_operations[0]: set_intersection})
+                else:
+                    utils.deep_update_dict(dependencies, {templ_name + SEPARATOR + 'create': set_intersection})
+        new_normative_graph = {}
+        for key, value in self.normative_nodes_graph.items():
+            for elem in value:
+                for op in reversed_full_lifecycle:
+                    new_oper = elem + SEPARATOR + op
+                    if new_oper in dependencies:
+                        if key + SEPARATOR + 'create' in new_normative_graph:
+                            new_normative_graph[key + SEPARATOR + 'create'].add(new_oper)
+                        else:
+                            new_normative_graph[key + SEPARATOR + 'create'] = {new_oper}
+                        break
+                else:
+                    logging.error("Operation create not found")
+                    sys.exit(1)
+        dependencies = utils.deep_update_dict(dependencies, new_normative_graph)
+        new_dependencies = {}
+        for key, value in dependencies.items():
+            new_set = set()
+            for elem in value:
+                for oper in reversed_full_lifecycle:
+                    if elem + SEPARATOR + oper in dependencies:
+                        new_set.add(elem + SEPARATOR + oper)
+                        break
+                    elif elem in dependencies:
+                        new_set.add(elem)
+                        break
+            new_dependencies[key] = new_set
+        for templ_name in nodes:
+            templ = self.provider_nodes.get(templ_name, self.provider_relations.get(templ_name))
+            (_, element_type, _) = utils.tosca_type_parse(templ.type)
+            if element_type == RELATIONSHIPS:
+                if 'interfaces' in templ.tmpl and 'Configure' in templ.tmpl['interfaces']:
+                    if 'pre_configure_source' in templ.tmpl['interfaces']['Configure']:
+                        new_dependencies = self.update_relationships(new_dependencies, templ.name, templ.source,
+                                                                     'pre_configure_source', 'create', ['add_source'])
+                    if 'pre_configure_target' in templ.tmpl['interfaces']['Configure']:
+                        new_dependencies = self.update_relationships(new_dependencies, templ.name, templ.target,
+                                                                     'pre_configure_target', 'create')
+                    if 'post_configure_source' in templ.tmpl['interfaces']['Configure']:
+                        if templ.source + SEPARATOR + 'configure' in new_dependencies:
+                            new_dependencies = self.update_relationships(new_dependencies, templ.name, templ.source,
+                                                                         'post_configure_source', 'configure')
+                        else:
+                            new_dependencies = self.update_relationships(new_dependencies, templ.name, templ.source,
+                                                                         'post_configure_source', 'create')
+                    if 'post_configure_target' in templ.tmpl['interfaces']['Configure']:
+                        if templ.target + SEPARATOR + 'configure' in new_dependencies:
+                            new_dependencies = self.update_relationships(new_dependencies, templ.name, templ.target,
+                                                                         'post_configure_target', 'configure')
+                        else:
+                            new_dependencies = self.update_relationships(new_dependencies, templ.name, templ.target,
+                                                                         'post_configure_target', 'create')
+                    if 'add_source' in templ.tmpl['interfaces']['Configure']:
+                        new_dependencies = self.update_relationships(new_dependencies, templ.name, templ.source,
+                                                                     'add_source', 'create', ['pre_configure_source'])
+                    if 'add_target' in templ.tmpl['interfaces']['Configure']:
+                        logging.warning('Operation add_target not supported, it will be skipped')
+                    if 'target_changed' in templ.tmpl['interfaces']['Configure']:
+                        logging.warning('Operation target_changed not supported, it will be skipped')
+                    if 'remove_target' in templ.tmpl['interfaces']['Configure']:
+                        logging.warning('Operation remove_target not supported, it will be skipped')
+        templ_mappling = {}
+        for elem in new_dependencies:
+            templ_name = elem.split(SEPARATOR)[0]
+            templ = copy.deepcopy(self.provider_nodes.get(templ_name, self.provider_relations.get(templ_name)))
+            templ.operation = elem.split(SEPARATOR)[1]
+            templ_mappling[elem] = templ
         templ_dependencies = {}
         reversed_templ_dependencies = {}
-        templ_mappling = {}
-        dependencies = utils.deep_update_dict(dependencies, self.normative_graph)
-        for elem in dependencies:
-            templ = self.provider_nodes.get(elem, self.provider_relations.get(elem))
-            templ_mappling[elem] = templ
-        for key, value in dependencies.items():
+        for key, value in new_dependencies.items():
             new_set = set()
             for elem in value:
                 new_set.add(templ_mappling[elem])
@@ -205,6 +292,7 @@ class ProviderToscaTemplate(object):
                 elif templ_mappling[key] not in reversed_templ_dependencies[templ_mappling[elem]]:
                     reversed_templ_dependencies[templ_mappling[elem]].add(templ_mappling[key])
             templ_dependencies[templ_mappling[key]] = new_set
+        ts = TopologicalSorter(templ_dependencies)
         return templ_dependencies, reversed_templ_dependencies
 
     def add_template_dependency(self, node_name, dependency_name):
@@ -262,7 +350,7 @@ class ProviderToscaTemplate(object):
                         (_, _, type_name) = utils.tosca_type_parse(req_relationship)
                         if type_name is None:
                             self.add_template_dependency(node_name, req_relationship)
-                            self._relation_target_source[req_name] = {
+                            self._relation_target_source[req_relationship] = {
                                 'source': node_name,
                                 'target': req_node
                             }
