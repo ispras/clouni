@@ -1,8 +1,8 @@
 - add_host:
     hostname: '{{ group }}'
-    ansible_ssh_host: '{{ host_ip }}'
-    ansible_ssh_user: '{{ ansible_user }}'
-    ansible_ssh_pass: '{{ ansible_sudo_pass | default(omit) }}'
+    ansible_host: '{{ host_ip }}'
+    ansible_user: '{{ ansible_user }}'
+    ansible_pass: '{{ ansible_sudo_pass | default(omit) }}'
   when: host_ip is defined and host_ip != ''
 - shell: |
     check_ssh() {

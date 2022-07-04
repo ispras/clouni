@@ -7,7 +7,7 @@ import difflib
 
 from toscatranslator.common.utils import deep_update_dict
 from toscatranslator.common.tosca_reserved_keys import PROVIDERS, ANSIBLE, TYPE, \
-    TOSCA_DEFINITIONS_VERSION, PROPERTIES, CAPABILITIES, REQUIREMENTS, TOPOLOGY_TEMPLATE, NODE_TEMPLATES
+    TOSCA_DEFINITIONS_VERSION, PROPERTIES, CAPABILITIES, REQUIREMENTS, TOPOLOGY_TEMPLATE, NODE_TEMPLATES, INTERFACES
 
 TEST = 'test'
 
@@ -124,6 +124,9 @@ class BaseAnsibleProvider:
 
     def update_template_property(self, template, node_name, update_value):
         return self.update_node_template(template, node_name, update_value, PROPERTIES)
+
+    def update_template_interfaces(self, template, node_name, update_value):
+        return self.update_node_template(template, node_name, update_value, INTERFACES)
 
     def update_template_attribute(self, template, node_name, update_value):
         return self.update_node_template(template, node_name, update_value, PROPERTIES)
@@ -538,11 +541,185 @@ class TestAnsibleProvider(BaseAnsibleProvider):
             playbook = self.get_ansible_create_output(template, host_ip_parameter='networks.default')
 
             self.assertEqual(len(playbook), 3)
-            self.assertIsNotNone(playbook[0].get('tasks'))
-            self.assertEqual(playbook[0].get('hosts'), 'localhost')
+            for play in playbook:
+                self.assertIsNotNone(play.get('tasks'))
+                self.assertEqual(play.get('hosts'), 'localhost')
 
             tasks = []
             for play in playbook:
                 for task in play['tasks']:
                     tasks.append(task)
             self.check_host_ip_parameter(tasks, testing_value)
+
+    def test_ansible_facts_in_provider_template(self):
+        if hasattr(self, "check_host_ip_parameter"):
+            testing_value_host = '418ed2a2-4f1c-4b51-a86f-15559f0f5790'
+            testing_value_os = 'cirros-0.4.0-x86_64'
+            template = copy.deepcopy(self.DEFAULT_TEMPLATE)
+            testing_parameter = {
+                "architecture": "x86_64",
+                "type": "cirros",
+                "version": "0.4.0"
+            }
+            template = self.update_template_capability_properties(template, self.NODE_NAME, 'os', testing_parameter)
+            testing_parameter = {
+                "num_cpus": 1,
+                "disk_size": "50 GiB",
+                "mem_size": "2 GiB"
+            }
+            template = self.update_template_capability_properties(template, self.NODE_NAME, 'host', testing_parameter)
+            playbook = self.get_ansible_create_output(template, host_ip_parameter='private_address')
+
+            self.assertEqual(len(playbook), 1)
+            for play in playbook:
+                self.assertIsNotNone(play.get('tasks'))
+                self.assertEqual(play.get('hosts'), 'localhost')
+
+            tasks = []
+            for play in playbook:
+                for task in play['tasks']:
+                    tasks.append(task)
+
+            self.get_ansible_delete_output(template)
+            self.check_ansible_facts_in_provider_template(tasks, testing_value_host, testing_value_os)
+
+    def test_nodes_interfaces_operations(self):
+        if hasattr(self, "check_nodes_interfaces_operations"):
+            template = copy.deepcopy(self.DEFAULT_TEMPLATE)
+            testing_value = 'test'
+            testing_parameter = {
+                'Standard': {
+                    'stop': {
+                        'implementation': 'examples/ansible-operation-example.yaml',
+                        'inputs': {
+                            testing_value: testing_value
+                        }
+                    },
+                    'start': {
+                        'implementation': 'examples/ansible-operation-example.yaml',
+                        'inputs': {
+                            testing_value: testing_value
+                        }
+                    },
+                    'configure': {
+                        'implementation': 'examples/ansible-operation-example.yaml',
+                        'inputs': {
+                            testing_value: testing_value
+                        }
+                    }
+                }
+            }
+            template = self.update_template_interfaces(template, self.NODE_NAME, testing_parameter)
+            testing_parameter = {
+                "public_address": "10.10.18.217"
+            }
+            template = self.update_template_property(template, self.NODE_NAME, testing_parameter)
+
+            playbook = self.get_ansible_create_output(template, host_ip_parameter='public_address')
+
+            self.assertEqual(len(playbook), 5)
+            for play in playbook:
+                self.assertIsNotNone(play.get('tasks'))
+                self.assertEqual(play.get('hosts'), 'localhost')
+
+            self.check_nodes_interfaces_operations(playbook, testing_value)
+
+    def test_relationships_interfaces_operations(self):
+        if hasattr(self, "check_relationships_interfaces_operations"):
+            template = copy.deepcopy(self.DEFAULT_TEMPLATE)
+            testing_value = 'test'
+            testing_parameter = {
+                "public_address": "10.10.18.217"
+            }
+            rel_name = 'test_relationship'
+            soft_name = 'service_1'
+            template = self.update_template_property(template, self.NODE_NAME, testing_parameter)
+            testing_parameter = {
+                'Standard': {
+                    'configure': {
+                        'implementation': 'examples/ansible-operation-example.yaml',
+                        'inputs': {
+                            testing_value: testing_value
+                        }
+                    }
+                }
+            }
+            template = self.update_template_interfaces(template, self.NODE_NAME, testing_parameter)
+            template['node_types'] = {
+                'clouni.nodes.ServerExample': {
+                    'derived_from': 'tosca.nodes.SoftwareComponent'
+                }
+            }
+            template['topology_template']['node_templates'][soft_name] = {
+                'type': 'clouni.nodes.ServerExample',
+                'properties': {
+                    'component_version': 0.1
+                },
+                'requirements': [{
+                    'host': {
+                        'node': self.NODE_NAME,
+                        'relationship': rel_name
+                    }
+                }],
+                'interfaces': {
+                    'Standard': {
+                        'create': {
+                            'implementation': 'examples/ansible-operation-example.yaml',
+                            'inputs': {
+                                 testing_value: testing_value
+                            }
+                        },
+                        'configure': {
+                            'implementation': 'examples/ansible-operation-example.yaml',
+                            'inputs': {
+                                 testing_value: testing_value
+                            }
+                        }
+                    }
+                }
+            }
+            template['topology_template']['relationship_templates'] = {}
+            template['topology_template']['relationship_templates'][rel_name] = {
+                'type': 'tosca.relationships.HostedOn',
+                'interfaces': {
+                    'Configure': {
+                        'pre_configure_target': {
+                            'implementation': 'examples/ansible-operation-example.yaml',
+                            'inputs': {
+                                testing_value: testing_value
+                            }
+                        },
+                        'post_configure_target': {
+                            'implementation': 'examples/ansible-operation-example.yaml',
+                            'inputs': {
+                                testing_value: testing_value
+                            }
+                        },
+                        'pre_configure_source': {
+                            'implementation': 'examples/ansible-operation-example.yaml',
+                            'inputs': {
+                                testing_value: testing_value
+                            }
+                        },
+                        'post_configure_source': {
+                            'implementation': 'examples/ansible-operation-example.yaml',
+                            'inputs': {
+                                testing_value: testing_value
+                            }
+                        },
+                        'add_source': {
+                            'implementation': 'examples/ansible-operation-example.yaml',
+                            'inputs': {
+                                testing_value: testing_value
+                            }
+                        }
+                    }
+                }
+            }
+            playbook = self.get_ansible_create_output(template, host_ip_parameter='public_address')
+
+            self.assertEqual(len(playbook), 10)
+            for play in playbook:
+                self.assertIsNotNone(play.get('tasks'))
+
+            self.check_relationships_interfaces_operations(playbook, rel_name, soft_name, testing_value)

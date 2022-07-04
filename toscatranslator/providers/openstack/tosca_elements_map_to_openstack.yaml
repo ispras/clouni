@@ -211,19 +211,20 @@ tosca.nodes.Compute:
                 is_only_numb: true
               value: default_tmp
       endpoint:
+        - parameter: "{self[extra][ansible][{self[keyname]}_security_group_rule][with_sequence]}"
+          value: "start=0 end=\\{\\{ [protocol | length, port | length] | max - 1 \\}\\} format=%d"
+        - parameter: openstack.nodes.SecurityGroup.properties.name
+          value: "{self[name]}_security_group"
+        - parameter: openstack.nodes.Server.requirements.security_groups
+          value:
+            node: "{self[keyname]}_security_group"
+        - parameter: openstack.nodes.SecurityGroupRule.requirements.security_group
+          value:
+            node: "{self[keyname]}_security_group"
         - properties:
             ip_address:
-              - openstack.nodes.SecurityGroupRule.properties.remote_ip_prefix
-              - parameter: openstack.nodes.SecurityGroup.properties.name
-                value: "{self[name]}_security_group"
-              - parameter: openstack.nodes.Server.requirements.security_groups
-                value:
-                  node: "{self[keyname]}_security_group"
-              - parameter: openstack.nodes.SecurityGroupRule.requirements.security_group
-                value:
-                  node: "{self[keyname]}_security_group"
-              - parameter: "{self[extra][ansible][{self[keyname]}_security_group_rule][with_sequence]}"
-                value: "start=0 end=\\{\\{ [protocol | length, port | length] | max - 1 \\}\\} format=%d"
+              - parameter: openstack.nodes.SecurityGroupRule.properties.remote_ip_prefix
+                value: "{self[value]}"
             protocol:
               - parameter: "{self[extra][ansible][{self[keyname]}_security_group_rule][vars][protocol]}"
                 value:

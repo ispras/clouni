@@ -19,7 +19,6 @@ from multiprocessing.connection import Listener
 import copy, sys, yaml, os, itertools, six, logging
 from shutil import copyfile, rmtree
 
-
 ARTIFACT_RANGE_START = 1000
 ARTIFACT_RANGE_END = 9999
 
@@ -29,6 +28,7 @@ ANSIBLE_RESERVED_KEYS = \
 
 REQUIRED_CONFIG_PARAMS = (INITIAL_ARTIFACTS_DIRECTORY, DEFAULT_HOST) = ("initial_artifacts_directory", "default_host")
 TMP_DIR = '/tmp/clouni'
+
 
 class AnsibleConfigurationTool(ConfigurationTool):
     TOOL_NAME = ANSIBLE
@@ -101,7 +101,8 @@ class AnsibleConfigurationTool(ConfigurationTool):
                         elements.done(v)
                         continue
                 logging.debug("Creating ansible play from operation: %s" % v.name + ':' + v.operation)
-                extra_tasks_for_delete = self.get_extra_tasks_for_delete(v.name.replace('-', '_'), ids_file_path)
+                extra_tasks_for_delete = self.get_extra_tasks_for_delete(v.type, v.name.replace('-', '_'),
+                                                                         ids_file_path)
                 description_prefix, module_prefix = self.get_module_prefixes(is_delete, ansible_config)
                 description_by_type = self.ansible_description_by_type(v.type_name, description_prefix)
                 module_by_type = self.ansible_module_by_type(v.type_name, module_prefix)
@@ -293,16 +294,18 @@ class AnsibleConfigurationTool(ConfigurationTool):
             additional_args = utils.deep_update_dict(additional_args_global, additional_args_element)
 
         task_name = element_object.name.replace('-', '_')
-        ansible_task_list = [dict(), dict()]
+        ansible_task_list = [dict(), dict(), dict()]
         for task in ansible_task_list:
             task[NAME] = description_by_type
         ansible_task_list[0][module_by_type] = {
             NAME: self.rap_ansible_variable(task_name + '_delete'), 'state': 'absent'}
         ansible_task_list[1][module_by_type] = {
             NAME: self.rap_ansible_variable('item'), 'state': 'absent'}
+        ansible_task_list[2][module_by_type] = self.rap_ansible_variable(task_name + '_dict')
         ansible_task_list[0]['when'] = task_name + '_delete' + IS_DEFINED
         ansible_task_list[1]['when'] = task_name + '_ids is defined'
         ansible_task_list[1]['loop'] = self.rap_ansible_variable(task_name + '_ids | flatten(levels=1)')
+        ansible_task_list[2]['when'] = task_name + '_dict' + IS_DEFINED
         for task in ansible_task_list:
             task[REGISTER] = task_name + '_var'
             task.update(additional_args)
@@ -333,10 +336,12 @@ class AnsibleConfigurationTool(ConfigurationTool):
             else:
                 implementations = interface_operation.get(IMPLEMENTATION)
             (_, element_type, _) = utils.tosca_type_parse(element_object.type)
-            if (interface_name == 'Standard' and element_type == NODES or interface_name == 'Configure' and element_type == RELATIONSHIPS) and implementations is not None:
+            if (
+                    interface_name == 'Standard' and element_type == NODES or interface_name == 'Configure' and element_type == RELATIONSHIPS) and implementations is not None:
                 if isinstance(implementations, six.string_types):
                     implementations = [implementations]
-                if isinstance(implementations, dict) and 'primary' in implementations and isinstance(implementations['primary'], six.string_types):
+                if isinstance(implementations, dict) and 'primary' in implementations and isinstance(
+                        implementations['primary'], six.string_types):
                     implementations = [implementations['primary']]
                     primary = True
                 scripts.extend(implementations)
@@ -466,50 +471,55 @@ class AnsibleConfigurationTool(ConfigurationTool):
     def copy_conditions_to_the_directory(self, conditions_set, target_directory):
         return
 
-    def get_extra_tasks_for_delete(self, task_name, path):
+    def get_extra_tasks_for_delete(self, type, task_name, path):
         ansible_tasks_for_create = []
-        ansible_tasks_for_create.append({
-            'set_fact': {
-                'tmp_val': '{{ item.value }}'
-            },
-            'with_dict': '{{ ' + task_name + ' }}',
-            'when': task_name + '.id' + IS_UNDEFINED + ' and ' + 'item.value.id' + IS_DEFINED
-        })
-        ansible_tasks_for_create.append({
-            'set_fact': {
-                task_name: '{{ tmp_val }}'
-            },
-            'when': 'tmp_val' + IS_DEFINED
-        })
-        ansible_tasks_for_create.append({
-            'set_fact': {
-                task_name + '_list': self.rap_ansible_variable(
-                    task_name + '_list' + " | default([])") + " + [ \"{{ item.id }}\" ]"},
-            'loop': self.rap_ansible_variable(task_name + '.results | flatten(levels=1) '),
-            # 'when': task_name + '.results' + IS_DEFINED
-            'when': 'item.id ' + IS_DEFINED
-        })
-        ansible_tasks_for_create.append({
-            'set_fact': {
-                task_name + '_list': {task_name + '_ids': self.rap_ansible_variable(task_name + '_list')}},
-            'when': task_name + '_list' + IS_DEFINED
-        })
-        ansible_tasks_for_create.append({
-            LINEINFILE: {
-                PATH: path,
-                'line': '' + task_name + '_delete' + ': ' + self.rap_ansible_variable(task_name + '.id')},
-            'when': task_name + '.id' + IS_DEFINED
-        })
-        ansible_tasks_for_create.append({
-            LINEINFILE: {
-                PATH: path,
-                'line': self.rap_ansible_variable(task_name + '_list' + ' | to_nice_yaml')},
-            'when': task_name + '_list' + IS_DEFINED
-        })
-        ansible_tasks_for_create.append({
-            'fail': {'msg': 'Variable ' + task_name + ' is undefined! So it will not be deleted'},
-            'when': task_name + '_list is undefined and ' + task_name + '.id is undefined',
-            'ignore_errors': True})
+        if type == 'openstack.nodes.FloatingIp':
+            ansible_tasks_for_create.append({
+                'set_fact': {
+                    task_name + '_dict': {task_name + '_dict': {'floating_ip_address': self.rap_ansible_variable(
+                        task_name + '.floating_ip.floating_ip_address'),
+                        'server': self.rap_ansible_variable(
+                            task_name + '.floating_ip.port_details.device_id'),
+                        'purge': 'yes',
+                        'state': 'absent'}}},
+                'when': task_name + IS_DEFINED
+            })
+            ansible_tasks_for_create.append({
+                LINEINFILE: {
+                    PATH: path,
+                    'line': self.rap_ansible_variable(task_name + '_dict' + ' | to_nice_yaml')},
+                'when': task_name + '_dict' + IS_DEFINED
+            })
+        else:
+            ansible_tasks_for_create.append({
+                'set_fact': {
+                    task_name + '_list': self.rap_ansible_variable(
+                        task_name + '_list' + " | default([])") + " + [ \"{{ item.id }}\" ]"},
+                'loop': self.rap_ansible_variable(task_name + '.results | flatten(levels=1) '),
+                # 'when': task_name + '.results' + IS_DEFINED
+                'when': 'item.id ' + IS_DEFINED
+            })
+            ansible_tasks_for_create.append({
+                'set_fact': {
+                    task_name + '_list': {task_name + '_ids': self.rap_ansible_variable(task_name + '_list')}},
+                'when': task_name + '_list' + IS_DEFINED
+            })
+            ansible_tasks_for_create.append({
+                LINEINFILE: {
+                    PATH: path,
+                    'line': '' + task_name + '_delete' + ': ' + self.rap_ansible_variable(task_name + '.id')},
+                'when': task_name + '.id' + IS_DEFINED
+            })
+            ansible_tasks_for_create.append({
+                LINEINFILE: {
+                    PATH: path,
+                    'line': self.rap_ansible_variable(task_name + '_list' + ' | to_nice_yaml')},
+                'when': task_name + '_list' + IS_DEFINED
+            })
+            ansible_tasks_for_create.append({
+                'fail': {'msg': 'Variable ' + task_name + ' is undefined! So it will not be deleted'},
+                'when': task_name + '_list is undefined and ' + task_name + '.id is undefined',
+                'ignore_errors': True})
         return ansible_tasks_for_create
 
     def get_artifact_extension(self):
