@@ -10,7 +10,7 @@ tosca.nodes.Compute:
     value: false
   - parameter: openstack.nodes.Server.interfaces.Standard.create
     value:
-      implementation: /tmp/clouni/artifacts/add_host.yaml
+      implementation: add_host.yaml
       inputs:
         ansible_user: "{self[buffer][add_host][ansible_user]}"
         host_ip: '\\{\\{ {self[keyname]}_server.server.public_v4 \\}\\}'
@@ -122,7 +122,7 @@ tosca.nodes.Compute:
                           - "{self[value]}"
         - parameter: openstack.nodes.FloatingIp.interfaces.Standard.create
           value:
-            implementation: /tmp/clouni/artifacts/add_host.yaml
+            implementation: add_host.yaml
             inputs:
               ansible_user: "{self[buffer][add_host][ansible_user]}"
               host_ip: '\\{\\{ {self[keyname]}_floating_ip.floating_ip.floating_ip_address \\}\\}'

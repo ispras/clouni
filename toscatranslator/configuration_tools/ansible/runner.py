@@ -19,9 +19,11 @@ import ast
 TMP_DIR = '/tmp/clouni'
 
 
-def prepare_for_run():
+def prepare_for_run(cluster_name):
     os.makedirs(TMP_DIR, exist_ok=True)
-    tmp_current_dir = os.path.join(TMP_DIR)
+    os.makedirs(TMP_DIR, exist_ok=True)
+    os.makedirs(os.path.join(TMP_DIR, cluster_name), exist_ok=True)
+    tmp_current_dir = os.path.join(TMP_DIR, cluster_name)
     successful_tasks_path = os.path.join(tmp_current_dir, 'successful_tasks.yaml')
     if not os.path.isdir(TMP_DIR):
         os.makedirs(tmp_current_dir)
@@ -29,7 +31,7 @@ def prepare_for_run():
         os.remove(successful_tasks_path)
 
 
-def run_ansible(ansible_playbook):
+def run_ansible(ansible_playbook, cluster_name):
     """
 
     :param ansible_playbook: dict which is equal to Ansible playbook in YAML
@@ -37,16 +39,16 @@ def run_ansible(ansible_playbook):
     """
     random_id = get_random_int(1000, 9999)
     os.makedirs(TMP_DIR, exist_ok=True)
-    tmp_current_dir = os.path.join(TMP_DIR)
-    if not os.path.isdir(TMP_DIR):
-        os.makedirs(tmp_current_dir)
+    os.makedirs(os.path.join(TMP_DIR, cluster_name), exist_ok=True)
+    tmp_current_dir = os.path.join(TMP_DIR, cluster_name)
     playbook_path = os.path.join(tmp_current_dir, str(random_id) + '_ansible_playbook.yaml')
-    successful_tasks_path = os.path.join(tmp_current_dir, 'successful_tasks.yaml')
+    successful_tasks_path = os.path.join(TMP_DIR, 'successful_tasks.yaml')
     with open(playbook_path, 'w') as playbook_file:
         playbook_file.write(yaml.dump(ansible_playbook, default_flow_style=False, sort_keys=False))
         logging.info("Running ansible playbook from: %s" % playbook_path)
 
     am = argument_maker()
+    am.add_arg("-i", os.path.join(tmp_current_dir, 'hosts.ini'))
     r = runner(playbook_path, am)
     results = []
     with open(successful_tasks_path, "a") as successful_tasks_file:
@@ -70,8 +72,8 @@ def run_ansible(ansible_playbook):
     return results
 
 
-def run_and_finish(ansible_playbook, name, q):
-    results = run_ansible(ansible_playbook)
+def run_and_finish(ansible_playbook, name, q, cluster_name):
+    results = run_ansible(ansible_playbook, cluster_name)
     if name is not None:
         if name == 'artifacts':
             q.put(results)
@@ -81,5 +83,5 @@ def run_and_finish(ansible_playbook, name, q):
         q.put('Done')
 
 
-def parallel_run_ansible(ansible_playbook, name, q):
-    Process(target=run_and_finish, args=(ansible_playbook, name, q)).start()
+def parallel_run_ansible(ansible_playbook, name, q, cluster_name):
+    Process(target=run_and_finish, args=(ansible_playbook, name, q, cluster_name)).start()

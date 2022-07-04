@@ -63,8 +63,8 @@ class AnsibleConfigurationTool(ConfigurationTool):
         ansible_config = provider_config.get_section(ANSIBLE)
         node_filter_config = provider_config.get_subsection(ANSIBLE, NODE_FILTER)
 
-        ids_file_path = self.rap_ansible_variable(
-            "playbook_dir") + '/id_vars_' + cluster_name + self.get_artifact_extension()
+        ids_file_path = os.getcwd() + '/id_vars_' + cluster_name + self.get_artifact_extension()
+
         self.init_global_variables(inputs)
 
         operations_graph = self.init_graph(operations_graph)
@@ -77,7 +77,7 @@ class AnsibleConfigurationTool(ConfigurationTool):
         elements.prepare()
 
         ansible_playbook = []
-        self.prepare_for_run()
+        self.prepare_for_run(cluster_name)
         q = Queue()
         active = []
         first = True
@@ -126,7 +126,7 @@ class AnsibleConfigurationTool(ConfigurationTool):
                         ansible_tasks = self.get_ansible_tasks_for_delete(v, description_by_type, module_by_type,
                                                                           additional_args=extra)
                         ansible_tasks.extend(
-                            self.get_ansible_tasks_from_interface(v, target_directory, is_delete, v.operation,
+                            self.get_ansible_tasks_from_interface(v, target_directory, is_delete, v.operation, cluster_name,
                                                                   additional_args=extra))
                         if not any(item == module_by_type for item in
                                    ansible_config.get('modules_skipping_delete', [])):
@@ -138,7 +138,7 @@ class AnsibleConfigurationTool(ConfigurationTool):
                                                                           description_by_type, module_by_type,
                                                                           additional_args=extra)
                         ansible_tasks.extend(
-                            self.get_ansible_tasks_from_interface(v, target_directory, is_delete, v.operation,
+                            self.get_ansible_tasks_from_interface(v, target_directory, is_delete, v.operation, cluster_name,
                                                                   additional_args=extra))
 
                         ansible_play_for_elem['tasks'].extend(copy.deepcopy(ansible_tasks))
@@ -147,7 +147,7 @@ class AnsibleConfigurationTool(ConfigurationTool):
                     else:
                         ansible_play_for_elem['hosts'] = v.host
                         ansible_play_for_elem['tasks'].extend(copy.deepcopy(
-                            self.get_ansible_tasks_from_interface(v, target_directory, is_delete, v.operation,
+                            self.get_ansible_tasks_from_interface(v, target_directory, is_delete, v.operation, cluster_name,
                                                                   additional_args=extra)))
                 else:
                     (_, element_type, _) = utils.tosca_type_parse(v.type)
@@ -174,10 +174,10 @@ class AnsibleConfigurationTool(ConfigurationTool):
                         logging.error("Unsupported element type in operation graph")
                         sys.exit(1)
                     ansible_play_for_elem['tasks'].extend(copy.deepcopy(
-                        self.get_ansible_tasks_from_interface(v, target_directory, is_delete, v.operation,
+                        self.get_ansible_tasks_from_interface(v, target_directory, is_delete, v.operation, cluster_name,
                                                               additional_args=extra)))
                 ansible_playbook.append(ansible_play_for_elem)
-                self.parallel_run([ansible_play_for_elem], v.name, q)
+                self.parallel_run([ansible_play_for_elem], v.name, q, cluster_name)
                 active.append(v)
         if is_delete:
             last_play = dict(
@@ -188,12 +188,13 @@ class AnsibleConfigurationTool(ConfigurationTool):
             last_play['tasks'].append(copy.deepcopy({FILE: {
                 PATH: ids_file_path,
                 STATE: 'absent'}}))
-            self.parallel_run([last_play], None, q)
+            self.parallel_run([last_play], None, q, cluster_name)
             done = q.get()
             if done != 'Done':
                 logging.error("Something wrong with multiprocessing queue")
                 sys.exit(1)
             ansible_playbook.append(last_play)
+        rmtree(os.path.join(TMP_DIR, cluster_name))
         return yaml.dump(ansible_playbook, default_flow_style=False, sort_keys=False)
 
     def init_graph(self, operations_graph):
@@ -315,7 +316,7 @@ class AnsibleConfigurationTool(ConfigurationTool):
                  'when': task_name + '_var' + '.changed'})
         return ansible_tasks
 
-    def get_ansible_tasks_from_interface(self, element_object, target_directory, is_delete, operation,
+    def get_ansible_tasks_from_interface(self, element_object, target_directory, is_delete, operation, cluster_name,
                                          additional_args=None):
         if additional_args is None:
             additional_args = {}
@@ -346,10 +347,17 @@ class AnsibleConfigurationTool(ConfigurationTool):
                     primary = True
                 scripts.extend(implementations)
                 for script in implementations:
-                    import_file = os.path.join(TMP_DIR, target_directory, os.path.basename(script))
-                    os.makedirs(os.path.dirname(import_file), exist_ok=True)
-                    if script != import_file:
-                        copyfile(script, import_file)
+                    target_filename = os.path.join(TMP_DIR, cluster_name, target_directory, script)
+                    os.makedirs(os.path.dirname(target_filename), exist_ok=True)
+                    script_filename_1 = os.path.join(os.getcwd(), script)
+                    script_filename_2 = os.path.join(self.get_ansible_artifacts_directory(), script)
+                    if os.path.isfile(script_filename_1):
+                        copyfile(script_filename_1, target_filename)
+                    elif os.path.isfile(script_filename_2):
+                        copyfile(script_filename_2, target_filename)
+                    else:
+                        logging.error(
+                            "Artifact filename %s was not found in %s or %s" % (script, script_filename_1, script_filename_2))
                     if not primary and interface_operation.get(INPUTS) is not None:
                         for input_name, input_value in interface_operation[INPUTS].items():
                             ansible_tasks.append({
@@ -358,7 +366,7 @@ class AnsibleConfigurationTool(ConfigurationTool):
                                 }
                             })
                     new_ansible_task = {
-                        IMPORT_TASKS_MODULE: import_file
+                        IMPORT_TASKS_MODULE: target_filename
                     }
                     new_ansible_task.update(additional_args)
                     ansible_tasks.append(new_ansible_task)
@@ -387,7 +395,7 @@ class AnsibleConfigurationTool(ConfigurationTool):
             desc = desc.lower()
         return desc, module_prefix
 
-    def get_ansible_tasks_from_operation(self, op_name, target_directory, if_required=False):
+    def get_ansible_tasks_from_operation(self, op_name, target_directory, cluster_name, if_required=False):
         tasks = []
 
         op_info = self.global_operations_info[op_name]
@@ -418,14 +426,24 @@ class AnsibleConfigurationTool(ConfigurationTool):
                     }
                 }
                 tasks.append(new_task)
-        for i in import_task_arg:
-            if self.artifacts.get(i):
-                art_data = self.artifacts[i]
+        for art in import_task_arg:
+            if self.artifacts.get(art):
+                art_data = self.artifacts[art]
                 new_tasks = self.create_artifact_data(art_data)
                 tasks.extend(new_tasks)
             else:
+                target_filename = os.path.join(TMP_DIR, target_directory, cluster_name, art)
+                art_filename_1 = os.path.join(os.getcwd(), art)
+                art_filename_2 = os.path.join(self.get_ansible_artifacts_directory(), art)
+                if os.path.isfile(art_filename_1):
+                    copyfile(art_filename_1, target_filename)
+                elif os.path.isfile(art_filename_2):
+                    copyfile(art_filename_2, target_filename)
+                else:
+                    logging.error(
+                        "Artifact filename %s was not found in %s or %s" % (art, art_filename_1, art_filename_2))
                 new_task = {
-                    IMPORT_TASKS_MODULE: os.path.join(target_directory, i)
+                    IMPORT_TASKS_MODULE: os.path.join(target_directory, art)
                 }
                 tasks.append(new_task)
         if op_info.get(OUTPUT_IDS):
@@ -437,6 +455,9 @@ class AnsibleConfigurationTool(ConfigurationTool):
                 }
                 tasks.append(new_task)
         return tasks
+
+    def get_ansible_artifacts_directory(self):
+        return os.path.join(os.path.dirname(os.path.realpath(__file__)), self.initial_artifacts_directory)
 
     def rap_ansible_variable(self, s):
         r = "{{ " + s + " }}"
@@ -550,8 +571,8 @@ class AnsibleConfigurationTool(ConfigurationTool):
             })
         return ansible_tasks
 
-    def prepare_for_run(self):
-        prepare_for_run()
+    def prepare_for_run(self, cluster_name):
+        prepare_for_run(cluster_name)
 
-    def parallel_run(self, ansible_play, name, q):
-        parallel_run_ansible(ansible_play, name, q)
+    def parallel_run(self, ansible_play, name, q, cluster_name):
+        parallel_run_ansible(ansible_play, name, q, cluster_name)

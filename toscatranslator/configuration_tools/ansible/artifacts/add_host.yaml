@@ -1,9 +1,20 @@
-- add_host:
-    hostname: '{{ group }}'
-    ansible_host: '{{ host_ip }}'
-    ansible_user: '{{ ansible_user }}'
-    ansible_pass: '{{ ansible_sudo_pass | default(omit) }}'
-  when: host_ip is defined and host_ip != ''
+- file:
+    path: '{{ playbook_dir }}/hosts.ini'
+    state: touch
+    mode: 0666
+    modification_time: preserve
+    access_time: preserve
+- lineinfile:
+    path: '{{ playbook_dir }}/hosts.ini'
+    line: '[{{ group }}]'
+- lineinfile:
+    path: '{{ playbook_dir }}/hosts.ini'
+    line: '{{ group }} ansible_host={{ host_ip }} ansible_user={{ ansible_user }} ansible_pass={{ ansible_sudo_pass }}'
+  when: ansible_sudo_pass is defined and host_ip is defined and host_ip != ''
+- lineinfile:
+    path: '{{ playbook_dir }}/hosts.ini'
+    line: '{{ group }} ansible_host={{ host_ip }} ansible_user={{ ansible_user }}'
+  when: ansible_sudo_pass is undefined and host_ip is defined and host_ip != ''
 - shell: |
     check_ssh() {
         while [ 1 = 1 ]; do

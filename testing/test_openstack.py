@@ -388,14 +388,14 @@ class TestAnsibleOpenStackOutput (unittest.TestCase, TestAnsibleProvider):
 
                 self.assertEqual(tasks[i + 3].get('set_fact', {}).get('group'), self.NODE_NAME + '_public_address')
                 self.assertIsNotNone(tasks[i + 4].get('include', None))
-                self.assertEqual(tasks[i + 4]['include'], '/tmp/clouni/artifacts/add_host.yaml')
+                self.assertEqual(tasks[i + 4]['include'], '/tmp/clouni/test/artifacts/add_host.yaml')
                 checked = True
         self.assertTrue(checked)
 
         tasks = tasks2
         self.assertEqual(len(tasks), 2)
         self.assertEqual(tasks[0].get('set_fact', {}).get('version', None), 0.1)
-        self.assertEqual(tasks[1].get('include', None), "/tmp/clouni/artifacts/ansible-server-example.yaml")
+        self.assertEqual(tasks[1].get('include', None), "/tmp/clouni/test/artifacts/ansible-server-example.yaml")
 
     def test_get_input(self):
         super(TestAnsibleOpenStackOutput, self).test_get_input()
@@ -479,7 +479,7 @@ class TestAnsibleOpenStackOutput (unittest.TestCase, TestAnsibleProvider):
                 self.assertEqual(ansible_user, 'cirros')
                 self.assertEqual(host_ip, '{{ tosca_server_example_server.server.public_v4 }}')
                 self.assertEqual(group, 'tosca_server_example_private_address')
-                self.assertEqual(include, '/tmp/clouni/artifacts/add_host.yaml')
+                self.assertEqual(include, '/tmp/clouni/test/artifacts/add_host.yaml')
 
     def test_ansible_facts_in_provider_template(self):
         if os.path.isfile(CLOUDS_YAML):
@@ -517,7 +517,7 @@ class TestAnsibleOpenStackOutput (unittest.TestCase, TestAnsibleProvider):
 
         for i in range(1, 4):
             self.assertEqual(plays[i]['tasks'][0].get('set_fact', {}).get(testing_value), testing_value)
-            self.assertEqual(plays[i]['tasks'][1].get('include'), '/tmp/clouni/artifacts/ansible-operation-example.yaml')
+            self.assertEqual(plays[i]['tasks'][1].get('include'), '/tmp/clouni/test/artifacts/ansible-operation-example.yaml')
 
         checked = False
         for task in plays[4]['tasks']:
@@ -584,4 +584,4 @@ class TestAnsibleOpenStackOutput (unittest.TestCase, TestAnsibleProvider):
         for i in list(range(1, 4)) + list(range(5, 10)):
             print(i)
             self.assertEqual(plays[i]['tasks'][0].get('set_fact', {}).get(testing_value), testing_value)
-            self.assertEqual(plays[i]['tasks'][1].get('include'), '/tmp/clouni/artifacts/ansible-operation-example.yaml')
+            self.assertEqual(plays[i]['tasks'][1].get('include'), '/tmp/clouni/test/artifacts/ansible-operation-example.yaml')

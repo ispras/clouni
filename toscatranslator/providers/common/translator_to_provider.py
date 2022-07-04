@@ -623,7 +623,7 @@ def translate_node_from_tosca(restructured_mapping, tpl_name, self):
     return resulted_structure
 
 
-def get_source_structure_from_facts(condition, fact_name, value, arguments, executor, source_value, is_delete):
+def get_source_structure_from_facts(condition, fact_name, value, arguments, executor, source_value, is_delete, cluster_name):
     """
     :param condition:
     :param fact_name:
@@ -705,10 +705,10 @@ def get_source_structure_from_facts(condition, fact_name, value, arguments, exec
     ]
 
     new_global_elements_map_total_implementation += addition_for_elements_map_total_implementation
-    return execute(new_global_elements_map_total_implementation, is_delete, value)
+    return execute(new_global_elements_map_total_implementation, is_delete, cluster_name, value)
 
 
-def restructure_mapping_facts(elements_map, self, is_delete, extra_elements_map=None, target_parameter=None, source_parameter=None,
+def restructure_mapping_facts(elements_map, self, is_delete, cluster_name, extra_elements_map=None, target_parameter=None, source_parameter=None,
                               source_value=None):
     """
     Function is used to restructure mapping values with the case of `facts`, `condition`, `arguments`, `value` keys
@@ -737,7 +737,7 @@ def restructure_mapping_facts(elements_map, self, is_delete, extra_elements_map=
                 target_parameter = cur_parameter
         new_elements_map = dict()
         for k, v in elements_map.items():
-            cur_elements, extra_elements_map = restructure_mapping_facts(v, self, is_delete, extra_elements_map,
+            cur_elements, extra_elements_map = restructure_mapping_facts(v, self, is_delete, cluster_name, extra_elements_map,
                                                                          target_parameter,
                                                                          source_parameter, source_value)
             new_elements_map.update({k: cur_elements})
@@ -817,7 +817,7 @@ def restructure_mapping_facts(elements_map, self, is_delete, extra_elements_map=
             if not get_configuration_tool_class(executor):
                 logging.critical("Unsupported executor name \'%s\'" % json.dumps(executor))
                 sys.exit(1)
-            new_value = get_source_structure_from_facts(condition, fact_name, value, arguments, executor, source_value, is_delete)
+            new_value = get_source_structure_from_facts(condition, fact_name, value, arguments, executor, source_value, is_delete, cluster_name)
             return new_value, extra_elements_map
 
         return new_elements_map, extra_elements_map
@@ -825,7 +825,7 @@ def restructure_mapping_facts(elements_map, self, is_delete, extra_elements_map=
     if isinstance(elements_map, list):
         new_elements_map = []
         for k in elements_map:
-            cur_elements, extra_elements_map = restructure_mapping_facts(k, self, is_delete, extra_elements_map,
+            cur_elements, extra_elements_map = restructure_mapping_facts(k, self, is_delete, cluster_name, extra_elements_map,
                                                                          target_parameter,
                                                                          source_parameter, source_value)
             new_elements_map.append(cur_elements)
@@ -907,7 +907,7 @@ def translate(service_tmpl):
             restructured_mapping = restructure_mapping(service_tmpl, element, tmpl_name, self)
             restructured_mapping = sort_host_ip_parameter(restructured_mapping, service_tmpl.host_ip_parameter)
             restructured_mapping = restructure_mapping_buffer(restructured_mapping, self)
-            restructured_mapping, extra_mappings = restructure_mapping_facts(restructured_mapping, self, service_tmpl.is_delete)
+            restructured_mapping, extra_mappings = restructure_mapping_facts(restructured_mapping, self, service_tmpl.is_delete, service_tmpl.cluster_name)
             restructured_mapping.extend(extra_mappings)
             restructured_mapping = restructure_get_attribute(restructured_mapping, service_tmpl, self)
 
@@ -928,12 +928,12 @@ def translate(service_tmpl):
 
     self_extra = utils.replace_brackets(self[EXTRA], False)
     self_artifacts = utils.replace_brackets(self[ARTIFACTS], False)
-    execute(self_artifacts, service_tmpl.is_delete)
+    execute(self_artifacts, service_tmpl.is_delete, service_tmpl.cluster_name)
 
     return new_element_templates, self_extra, template_mapping
 
 
-def execute(new_global_elements_map_total_implementation, is_delete, target_parameter=None):
+def execute(new_global_elements_map_total_implementation, is_delete, cluster_name, target_parameter=None):
     if not is_delete:
         default_executor = 'ansible'
         configuration_class = get_configuration_tool_class(default_executor)()
@@ -958,9 +958,10 @@ def execute(new_global_elements_map_total_implementation, is_delete, target_para
             'tasks': new_ansible_tasks
         }
 
+        os.makedirs(os.path.join(TMP_DIRECTORY, cluster_name, configuration_class.initial_artifacts_directory), exist_ok=True)
         copy_tree(utils.get_project_root_path() + '/toscatranslator/configuration_tools/ansible/artifacts',
-                  TMP_DIRECTORY + configuration_class.initial_artifacts_directory)
-        configuration_class.parallel_run([playbook], 'artifacts', q)
+                  os.path.join(TMP_DIRECTORY, cluster_name, configuration_class.initial_artifacts_directory))
+        configuration_class.parallel_run([playbook], 'artifacts', q, cluster_name)
 
         # есть такая проблема что если в текущем процессе был запущен runner cotea то все последующие запуски
         # других плейбуков из этого процесса невозможны т.к. запускаться будет первоначальный плейбук, причем даже если
@@ -979,7 +980,6 @@ def execute(new_global_elements_map_total_implementation, is_delete, target_para
                     value = result.result['results'][0]['ansible_facts']['matched_object'][target_parameter.split('.')[-1]]
             if if_failed:
                 value = 'not_found'
-                # временное решение чтоб работали тесты
             return value
     return None
 

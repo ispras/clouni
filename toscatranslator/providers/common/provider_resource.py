@@ -19,7 +19,7 @@ TMP_DIRECTORY = '/tmp/clouni'
 
 class ProviderResource(object):
 
-    def __init__(self, provider, is_delete, configuration_tool, tmpl, node_name, host_ip_parameter, node_type, is_software_component=False, is_relationship=False,
+    def __init__(self, provider, is_delete, cluster_name, configuration_tool, tmpl, node_name, host_ip_parameter, node_type, is_software_component=False, is_relationship=False,
                  relation_target_source = dict()):
         """
 
@@ -33,6 +33,7 @@ class ProviderResource(object):
 
         self.provider = provider
         self.tmpl = tmpl
+        self.cluster_name = cluster_name
         self.name = node_name
         self.type = tmpl[TYPE]
         (_, _, type_name) = utils.tosca_type_parse(self.type)
@@ -191,7 +192,7 @@ class ProviderResource(object):
                                     EXECUTOR: configuration_tool
                                 }
                             ]
-                            arg = str(execute(tmp_ansible_tasks, self.is_delete, node_filter_value))
+                            arg = str(execute(tmp_ansible_tasks, self.is_delete, self.cluster_name, node_filter_value))
                     self.configuration_args[arg_key] = arg
 
     @property
