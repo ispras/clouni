@@ -50,7 +50,7 @@ class TestAnsibleAmazonOutput (unittest.TestCase, TestAnsibleProvider):
         for play in playbook:
             for task in play['tasks']:
                 tasks.append(task)
-        self.assertEqual(len(tasks), 10)
+        self.assertEqual(len(tasks), 8)
         self.assertIsNotNone(tasks[2][INSTANCE_MODULE_NAME])
         server = tasks[2][INSTANCE_MODULE_NAME]
         self.assertEqual(server['name'], self.NODE_NAME)

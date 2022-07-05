@@ -160,7 +160,7 @@ class TestAnsibleOpenStackOutput (unittest.TestCase, TestAnsibleProvider):
     def test_server_name(self):
         template = copy.deepcopy(self.DEFAULT_TEMPLATE)
         playbook = self.get_ansible_create_output(template)
-        self.assertEqual(len(playbook), 1)
+        self.assertEqual(len(playbook), 2)
         for play in playbook:
             self.assertIsInstance(play, dict)
             self.assertIsNotNone(play['tasks'])
@@ -168,9 +168,9 @@ class TestAnsibleOpenStackOutput (unittest.TestCase, TestAnsibleProvider):
         for play in playbook:
             for task in play['tasks']:
                 tasks.append(task)
-        self.assertEqual(len(tasks), 12)
-        self.assertIsNotNone(tasks[2][SERVER_MODULE_NAME])
-        server = tasks[2][SERVER_MODULE_NAME]
+        self.assertEqual(len(tasks), 18)
+        self.assertIsNotNone(tasks[8][SERVER_MODULE_NAME])
+        server = tasks[8][SERVER_MODULE_NAME]
         self.assertEqual(server['name'], self.NODE_NAME)
 
     def test_meta(self, extra=None):
