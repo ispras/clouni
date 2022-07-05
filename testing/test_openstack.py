@@ -21,7 +21,7 @@ SUBNET_MODULE_NAME = 'os_subnet'
 SUCCESS_CHECK_FILE = '/tmp/clouni/successful_tasks.yaml'
 
 CLOUDS_YAML = '/tmp/clouds.yaml'
-CLOUDS_YAML_NEW = '/tmp/clouni/clouds.yaml'
+CLOUDS_YAML_NEW = '/tmp/clouni/test/clouds.yaml'
 
 class TestAnsibleOpenStackOutput (unittest.TestCase, TestAnsibleProvider):
     PROVIDER = 'openstack'
@@ -446,8 +446,18 @@ class TestAnsibleOpenStackOutput (unittest.TestCase, TestAnsibleProvider):
                 self.assertEqual(task['set_fact']['server_address'], '{{ %s.floating_ip_address }}' % register_var)
         self.assertTrue(checked)
 
+    def test_ansible_facts_in_provider_template(self):
+        if os.path.isfile(CLOUDS_YAML):
+            os.makedirs(os.path.dirname(CLOUDS_YAML_NEW), exist_ok=True)
+            copyfile(CLOUDS_YAML, CLOUDS_YAML_NEW)
+            super(TestAnsibleOpenStackOutput, self).test_ansible_facts_in_provider_template()
+            os.remove(CLOUDS_YAML_NEW)
+        else:
+            super(TestAnsibleOpenStackOutput, self).test_ansible_facts_in_provider_template()
+
     def test_tasks_success(self):
         if os.path.isfile(CLOUDS_YAML):
+            os.makedirs(os.path.dirname(CLOUDS_YAML_NEW), exist_ok=True)
             copyfile(CLOUDS_YAML, CLOUDS_YAML_NEW)
             super(TestAnsibleOpenStackOutput, self).test_tasks_success()
             os.remove(CLOUDS_YAML_NEW)
@@ -480,14 +490,6 @@ class TestAnsibleOpenStackOutput (unittest.TestCase, TestAnsibleProvider):
                 self.assertEqual(host_ip, '{{ tosca_server_example_server.server.public_v4 }}')
                 self.assertEqual(group, 'tosca_server_example_private_address')
                 self.assertEqual(include, '/tmp/clouni/test/artifacts/add_host.yaml')
-
-    def test_ansible_facts_in_provider_template(self):
-        if os.path.isfile(CLOUDS_YAML):
-            copyfile(CLOUDS_YAML, CLOUDS_YAML_NEW)
-            super(TestAnsibleOpenStackOutput, self).test_ansible_facts_in_provider_template()
-            os.remove(CLOUDS_YAML_NEW)
-        else:
-            super(TestAnsibleOpenStackOutput, self).test_ansible_facts_in_provider_template()
 
     def check_ansible_facts_in_provider_template(self, tasks, flavor, image):
         checked = False

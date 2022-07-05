@@ -552,7 +552,7 @@ class TestAnsibleProvider(BaseAnsibleProvider):
             self.check_host_ip_parameter(tasks, testing_value)
 
     def test_ansible_facts_in_provider_template(self):
-        if hasattr(self, "check_host_ip_parameter"):
+        if hasattr(self, "check_ansible_facts_in_provider_template"):
             testing_value_host = '418ed2a2-4f1c-4b51-a86f-15559f0f5790'
             testing_value_os = 'cirros-0.4.0-x86_64'
             template = copy.deepcopy(self.DEFAULT_TEMPLATE)
