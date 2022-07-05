@@ -1,5 +1,14 @@
 ---
 tosca.nodes.Compute:
+  - parameter: openstack.nodes.Keypair.properties.public_key_file
+    value: '{self[public_key_path]}'
+  - parameter: openstack.nodes.Keypair.properties.name
+    value: '{self[keyname]}_keypair'
+  - parameter: openstack.nodes.Server.requirements
+    value:
+      parameter: key_name
+      value:
+        node: "{self[keyname]}_keypair"
   - parameter: openstack.nodes.Server.properties.name
     value: "{self[name]}"
   - attributes:

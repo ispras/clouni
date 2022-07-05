@@ -23,11 +23,12 @@ class ProviderToscaTemplate(object):
     DEPENDENCY_FUNCTIONS = (GET_PROPERTY, GET_ATTRIBUTE, GET_OPERATION_OUTPUT)
     DEFAULT_ARTIFACTS_DIRECTOR = ARTIFACTS
 
-    def __init__(self, tosca_parser_template_object, provider, configuration_tool, cluster_name, host_ip_parameter,
+    def __init__(self, tosca_parser_template_object, provider, configuration_tool, cluster_name, host_ip_parameter, public_key_path,
                  is_delete, common_map_files=[]):
         self.provider = provider
         self.is_delete = is_delete
         self.host_ip_parameter = host_ip_parameter
+        self.public_key_path = public_key_path
         self.configuration_tool = configuration_tool
         self.provider_config = ProviderConfiguration(self.provider)
         self.cluster_name = cluster_name

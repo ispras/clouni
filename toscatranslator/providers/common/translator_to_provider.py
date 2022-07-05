@@ -21,6 +21,7 @@ SET_FACT_SOURCE = "set_fact"
 IMPORT_TASKS_MODULE = "include"
 INDIVISIBLE_KEYS = [GET_OPERATION_OUTPUT, INPUTS, IMPLEMENTATION, GET_ATTRIBUTE]
 BUFFER = 'buffer'
+PUBLIC_KEY = 'public_key_path'
 
 ARTIFACT_RANGE_START = 1000
 ARTIFACT_RANGE_END = 9999
@@ -896,6 +897,7 @@ def translate(service_tmpl):
     self = dict()
     self[ARTIFACTS] = []
     self[EXTRA] = dict()
+    self[PUBLIC_KEY] = service_tmpl.public_key_path
 
     for tmpl_name, element in element_templates.items():
         (namespace, _, _) = utils.tosca_type_parse(element[TYPE])

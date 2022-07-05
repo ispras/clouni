@@ -24,7 +24,7 @@ def prepare_for_run(cluster_name):
     os.makedirs(TMP_DIR, exist_ok=True)
     os.makedirs(os.path.join(TMP_DIR, cluster_name), exist_ok=True)
     tmp_current_dir = os.path.join(TMP_DIR, cluster_name)
-    successful_tasks_path = os.path.join(tmp_current_dir, 'successful_tasks.yaml')
+    successful_tasks_path = os.path.join(TMP_DIR, 'successful_tasks.yaml')
     if not os.path.isdir(TMP_DIR):
         os.makedirs(tmp_current_dir)
     if os.path.isfile(successful_tasks_path):
@@ -49,6 +49,7 @@ def run_ansible(ansible_playbook, cluster_name):
 
     am = argument_maker()
     am.add_arg("-i", os.path.join(tmp_current_dir, 'hosts.ini'))
+
     r = runner(playbook_path, am)
     results = []
     with open(successful_tasks_path, "a") as successful_tasks_file:

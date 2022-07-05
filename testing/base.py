@@ -357,13 +357,13 @@ class TestAnsibleProvider(BaseAnsibleProvider):
             }
             playbook = self.get_ansible_create_output(template)
 
-            self.assertEqual(len(playbook), 3)
+            self.assertEqual(len(playbook), 4)
             for play in playbook:
                 self.assertIsNotNone(play.get('tasks'))
 
-            self.assertEqual(playbook[2].get('hosts'), self.NODE_NAME + '_public_address')
-            tasks2 = playbook[2]['tasks']
-            tasks1 = playbook[0]['tasks'] + playbook[1]['tasks']
+            self.assertEqual(playbook[3].get('hosts'), self.NODE_NAME + '_public_address')
+            tasks2 = playbook[3]['tasks']
+            tasks1 = playbook[0]['tasks'] + playbook[1]['tasks'] + playbook[2]['tasks']
             self.check_host_of_software_component(tasks1, tasks2)
 
     def test_get_input(self):
@@ -540,7 +540,7 @@ class TestAnsibleProvider(BaseAnsibleProvider):
             template = self.update_template_capability_properties(template, self.NODE_NAME, 'os', testing_parameter)
             playbook = self.get_ansible_create_output(template, host_ip_parameter='networks.default')
 
-            self.assertEqual(len(playbook), 3)
+            self.assertEqual(len(playbook), 4)
             for play in playbook:
                 self.assertIsNotNone(play.get('tasks'))
                 self.assertEqual(play.get('hosts'), 'localhost')
@@ -570,7 +570,7 @@ class TestAnsibleProvider(BaseAnsibleProvider):
             template = self.update_template_capability_properties(template, self.NODE_NAME, 'host', testing_parameter)
             playbook = self.get_ansible_create_output(template, host_ip_parameter='private_address')
 
-            self.assertEqual(len(playbook), 1)
+            self.assertEqual(len(playbook), 2)
             for play in playbook:
                 self.assertIsNotNone(play.get('tasks'))
                 self.assertEqual(play.get('hosts'), 'localhost')
@@ -617,7 +617,7 @@ class TestAnsibleProvider(BaseAnsibleProvider):
 
             playbook = self.get_ansible_create_output(template, host_ip_parameter='public_address')
 
-            self.assertEqual(len(playbook), 5)
+            self.assertEqual(len(playbook), 6)
             for play in playbook:
                 self.assertIsNotNone(play.get('tasks'))
                 self.assertEqual(play.get('hosts'), 'localhost')
@@ -718,7 +718,7 @@ class TestAnsibleProvider(BaseAnsibleProvider):
             }
             playbook = self.get_ansible_create_output(template, host_ip_parameter='public_address')
 
-            self.assertEqual(len(playbook), 10)
+            self.assertEqual(len(playbook), 11)
             for play in playbook:
                 self.assertIsNotNone(play.get('tasks'))
 

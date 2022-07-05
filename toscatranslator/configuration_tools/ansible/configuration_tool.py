@@ -194,7 +194,7 @@ class AnsibleConfigurationTool(ConfigurationTool):
                 logging.error("Something wrong with multiprocessing queue")
                 sys.exit(1)
             ansible_playbook.append(last_play)
-        rmtree(os.path.join(TMP_DIR, cluster_name))
+        # rmtree(os.path.join(TMP_DIR, cluster_name))
         return yaml.dump(ansible_playbook, default_flow_style=False, sort_keys=False)
 
     def init_graph(self, operations_graph):

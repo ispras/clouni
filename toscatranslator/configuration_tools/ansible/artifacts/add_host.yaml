@@ -37,4 +37,4 @@
     path: ~/.ssh/known_hosts
     name: '{{ host_ip }}'
     key: '{{ host_key.stdout }}'
-  when: host_key is defined and host_ip is defined and host_ip != '' and host_key.rc == 1
+  when: host_key is defined and host_ip is defined and host_ip != '' and host_key.rc == 0

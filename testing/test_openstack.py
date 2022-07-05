@@ -78,7 +78,7 @@ class TestAnsibleOpenStackOutput (unittest.TestCase, TestAnsibleProvider):
         file_path = os.path.join('examples', 'tosca-network-and-server-example.yaml')
         template = self.read_template(file_path)
         playbook = self.get_ansible_create_output(template, file_path, delete_template=False)
-        self.assertEqual(len(playbook), 4)
+        self.assertEqual(len(playbook), 5)
         for elem in playbook:
             self.assertIsInstance(elem, dict)
             self.assertIsNotNone(elem['tasks'])
@@ -305,7 +305,7 @@ class TestAnsibleOpenStackOutput (unittest.TestCase, TestAnsibleProvider):
         playbook = self.get_ansible_delete_output_from_file(copy.deepcopy(self.DEFAULT_TEMPLATE),
                                                   template_filename='examples/tosca-server-example-scalable.yaml')
         self.assertIsNotNone(playbook[0]['tasks'][0]['include_vars'])
-        self.assertIsNotNone(playbook[3]['tasks'][0]['file'])
+        self.assertIsNotNone(playbook[4]['tasks'][0]['file'])
         module_names= ['os_floating_ip','os_server','os_port','os_security_group',]
         tasks = []
         for play in playbook:
@@ -395,7 +395,7 @@ class TestAnsibleOpenStackOutput (unittest.TestCase, TestAnsibleProvider):
         tasks = tasks2
         self.assertEqual(len(tasks), 2)
         self.assertEqual(tasks[0].get('set_fact', {}).get('version', None), 0.1)
-        self.assertEqual(tasks[1].get('include', None), "/tmp/clouni/test/artifacts/ansible-server-example.yaml")
+        self.assertEqual(tasks[1].get('include', None), "/tmp/clouni/test/artifacts/examples/ansible-server-example.yaml")
 
     def test_get_input(self):
         super(TestAnsibleOpenStackOutput, self).test_get_input()
@@ -504,23 +504,23 @@ class TestAnsibleOpenStackOutput (unittest.TestCase, TestAnsibleProvider):
         super(TestAnsibleOpenStackOutput, self).test_nodes_interfaces_operations()
 
     def check_nodes_interfaces_operations(self, plays, testing_value):
-        self.assertTrue('create' in plays[0].get('name'))
-        self.assertTrue('configure' in plays[1].get('name'))
-        self.assertTrue('start' in plays[2].get('name'))
-        self.assertTrue('stop' in plays[3].get('name'))
+        self.assertTrue('create' in plays[1].get('name'))
+        self.assertTrue('configure' in plays[2].get('name'))
+        self.assertTrue('start' in plays[3].get('name'))
+        self.assertTrue('stop' in plays[4].get('name'))
 
         checked = False
-        for task in plays[0]['tasks']:
+        for task in plays[1]['tasks']:
             if task.get('os_server'):
                 checked = True
         self.assertTrue(checked)
 
-        for i in range(1, 4):
+        for i in range(2, 5):
             self.assertEqual(plays[i]['tasks'][0].get('set_fact', {}).get(testing_value), testing_value)
-            self.assertEqual(plays[i]['tasks'][1].get('include'), '/tmp/clouni/test/artifacts/ansible-operation-example.yaml')
+            self.assertEqual(plays[i]['tasks'][1].get('include'), '/tmp/clouni/test/artifacts/examples/ansible-operation-example.yaml')
 
         checked = False
-        for task in plays[4]['tasks']:
+        for task in plays[5]['tasks']:
             if task.get('os_floating_ip'):
                 checked = True
         self.assertTrue(checked)
@@ -532,56 +532,56 @@ class TestAnsibleOpenStackOutput (unittest.TestCase, TestAnsibleProvider):
         self.assertTrue('create' in plays[0].get('name'))
 
         checked = False
-        for task in plays[0]['tasks']:
+        for task in plays[1]['tasks']:
             if task.get('os_server'):
                 checked = True
         self.assertTrue(checked)
 
-        self.assertTrue('pre_configure_target' in plays[1].get('name'))
-        self.assertTrue(rel_name + '_hosted_on' in plays[1].get('name'))
-        self.assertEqual(plays[1].get('hosts'), 'localhost')
+        self.assertTrue('pre_configure_target' in plays[2].get('name'))
+        self.assertTrue(rel_name + '_hosted_on' in plays[2].get('name'))
+        self.assertEqual(plays[2].get('hosts'), 'localhost')
 
-        self.assertTrue('configure' in plays[2].get('name'))
+        self.assertTrue('configure' in plays[3].get('name'))
 
-        self.assertTrue('post_configure_target' in plays[3].get('name'))
-        self.assertTrue(rel_name + '_hosted_on' in plays[3].get('name'))
-        self.assertEqual(plays[3].get('hosts'), 'localhost')
+        self.assertTrue('post_configure_target' in plays[4].get('name'))
+        self.assertTrue(rel_name + '_hosted_on' in plays[4].get('name'))
+        self.assertEqual(plays[4].get('hosts'), 'localhost')
 
         checked = False
-        for task in plays[4]['tasks']:
+        for task in plays[5]['tasks']:
             if task.get('os_floating_ip'):
                 checked = True
         self.assertTrue(checked)
 
-        self.assertTrue('create' in plays[5].get('name'))
-        self.assertTrue(soft_name + '_server_example' in plays[5].get('name'))
+        self.assertTrue('create' in plays[6].get('name'))
+        self.assertTrue(soft_name + '_server_example' in plays[6].get('name'))
 
-        if 'pre_configure_source' in plays[6].get('name'):
-            self.assertTrue(rel_name+ '_hosted_on' in plays[6].get('name'))
-            self.assertEqual(plays[6].get('hosts'), 'tosca_server_example_public_address')
+        if 'pre_configure_source' in plays[7].get('name'):
+            self.assertTrue(rel_name+ '_hosted_on' in plays[7].get('name'))
+            self.assertEqual(plays[7].get('hosts'), 'tosca_server_example_public_address')
 
-            self.assertTrue('add_source' in plays[7].get('name'))
+            self.assertTrue('add_source' in plays[8].get('name'))
+            self.assertTrue(rel_name + '_hosted_on' in plays[8].get('name'))
+            self.assertEqual(plays[8].get('hosts'), 'localhost')
+        elif 'add_source' in plays[7].get('name'):
             self.assertTrue(rel_name + '_hosted_on' in plays[7].get('name'))
             self.assertEqual(plays[7].get('hosts'), 'localhost')
-        elif 'add_source' in plays[6].get('name'):
-            self.assertTrue(rel_name + '_hosted_on' in plays[6].get('name'))
-            self.assertEqual(plays[6].get('hosts'), 'localhost')
 
-            self.assertTrue('pre_configure_source' in plays[7].get('name'))
-            self.assertTrue(rel_name + '_hosted_on' in plays[7].get('name'))
-            self.assertEqual(plays[7].get('hosts'), 'tosca_server_example_public_address')
+            self.assertTrue('pre_configure_source' in plays[8].get('name'))
+            self.assertTrue(rel_name + '_hosted_on' in plays[8].get('name'))
+            self.assertEqual(plays[8].get('hosts'), 'tosca_server_example_public_address')
         else:
             self.assertTrue(False)
 
-        self.assertTrue('configure' in plays[8].get('name'))
-        self.assertTrue(soft_name+ '_server_example' in plays[8].get('name'))
+        self.assertTrue('configure' in plays[9].get('name'))
+        self.assertTrue(soft_name+ '_server_example' in plays[9].get('name'))
 
-        self.assertTrue('post_configure_source' in plays[9].get('name'))
-        self.assertTrue(rel_name + '_hosted_on' in plays[9].get('name'))
-        self.assertEqual(plays[9].get('hosts'), 'tosca_server_example_public_address')
+        self.assertTrue('post_configure_source' in plays[10].get('name'))
+        self.assertTrue(rel_name + '_hosted_on' in plays[10].get('name'))
+        self.assertEqual(plays[10].get('hosts'), 'tosca_server_example_public_address')
 
 
-        for i in list(range(1, 4)) + list(range(5, 10)):
+        for i in list(range(2, 5)) + list(range(6, 11)):
             print(i)
             self.assertEqual(plays[i]['tasks'][0].get('set_fact', {}).get(testing_value), testing_value)
-            self.assertEqual(plays[i]['tasks'][1].get('include'), '/tmp/clouni/test/artifacts/ansible-operation-example.yaml')
+            self.assertEqual(plays[i]['tasks'][1].get('include'), '/tmp/clouni/test/artifacts/examples/ansible-operation-example.yaml')

@@ -17,7 +17,7 @@ REQUIRED_CONFIGURATION_PARAMS = (TOSCA_ELEMENTS_DEFINITION_FILE, DEFAULT_ARTIFAC
 
 
 def translate(template_file, validate_only, provider, configuration_tool, cluster_name, is_delete=False,
-              a_file=True, extra=None, log_level='info', host_ip_parameter='public_address'):
+              a_file=True, extra=None, log_level='info', host_ip_parameter='public_address', public_key_path='~/.ssh/id_rsa.pub'):
     """
     Main function, is called by different shells, i.e. bash, Ansible module, grpc
     :param template_file: filename of TOSCA template or TOSCA template data if a_file is False
@@ -120,7 +120,7 @@ def translate(template_file, validate_only, provider, configuration_tool, cluste
 
     # Parse and generate new TOSCA service template with only provider specific TOSCA types from normative types
     tosca = ProviderToscaTemplate(tosca_parser_template_object, provider, configuration_tool, cluster_name,
-                                  host_ip_parameter, is_delete, common_map_files=default_map_files)
+                                  host_ip_parameter, public_key_path, is_delete, common_map_files=default_map_files)
 
     # Init configuration tool class
     tool = get_configuration_tool_class(configuration_tool)()
