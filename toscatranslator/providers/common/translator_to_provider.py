@@ -1,3 +1,11 @@
+import ast
+import os
+from multiprocessing import Queue
+
+import yaml
+
+from distutils.dir_util import copy_tree
+
 from toscatranslator.common import utils
 from toscatranslator.common.tosca_reserved_keys import *
 from toscatranslator.configuration_tools.combined.combine_configuration_tools import get_configuration_tool_class
@@ -10,13 +18,16 @@ import copy, six, logging, sys, json, re
 SEPARATOR = '.'
 MAP_KEY = "map"
 SET_FACT_SOURCE = "set_fact"
+IMPORT_TASKS_MODULE = "include"
 INDIVISIBLE_KEYS = [GET_OPERATION_OUTPUT, INPUTS, IMPLEMENTATION, GET_ATTRIBUTE]
 BUFFER = 'buffer'
+PUBLIC_KEY = 'public_key_path'
 
 ARTIFACT_RANGE_START = 1000
 ARTIFACT_RANGE_END = 9999
 PYTHON_EXECUTOR = 'python'
 PYTHON_SOURCE_DIRECTORY = 'toscatranslator.providers.common.python_sources'
+TMP_DIRECTORY = '/tmp/clouni/'
 
 
 def translate_element_from_provider(tmpl_name, node_tmpl):
@@ -51,7 +62,8 @@ def get_structure_of_mapped_param(mapped_param, value, input_value=None, indivis
                 for v in value:
                     if isinstance(v, str):
                         # Error! Stucks in recursion if {get_property: []} is used
-                        param, _ = get_structure_of_mapped_param(SEPARATOR.join([mapped_param, v]), input_value, input_value)
+                        param, _ = get_structure_of_mapped_param(SEPARATOR.join([mapped_param, v]), input_value,
+                                                                 input_value)
                     else:
                         param, _ = get_structure_of_mapped_param(mapped_param, v, input_value)
                     r += param
@@ -64,7 +76,8 @@ def get_structure_of_mapped_param(mapped_param, value, input_value=None, indivis
                     param, _ = get_structure_of_mapped_param(k, v, input_value)
                     for p in param:
                         r = utils.deep_update_dict(r, p)
-                r, _ = get_structure_of_mapped_param(mapped_param, r, input_value, indivisible=True, if_list_type=if_list_type)
+                r, _ = get_structure_of_mapped_param(mapped_param, r, input_value, indivisible=True,
+                                                     if_list_type=if_list_type)
                 return r, None
 
         # NOTE: end of recursion
@@ -73,7 +86,7 @@ def get_structure_of_mapped_param(mapped_param, value, input_value=None, indivis
             structure = [value]
         for i in range(len(splitted_mapped_param), 0, -1):
             structure = {
-                splitted_mapped_param[i-1]: structure
+                splitted_mapped_param[i - 1]: structure
             }
         return [structure], None
 
@@ -118,7 +131,8 @@ def restructure_value(mapping_value, self, if_format_str=True, if_upper=True):
         for key in MAPPING_VALUE_KEYS:
             mapping_sub_value = mapping_value.get(key)
             if mapping_sub_value is not None:
-                restructured_value = restructure_value(mapping_sub_value, self, key != PARAMETER, False)
+                restructured_value = restructure_value(mapping_sub_value, self, if_format_str=key != PARAMETER,
+                                                       if_upper=False)
                 if restructured_value is None:
                     logging.critical("Unable to parse the following parameter: %s" % json.dumps(mapping_value))
                     sys.exit(1)
@@ -127,7 +141,7 @@ def restructure_value(mapping_value, self, if_format_str=True, if_upper=True):
         # NOTE: the case when value has keys ERROR and REASON
         if flat_mapping_value.get(ERROR, False):
             logging.error('Unable to use unsupported TOSCA parameter: %s'
-                              % flat_mapping_value.get(REASON).format(self=self))
+                          % flat_mapping_value.get(REASON).format(self=self))
             sys.exit(1)
 
         # NOTE: the case when value has keys PARAMETER, VALUE, KEYNAME
@@ -168,23 +182,25 @@ def restructure_value(mapping_value, self, if_format_str=True, if_upper=True):
         if source_name is not None and executor_name is not None:
             if executor_name == PYTHON_EXECUTOR:
                 return utils.execute_function(PYTHON_SOURCE_DIRECTORY, source_name, parameters_dict)
+            else:
+                tool = get_configuration_tool_class(executor_name)()
+                extension = tool.get_artifact_extension()
+
+                seed(time())
+                artifact_name = '_'.join([self[NAME], executor_name, source_name,
+                                          str(randint(ARTIFACT_RANGE_START, ARTIFACT_RANGE_END))]) + extension
+
+                flat_mapping_value.update(
+                    name=artifact_name,
+                    configuration_tool=executor_name
+                )
+
             if not get_configuration_tool_class(executor_name):
                 logging.critical('Unsupported executor/configuration tool name: %s' % executor_name)
                 sys.exit(1)
             if self.get(ARTIFACTS) is None:
                 self[ARTIFACTS] = []
 
-            tool = get_configuration_tool_class(executor_name)()
-            extension = tool.get_artifact_extension()
-
-            seed(time())
-            artifact_name = '_'.join([self[NAME], executor_name, source_name,
-                                      str(randint(ARTIFACT_RANGE_START, ARTIFACT_RANGE_END))]) + extension
-
-            flat_mapping_value.update(
-                name=artifact_name,
-                configuration_tool=executor_name
-            )
             self[ARTIFACTS].append(flat_mapping_value)
             # return the name of artifact
             return artifact_name
@@ -201,32 +217,12 @@ def restructure_value(mapping_value, self, if_format_str=True, if_upper=True):
     return mapping_value
 
 
-def replace_brackets(data, with_splash=True):
-    if isinstance(data, six.string_types):
-        if with_splash:
-            return data.replace("{", "\{").replace("}", "\}")
-        else:
-            return data.replace("\\\\{", "{").replace("\\{", "{").replace("\{", "{") \
-                .replace("\\\\}", "}").replace("\\}", "}").replace("\}", "}")
-    if isinstance(data, dict):
-        r = {}
-        for k, v in data.items():
-            r[replace_brackets(k)] = replace_brackets(v, with_splash)
-        return r
-    if isinstance(data, list):
-        r = []
-        for i in data:
-            r.append(replace_brackets(i, with_splash))
-        return r
-    return data
-
-
 def format_value(value, params, if_replace_brackets=True):
     is_buffer = False
     params_without_buffer = copy.deepcopy(params)
     params_without_buffer.pop(BUFFER)
     if isinstance(value, six.string_types):
-        value_format = value.replace("\\\\{", "{{").replace("\\{", "{{")\
+        value_format = value.replace("\\\\{", "{{").replace("\\{", "{{") \
             .replace("\\\\}", "}}").replace("\\}", "}}")
         try:
             temp_val = value_format.format(self=params_without_buffer)
@@ -244,11 +240,11 @@ def format_value(value, params, if_replace_brackets=True):
             dict_val = temp_val.replace("\'", "\"")
             dict_val = json.loads(dict_val)
             if if_replace_brackets:
-                dict_val = replace_brackets(dict_val)
+                dict_val = utils.replace_brackets(dict_val)
             return dict_val, is_buffer
         except json.decoder.JSONDecodeError:
             if if_replace_brackets:
-                temp_val = replace_brackets(temp_val)
+                temp_val = utils.replace_brackets(temp_val)
             return temp_val, is_buffer
     if isinstance(value, list):
         r = []
@@ -284,7 +280,7 @@ def get_resulted_mapping_values(parameter, mapping_value, value, self):
         }
     mapping_value_parameter = mapping_value.get(PARAMETER)
     mapping_value_value = mapping_value.get(VALUE)
-     # NOTE at first check if parameter self[buffer] parameter
+    # NOTE at first check if parameter self[buffer] parameter
     if mapping_value_parameter and mapping_value_parameter[:6] == '{self[' and mapping_value_parameter[-2:] == ']}':
         self[VALUE] = value
         self[PARAMETER] = parameter
@@ -433,10 +429,13 @@ def get_restructured_mapping_item(key_prefix, parameter, mapping_value, value, s
                     arg_key_prefix = ''
                 arg_parameter = k if not parameter else SEPARATOR.join([parameter, k])
                 item = get_restructured_mapping_item(arg_key_prefix, arg_parameter, arg_map, v, self)
-                if isinstance(item, list):
+                if item:
+                    if not isinstance(item, list):
+                        item = [item]
+                    if k == '*':
+                        for i in item:
+                            i[PARAMETER] = _k.join(i[PARAMETER].rsplit(k, 1))
                     r.extend(item)
-                elif item is not None:
-                    r.append(item)
         return r
 
     if isinstance(value, list):
@@ -602,6 +601,7 @@ def translate_node_from_tosca(restructured_mapping, tpl_name, self):
             mapping_value=item[MAP_KEY],
             self=self
         )
+
         structures, keyname = get_structure_of_mapped_param(mapped_param, item[VALUE])
 
         for structure in structures:
@@ -620,26 +620,24 @@ def translate_node_from_tosca(restructured_mapping, tpl_name, self):
                     reqs.append({
                         req_name: req
                     })
-                resulted_structure[keyname][node_type][REQUIREMENTS]=reqs
+                resulted_structure[keyname][node_type][REQUIREMENTS] = reqs
     return resulted_structure
 
 
-def get_source_structure_from_facts(condition, fact_name, value, arguments, executor, target_parameter,
-                                    source_parameter,
-                                    source_value):
+def get_source_structure_from_facts(condition, fact_name, value, arguments, executor, source_value, is_delete, cluster_name):
     """
-
     :param condition:
     :param fact_name:
     :param value:
     :param arguments:
     :param executor
-    :param target_parameter:
-    :param source_parameter:
     :param source_value:
     :return:
     """
-
+    if isinstance(arguments, list):
+        for i in range(len(arguments)):
+            if isinstance(arguments[i], str) and 'self' in arguments[i]:
+                arguments[i] = source_value
     if isinstance(fact_name, six.string_types):
         fact_name_splitted = fact_name.split(SEPARATOR)
         source_name = fact_name_splitted[0]
@@ -661,126 +659,69 @@ def get_source_structure_from_facts(condition, fact_name, value, arguments, exec
                 },
                 VALUE: "tmp_value",
                 EXECUTOR: executor
+            },
+            {
+                SOURCE: 'debug',
+                PARAMETERS: {
+                    'var': 'target_objects'
+                },
+                VALUE: "tmp_value",
+                EXECUTOR: executor
             }
         ]
     else:
         new_global_elements_map_total_implementation = fact_name
 
-    tag_operation_name = None
-    if isinstance(fact_name, six.string_types):
-        tag_operation_name = fact_name.replace(SEPARATOR, '_')
-    elif isinstance(fact_name, dict):
-        for k, v in fact_name:
-            tag_operation_name = k.replace(SEPARATOR, '_')
-            break
-    elif isinstance(fact_name, list):
-        if isinstance(fact_name[0], dict):
-            for k, v in fact_name[0].items():
-                tag_operation_name = k.replace(SEPARATOR, '_')
-                break
-        else:
-            tag_operation_name = str(fact_name[0]).replace(SEPARATOR, '_')
-    else:
-        tag_operation_name = str(fact_name).replace(SEPARATOR, '_')
-
-    target_parameter_splitted = target_parameter.split(SEPARATOR)
-    relationship_name = '_'.join(["{self[name]}_server", utils.snake_case(target_parameter_splitted[-1]),
-                                  tag_operation_name])
-
-    provider = target_parameter_splitted[0]
-    target_interface_name = "Target"
-    target_relationship_type = SEPARATOR.join([provider, RELATIONSHIPS, "DependsOn"])
-
-    target_type = None
-    target_short_parameter = None
-    for i in range(len(target_parameter_splitted)):
-        if target_parameter_splitted[i] in NODE_TEMPLATE_KEYS:
-            target_type = SEPARATOR.join(target_parameter_splitted[:i])
-            target_short_parameter = '_'.join(target_parameter_splitted[i:])
-            break
-    if not target_type or not target_short_parameter:
-        logging.critical("Unable to parse the following parameter: %s" % json.dumps(target_parameter))
-        sys.exit(1)
-
-    choose_operation_name = "choose"
-    total_operation_name = "total"
-
-    target_total_parameter_new = SEPARATOR.join([target_relationship_type, INTERFACES, target_interface_name,
-                                                 total_operation_name])
-    target_choose_parameter_new = SEPARATOR.join([target_relationship_type, INTERFACES, target_interface_name,
-                                                  choose_operation_name])
-
-    new_elements_map = {
-        GET_OPERATION_OUTPUT: [
-            relationship_name,
-            target_interface_name,
-            choose_operation_name,
-            value
-        ]
-    }
-    new_global_elements_map_total = {
-        PARAMETER: target_total_parameter_new,
-        KEYNAME: relationship_name,
-        VALUE: {
-            IMPLEMENTATION: new_global_elements_map_total_implementation
-        }
-    }
-    new_global_elements_map_choose = {
-        PARAMETER: target_choose_parameter_new,
-        KEYNAME: relationship_name,
-        VALUE: {
-            IMPLEMENTATION: [
-                condition + ".yaml",
-                {
-                    SOURCE: SET_FACT_SOURCE,
-                    PARAMETERS: {
-                        value: "\{\{ matched_object[\"" + value + "\"] \}\}"
-                    },
-                    VALUE: "tmp_value",
-                    EXECUTOR: executor
-                }
-            ],
-            INPUTS: {
-                "input_facts": {
-                    GET_OPERATION_OUTPUT: [
-                        SELF,
-                        target_interface_name,
-                        total_operation_name,
-                        "target_objects"
-                    ]
-                },
-                "input_args": arguments
-            }
-        }
-    }
-    new_global_elements_map = [
+    addition_for_elements_map_total_implementation = [
         {
-            PARAMETER: source_parameter,
-            MAP_KEY: new_global_elements_map_choose,
-            VALUE: source_value
+            SOURCE: SET_FACT_SOURCE,
+            PARAMETERS: {
+                "input_facts": '{{ target_objects }}'
+            },
+            EXECUTOR: executor,
+            VALUE: "tmp_value"
         },
         {
-            PARAMETER: source_parameter,
-            MAP_KEY: new_global_elements_map_total,
-            VALUE: source_value
+            SOURCE: SET_FACT_SOURCE,
+            PARAMETERS: {
+                "input_args": arguments
+            },
+            EXECUTOR: executor,
+            VALUE: "tmp_value"
+        },
+        {
+            SOURCE: IMPORT_TASKS_MODULE,
+            PARAMETERS: "artifacts/" + condition + ".yaml",
+            EXECUTOR: executor,
+            VALUE: "tmp_value"
+        },
+        {
+            SOURCE: SET_FACT_SOURCE,
+            PARAMETERS: {
+                value: "\{\{ matched_object[\"" + value + "\"] \}\}"
+            },
+            VALUE: "tmp_value",
+            EXECUTOR: executor
         }
     ]
 
-    return new_elements_map, new_global_elements_map
+    new_global_elements_map_total_implementation += addition_for_elements_map_total_implementation
+    return execute(new_global_elements_map_total_implementation, is_delete, cluster_name, value)
 
 
-def restructure_mapping_facts(elements_map, extra_elements_map=None, target_parameter=None, source_parameter=None,
+def restructure_mapping_facts(elements_map, self, is_delete, cluster_name, extra_elements_map=None, target_parameter=None, source_parameter=None,
                               source_value=None):
     """
     Function is used to restructure mapping values with the case of `facts`, `condition`, `arguments`, `value` keys
     :param elements_map:
+    :param self:
     :param extra_elements_map:
     :param target_parameter:
     :param source_parameter:
     :param source_value:
     :return:
     """
-    conditions = []
+
     elements_map = copy.deepcopy(elements_map)
     if not extra_elements_map:
         extra_elements_map = []
@@ -797,11 +738,10 @@ def restructure_mapping_facts(elements_map, extra_elements_map=None, target_para
                 target_parameter = cur_parameter
         new_elements_map = dict()
         for k, v in elements_map.items():
-            cur_elements, extra_elements_map, new_conditions = restructure_mapping_facts(v, extra_elements_map,
-                                                                                         target_parameter,
-                                                                                         source_parameter, source_value)
+            cur_elements, extra_elements_map = restructure_mapping_facts(v, self, is_delete, cluster_name, extra_elements_map,
+                                                                         target_parameter,
+                                                                         source_parameter, source_value)
             new_elements_map.update({k: cur_elements})
-            conditions.extend(new_conditions)
 
         if isinstance(new_elements_map.get(PARAMETER, ''), dict):
             separated_target_parameter = target_parameter.split(SEPARATOR)
@@ -870,7 +810,6 @@ def restructure_mapping_facts(elements_map, extra_elements_map=None, target_para
         if if_facts_structure:
             # NOTE: end of recursion
             assert target_parameter
-
             condition = new_elements_map[CONDITION]
             fact_name = new_elements_map[FACTS]
             value = new_elements_map[VALUE]
@@ -879,28 +818,21 @@ def restructure_mapping_facts(elements_map, extra_elements_map=None, target_para
             if not get_configuration_tool_class(executor):
                 logging.critical("Unsupported executor name \'%s\'" % json.dumps(executor))
                 sys.exit(1)
-            new_elements_map, cur_extra_elements = get_source_structure_from_facts(condition, fact_name, value,
-                                                                                   arguments,
-                                                                                   executor,
-                                                                                   target_parameter, source_parameter,
-                                                                                   source_value)
-            conditions.append(condition)
-            extra_elements_map.extend(cur_extra_elements)
+            new_value = get_source_structure_from_facts(condition, fact_name, value, arguments, executor, source_value, is_delete, cluster_name)
+            return new_value, extra_elements_map
 
-        return new_elements_map, extra_elements_map, conditions
+        return new_elements_map, extra_elements_map
 
     if isinstance(elements_map, list):
         new_elements_map = []
         for k in elements_map:
-            cur_elements, extra_elements_map, new_conditions = restructure_mapping_facts(k, extra_elements_map,
-                                                                                         target_parameter,
-                                                                                         source_parameter, source_value)
+            cur_elements, extra_elements_map = restructure_mapping_facts(k, self, is_delete, cluster_name, extra_elements_map,
+                                                                         target_parameter,
+                                                                         source_parameter, source_value)
             new_elements_map.append(cur_elements)
-            conditions.extend(new_conditions)
-        return new_elements_map, extra_elements_map, conditions
+        return new_elements_map, extra_elements_map
 
-    return elements_map, extra_elements_map, conditions
-
+    return elements_map, extra_elements_map
 
 def restructure_get_attribute(data, service_tmpl, self):
     r = data
@@ -918,13 +850,14 @@ def restructure_get_attribute(data, service_tmpl, self):
                 self = copy.copy(self)
                 self[PARAMETER] = parameter
                 value = True
-                for i in range(len(args)-1, 0, -1):
+                for i in range(len(args) - 1, 0, -1):
                     value = {args[i]: value}
-                value = {node_type: { ATTRIBUTES: value }}
+                value = {node_type: {ATTRIBUTES: value}}
                 self[VALUE] = value
                 self[NAME] = args[0]
                 self[KEYNAME] = args[0]
-                items = get_restructured_mapping_item('', '', service_tmpl.tosca_elements_map_to_provider(), value, self)
+                items = get_restructured_mapping_item('', '', service_tmpl.tosca_elements_map_to_provider(), value,
+                                                      self)
                 attribute_items = []
                 for item in items:
                     if re.search(parameter, item[PARAMETER]):
@@ -960,10 +893,11 @@ def translate(service_tmpl):
     element_templates.update(copy.copy(service_tmpl.relationship_templates))
 
     new_element_templates = {}
-    conditions = []
+    template_mapping = {}
     self = dict()
     self[ARTIFACTS] = []
     self[EXTRA] = dict()
+    self[PUBLIC_KEY] = service_tmpl.public_key_path
 
     for tmpl_name, element in element_templates.items():
         (namespace, _, _) = utils.tosca_type_parse(element[TYPE])
@@ -973,10 +907,10 @@ def translate(service_tmpl):
 
         if namespace != service_tmpl.provider:
             restructured_mapping = restructure_mapping(service_tmpl, element, tmpl_name, self)
+            restructured_mapping = sort_host_ip_parameter(restructured_mapping, service_tmpl.host_ip_parameter)
             restructured_mapping = restructure_mapping_buffer(restructured_mapping, self)
-            restructured_mapping, extra_mappings, new_conditions = restructure_mapping_facts(restructured_mapping)
+            restructured_mapping, extra_mappings = restructure_mapping_facts(restructured_mapping, self, service_tmpl.is_delete, service_tmpl.cluster_name)
             restructured_mapping.extend(extra_mappings)
-            conditions.extend(new_conditions)
             restructured_mapping = restructure_get_attribute(restructured_mapping, service_tmpl, self)
 
             tpl_structure = translate_node_from_tosca(restructured_mapping, tmpl_name, self)
@@ -984,14 +918,84 @@ def translate(service_tmpl):
                 for node_type, tpl in temp_tpl.items():
                     (_, element_type, _) = utils.tosca_type_parse(node_type)
                     tpl[TYPE] = node_type
+                    if tmpl_name not in template_mapping:
+                        template_mapping[tmpl_name] = {tpl_name}
+                    else:
+                        template_mapping[tmpl_name].add(tpl_name)
                     new_element_templates[element_type] = new_element_templates.get(element_type, {})
                     new_element_templates[element_type].update({tpl_name: copy.deepcopy(tpl)})
         else:
             new_element = translate_element_from_provider(tmpl_name, element)
             new_element_templates = utils.deep_update_dict(new_element_templates, new_element)
 
-    conditions = set(conditions)
-    self_extra = replace_brackets(self[EXTRA], False)
-    self_artifacts = replace_brackets(self[ARTIFACTS], False)
+    self_extra = utils.replace_brackets(self[EXTRA], False)
+    self_artifacts = utils.replace_brackets(self[ARTIFACTS], False)
+    execute(self_artifacts, service_tmpl.is_delete, service_tmpl.cluster_name)
 
-    return new_element_templates, self_artifacts, conditions, self_extra
+    return new_element_templates, self_extra, template_mapping
+
+
+def execute(new_global_elements_map_total_implementation, is_delete, cluster_name, target_parameter=None):
+    if not is_delete:
+        default_executor = 'ansible'
+        configuration_class = get_configuration_tool_class(default_executor)()
+        new_ansible_artifacts = copy.deepcopy(new_global_elements_map_total_implementation)
+        for i in range(len(new_ansible_artifacts)):
+            new_ansible_artifacts[i]['configuration_tool'] = new_ansible_artifacts[i]['executor']
+            configuration_class = get_configuration_tool_class(new_ansible_artifacts[i]['configuration_tool'])()
+            extension = configuration_class.get_artifact_extension()
+
+            seed(time())
+            new_ansible_artifacts[i]['name'] = '_'.join(
+                [SOURCE, str(randint(ARTIFACT_RANGE_START, ARTIFACT_RANGE_END))]) + extension
+        artifacts_with_brackets = utils.replace_brackets(new_ansible_artifacts, False)
+        new_ansible_tasks, filename = utils.generate_artifacts(configuration_class, artifacts_with_brackets,
+                                                                   configuration_class.initial_artifacts_directory,
+                                                                   store=False)
+        os.remove(filename)
+
+        q = Queue()
+        playbook = {
+            'hosts': 'localhost',
+            'tasks': new_ansible_tasks
+        }
+
+        os.makedirs(os.path.join(TMP_DIRECTORY, cluster_name, configuration_class.initial_artifacts_directory), exist_ok=True)
+        copy_tree(utils.get_project_root_path() + '/toscatranslator/configuration_tools/ansible/artifacts',
+                  os.path.join(TMP_DIRECTORY, cluster_name, configuration_class.initial_artifacts_directory))
+        configuration_class.parallel_run([playbook], 'artifacts', 'artifacts', q, cluster_name)
+
+        # есть такая проблема что если в текущем процессе был запущен runner cotea то все последующие запуски
+        # других плейбуков из этого процесса невозможны т.к. запускаться будет первоначальный плейбук, причем даже если
+        # этот процесс форкнуть то эффект остается тк что то там внутри cotea сохраняется в контексте процесса
+        results = q.get()
+        if target_parameter is not None:
+            value = 'not_found'
+            if_failed = False
+            for result in results:
+                if result.is_failed or result.is_unreachable:
+                    logging.error("Task %s has failed because of exception: \n%s" %
+                                    (result.task_name, result.result.get('exception', '(Unknown reason)')))
+                    if_failed = True
+                if 'results' in result.result and len(result.result['results']) > 0 and 'ansible_facts' in \
+                        result.result['results'][0] and 'matched_object' in result.result['results'][0]['ansible_facts']:
+                    value = result.result['results'][0]['ansible_facts']['matched_object'][target_parameter.split('.')[-1]]
+            if if_failed:
+                value = 'not_found'
+            return value
+    return None
+
+
+def sort_host_ip_parameter(restructured_mapping, host_ip_parameter):
+    host_ip_mapping_key = SEPARATOR.join(['tosca.nodes.Compute', PROPERTIES, host_ip_parameter])
+    mapping_equal = []
+    mapping_match = []
+    mapping_not_matched = []
+    for map in restructured_mapping:
+        if map[PARAMETER] == host_ip_mapping_key:
+            mapping_equal.append(map)
+        elif re.match(host_ip_mapping_key + '*', map[PARAMETER]):
+            mapping_match.append(map)
+        else:
+            mapping_not_matched.append(map)
+    return mapping_equal + mapping_match + mapping_not_matched

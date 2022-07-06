@@ -14,7 +14,6 @@ message ClouniRequest {
     bool delete = 4;
     string provider = 5;
     string configuration_tool = 6;
-    bool async = 7;
     map<string, string> extra = 8;
 }
 
@@ -36,5 +35,4 @@ message ClouniResponse {
     Status status = 1;
     string error = 2;
     string content = 3;
-
 }

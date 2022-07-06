@@ -1,6 +1,11 @@
 import itertools
 import os
 import importlib
+import sys
+import logging
+
+import six
+import yaml
 
 from random import randint,seed
 from time import time
@@ -62,3 +67,50 @@ def get_random_int(start, end):
     seed(time())
     r = randint(start, end)
     return r
+
+
+def generate_artifacts(configuration_class, new_artifacts, directory, store=True):
+    """
+    From the info of new artifacts generate files which execute
+    :param new_artifacts: list of dicts containing (value, source, parameters, executor, name, configuration_tool)
+    :return: None
+    """
+    if not configuration_class:
+        logging.error('Failed to generate artifact with configuration class <None>')
+        sys.exit(1)
+    r_artifacts = []
+    tasks = []
+    filename = os.path.join(directory, '_'.join(['tasks', str(get_random_int(1000, 9999))]) + configuration_class.get_artifact_extension())
+    for art in new_artifacts:
+        # filename = os.path.join(directory, art['name'])
+        tasks.extend(configuration_class.create_artifact_data(art))
+        # r_artifacts.append(filename)
+    if not os.path.isdir(directory):
+        os.makedirs(directory)
+
+    with open(filename, "w") as f:
+        filedata = yaml.dump(tasks, default_flow_style=False, sort_keys=False)
+        f.write(filedata)
+        logging.info("Artifact for executor %s was created: %s" % (configuration_class.TOOL_NAME, filename))
+
+    # return r_artifacts
+    return tasks, filename
+
+def replace_brackets(data, with_splash=True):
+    if isinstance(data, six.string_types):
+        if with_splash:
+            return data.replace("{", "\{").replace("}", "\}")
+        else:
+            return data.replace("\\\\{", "{").replace("\\{", "{").replace("\{", "{") \
+                .replace("\\\\}", "}").replace("\\}", "}").replace("\}", "}")
+    if isinstance(data, dict):
+        r = {}
+        for k, v in data.items():
+            r[replace_brackets(k)] = replace_brackets(v, with_splash)
+        return r
+    if isinstance(data, list):
+        r = []
+        for i in data:
+            r.append(replace_brackets(i, with_splash))
+        return r
+    return data

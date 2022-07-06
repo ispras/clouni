@@ -1,0 +1,40 @@
+- file:
+    path: '{{ playbook_dir }}/hosts.ini'
+    state: touch
+    mode: 0666
+    modification_time: preserve
+    access_time: preserve
+- lineinfile:
+    path: '{{ playbook_dir }}/hosts.ini'
+    line: '[{{ group }}]'
+- lineinfile:
+    path: '{{ playbook_dir }}/hosts.ini'
+    line: '{{ group }} ansible_host={{ host_ip }} ansible_user={{ ansible_user }} ansible_pass={{ ansible_sudo_pass }}'
+  when: ansible_sudo_pass is defined and host_ip is defined and host_ip != ''
+- lineinfile:
+    path: '{{ playbook_dir }}/hosts.ini'
+    line: '{{ group }} ansible_host={{ host_ip }} ansible_user={{ ansible_user }}'
+  when: ansible_sudo_pass is undefined and host_ip is defined and host_ip != ''
+- shell: |
+    check_ssh() {
+        while [ 1 = 1 ]; do
+                ssh-keyscan {{ host_ip }},`dig +short {{ host_ip }}`
+                rc=$?
+                case $rc in
+                    0)        return $rc;;
+                esac
+                echo "ssh not working. Sleeping..."
+                sleep 5
+            done
+    }
+    check_ssh
+  when: host_ip is defined and host_ip != ''
+- shell: ssh-keyscan {{ host_ip }},`dig +short {{ host_ip }}`
+  register: host_key
+  ignore_errors: true
+  when: host_ip is defined and host_ip != ''
+- known_hosts:
+    path: ~/.ssh/known_hosts
+    name: '{{ host_ip }}'
+    key: '{{ host_key.stdout }}'
+  when: host_key is defined and host_ip is defined and host_ip != '' and host_key.rc == 0

@@ -33,8 +33,6 @@ class TranslatorServer(object):
         self.cluster_name = argv['cluster_name']
         self.extra = argv['extra']
 
-        if argv['async'] and not self.extra.get('async'):
-            self.extra['async'] = args.async
         for k, v in self.extra.items():
             if isinstance(v, six.string_types):
                 if v.isnumeric():
@@ -116,10 +114,6 @@ class ClouniServicer(api_pb2_grpc.ClouniServicer):
             args['configuration_tool'] = request.configuration_tool
         else:
             args['configuration_tool'] = 'ansible'
-        if request.async:
-            args['async'] = True
-        else:
-            args['async'] = False
         args['extra'] = {}
         for key, value in request.extra.items():
             args['extra'][key] = value
