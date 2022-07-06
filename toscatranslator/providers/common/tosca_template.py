@@ -13,7 +13,9 @@ from graphlib import TopologicalSorter
 
 import os, copy, json, yaml, logging, sys, six
 
-SEPARATOR = '.'
+SEPARATOR = ':'
+
+
 
 LIFECICLE = ['create', 'configure', 'start', 'stop', 'delete']
 
