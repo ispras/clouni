@@ -19,6 +19,8 @@ from multiprocessing.connection import Listener
 import copy, sys, yaml, os, itertools, six, logging
 from shutil import copyfile, rmtree
 
+SEPARATOR = '.'
+
 ARTIFACT_RANGE_START = 1000
 ARTIFACT_RANGE_END = 9999
 
@@ -68,32 +70,43 @@ class AnsibleConfigurationTool(ConfigurationTool):
         self.init_global_variables(inputs)
 
         operations_graph = self.init_graph(operations_graph)
+        # the graph of operations at the moment is a dictionary of copies of ProviderTemplatre objects,
+        # of the form Node/Relationship: {the set of opers of Nodes/Relationships on which it depends}
         elements = TopologicalSorter(operations_graph)
+        # use TopologicalSorter for creating graph
 
         if is_delete:
             reversed_operations_graph = self.init_graph(reversed_operations_graph)
             elements = TopologicalSorter(reversed_operations_graph)
 
         elements.prepare()
+        # first operations from on top of the graph in state 'ready'
 
         ansible_playbook = []
         self.prepare_for_run(cluster_name)
+        # function for initializing tmp clouni directory
         q = Queue()
+        # queue for node names + operations
         active = []
+        # list of parallel active operations
         first = True
 
         while elements.is_active():
             node_name = None
+            # try to get new finished operation from queue and find it in list of active
+            # if get - mark done this operation (but before it find in graph)
+            # if ready operations exists - get it and execute, remove from active
             try:
                 node_name = q.get_nowait()
             except:
                 time.sleep(1)
             if node_name is not None:
                 for node in active:
-                    if node.name == node_name:
+                    if node.name == node_name.split(SEPARATOR)[0] and node.operation == node_name.split(SEPARATOR)[1]:
                         active.remove(node)
                         elements.done(node)
             for v in elements.get_ready():
+                # in delete mode we skip all operations exept delete and create operation transforms to delete
                 if is_delete:
                     if v.operation == 'create':
                         v.operation = 'delete'
@@ -111,6 +124,7 @@ class AnsibleConfigurationTool(ConfigurationTool):
                     hosts=self.default_host,
                     tasks=[]
                 )
+                # reload id_vars file
                 if not is_delete and first:
                     first = False
                     ansible_play_for_elem['tasks'].append(copy.deepcopy({FILE: {
@@ -119,8 +133,8 @@ class AnsibleConfigurationTool(ConfigurationTool):
                     ansible_play_for_elem['tasks'].append(copy.deepcopy({FILE: {
                         PATH: ids_file_path,
                         STATE: 'touch'}}))
+                # create playbook for every operation
                 if v.operation == 'delete':
-                    # подумать а что если там будет явно задана операция delete в interfaces?
                     if not v.is_software_component:
                         ansible_play_for_elem['tasks'].append(copy.deepcopy({'include_vars': ids_file_path}))
                         ansible_tasks = self.get_ansible_tasks_for_delete(v, description_by_type, module_by_type,
@@ -154,6 +168,7 @@ class AnsibleConfigurationTool(ConfigurationTool):
                     if element_type == NODES:
                         if v.is_software_component:
                             ansible_play_for_elem['hosts'] = v.host
+                    # operations for relationships executes on target/source host depends on operation
                     elif element_type == RELATIONSHIPS:
                         if v.operation == 'pre_configure_target' or v.operation == 'post_configure_target' or v.operation == 'add_source':
                             for elem in operations_graph:
@@ -177,7 +192,9 @@ class AnsibleConfigurationTool(ConfigurationTool):
                         self.get_ansible_tasks_from_interface(v, target_directory, is_delete, v.operation, cluster_name,
                                                               additional_args=extra)))
                 ansible_playbook.append(ansible_play_for_elem)
-                self.parallel_run([ansible_play_for_elem], v.name, q, cluster_name)
+                # run playbooks
+                self.parallel_run([ansible_play_for_elem], v.name, v.operation, q, cluster_name)
+                # add element to active list
                 active.append(v)
         if is_delete:
             last_play = dict(
@@ -188,13 +205,14 @@ class AnsibleConfigurationTool(ConfigurationTool):
             last_play['tasks'].append(copy.deepcopy({FILE: {
                 PATH: ids_file_path,
                 STATE: 'absent'}}))
-            self.parallel_run([last_play], None, q, cluster_name)
+            self.parallel_run([last_play], None, None, q, cluster_name)
             done = q.get()
             if done != 'Done':
                 logging.error("Something wrong with multiprocessing queue")
                 sys.exit(1)
             ansible_playbook.append(last_play)
-        # rmtree(os.path.join(TMP_DIR, cluster_name))
+        # delete dir with cluster_name in tmp clouni dir
+        rmtree(os.path.join(TMP_DIR, cluster_name))
         return yaml.dump(ansible_playbook, default_flow_style=False, sort_keys=False)
 
     def init_graph(self, operations_graph):
@@ -574,5 +592,5 @@ class AnsibleConfigurationTool(ConfigurationTool):
     def prepare_for_run(self, cluster_name):
         prepare_for_run(cluster_name)
 
-    def parallel_run(self, ansible_play, name, q, cluster_name):
-        parallel_run_ansible(ansible_play, name, q, cluster_name)
+    def parallel_run(self, ansible_play, name, op, q, cluster_name):
+        parallel_run_ansible(ansible_play, name, op, q, cluster_name)

@@ -15,7 +15,7 @@ from cotea.arguments_maker import argument_maker
 
 import ast
 
-
+SEPARATOR = '.'
 TMP_DIR = '/tmp/clouni'
 
 
@@ -73,16 +73,16 @@ def run_ansible(ansible_playbook, cluster_name):
     return results
 
 
-def run_and_finish(ansible_playbook, name, q, cluster_name):
+def run_and_finish(ansible_playbook, name, op, q, cluster_name):
     results = run_ansible(ansible_playbook, cluster_name)
-    if name is not None:
-        if name == 'artifacts':
+    if name is not None and op is not None:
+        if name == 'artifacts' or op == 'artifacts':
             q.put(results)
         else:
-            q.put(name)
+            q.put(name + SEPARATOR + op)
     else:
         q.put('Done')
 
 
-def parallel_run_ansible(ansible_playbook, name, q, cluster_name):
-    Process(target=run_and_finish, args=(ansible_playbook, name, q, cluster_name)).start()
+def parallel_run_ansible(ansible_playbook, name, op, q, cluster_name):
+    Process(target=run_and_finish, args=(ansible_playbook, name, op, q, cluster_name)).start()

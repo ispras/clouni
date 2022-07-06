@@ -963,7 +963,7 @@ def execute(new_global_elements_map_total_implementation, is_delete, cluster_nam
         os.makedirs(os.path.join(TMP_DIRECTORY, cluster_name, configuration_class.initial_artifacts_directory), exist_ok=True)
         copy_tree(utils.get_project_root_path() + '/toscatranslator/configuration_tools/ansible/artifacts',
                   os.path.join(TMP_DIRECTORY, cluster_name, configuration_class.initial_artifacts_directory))
-        configuration_class.parallel_run([playbook], 'artifacts', q, cluster_name)
+        configuration_class.parallel_run([playbook], 'artifacts', 'artifacts', q, cluster_name)
 
         # есть такая проблема что если в текущем процессе был запущен runner cotea то все последующие запуски
         # других плейбуков из этого процесса невозможны т.к. запускаться будет первоначальный плейбук, причем даже если

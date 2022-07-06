@@ -584,6 +584,5 @@ class TestAnsibleOpenStackOutput (unittest.TestCase, TestAnsibleProvider):
 
 
         for i in list(range(2, 5)) + list(range(6, 11)):
-            print(i)
             self.assertEqual(plays[i]['tasks'][0].get('set_fact', {}).get(testing_value), testing_value)
             self.assertEqual(plays[i]['tasks'][1].get('include'), '/tmp/clouni/test/artifacts/examples/ansible-operation-example.yaml')

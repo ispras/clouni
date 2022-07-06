@@ -156,6 +156,10 @@ class ProviderToscaTemplate(object):
         return provider_nodes_by_name
 
     def translate_normative_graph(self):
+        """
+            This method translates dependencies from nodes of normative template into
+            dependencies between nodes in provider template
+        """
         dependencies = {}
         for temp, dep in self.normative_nodes_graph.items():
             for elem in dep:
@@ -170,6 +174,10 @@ class ProviderToscaTemplate(object):
         return dependencies
 
     def normative_nodes_graph_dependency(self):
+        """
+            This method generates dict of nodes, sorted by
+            dependencies from normative TOSCA templates
+        """
         nodes = set(self.node_templates.keys())
         dependencies = {}
         for templ_name in nodes:
@@ -189,11 +197,16 @@ class ProviderToscaTemplate(object):
         return new_dependencies
 
     def sort_nodes_and_operations_by_graph_dependency(self):
+        """
+            This method generates dict fith ProviderTemplates with operation, sorted by
+            dependencies from normative and provider TOSCA templates
+        """
         nodes = set(self.provider_nodes.keys())
         nodes = nodes.union(set(self.provider_relations.keys()))
         dependencies = {}
         lifecycle = ['configure', 'start', 'stop', 'delete']
         reversed_full_lifecycle = lifecycle[::-1] + ['create']
+        # generate only dependencies from nodes
         for templ_name in nodes:
             set_intersection = nodes.intersection(self.template_dependencies.get(templ_name, set()))
             templ = self.provider_nodes.get(templ_name, self.provider_relations.get(templ_name))
@@ -201,9 +214,13 @@ class ProviderToscaTemplate(object):
             if element_type == NODES:
                 if 'interfaces' in templ.tmpl and 'Standard' in templ.tmpl['interfaces']:
                     new_operations = ['create']
+                    # operation create always exists
                     for elem in lifecycle:
                         if elem in templ.tmpl['interfaces']['Standard']:
                             new_operations.append(elem)
+                    # if there is any other operations - add ti new_operations and translate to dict
+                    # in format {node.op: {node1, node2}}
+                    # node requieres node1 and node2
                     if len(new_operations) == 1:
                         utils.deep_update_dict(dependencies, {templ_name + SEPARATOR + 'create': set_intersection})
                     else:
@@ -216,6 +233,8 @@ class ProviderToscaTemplate(object):
                 else:
                     utils.deep_update_dict(dependencies, {templ_name + SEPARATOR + 'create': set_intersection})
         new_normative_graph = {}
+
+        # getting dependencies for create operaions of nodes, translated from 1 normative node
         for key, value in self.normative_nodes_graph.items():
             for elem in value:
                 for op in reversed_full_lifecycle:
@@ -229,8 +248,11 @@ class ProviderToscaTemplate(object):
                 else:
                     logging.error("Operation create not found")
                     sys.exit(1)
+        # update dependencies
         dependencies = utils.deep_update_dict(dependencies, new_normative_graph)
         new_dependencies = {}
+        # new_dependencies is needed for updating set operations
+        # dict must be in format {node.op: {node1, node2}}
         for key, value in dependencies.items():
             new_set = set()
             for elem in value:
@@ -242,6 +264,15 @@ class ProviderToscaTemplate(object):
                         new_set.add(elem)
                         break
             new_dependencies[key] = new_set
+
+        # adding relationships operations pre_configure_source after create source node
+        # pre_configure_target after create target node
+        # add_source in parallel with pre_configure_source but in will be executed on target
+        # post_configure_target after configure target node (if not configure then create - in parallel
+        # with pre_configure_target)
+        # post_configure_source after configure target node (if not configure then create - in parallel
+        # with pre_configure_source)
+        # other - not supported!
         for templ_name in nodes:
             templ = self.provider_nodes.get(templ_name, self.provider_relations.get(templ_name))
             (_, element_type, _) = utils.tosca_type_parse(templ.type)
@@ -276,6 +307,7 @@ class ProviderToscaTemplate(object):
                         logging.warning('Operation target_changed not supported, it will be skipped')
                     if 'remove_target' in templ.tmpl['interfaces']['Configure']:
                         logging.warning('Operation remove_target not supported, it will be skipped')
+        # mapping strings 'node.op' to provider template of this node with this operation
         templ_mappling = {}
         for elem in new_dependencies:
             templ_name = elem.split(SEPARATOR)[0]
@@ -284,6 +316,8 @@ class ProviderToscaTemplate(object):
             templ_mappling[elem] = templ
         templ_dependencies = {}
         reversed_templ_dependencies = {}
+        # create dict where all elements will be replaced with provider template from templ_mappling
+        # reversed_templ_dependencies needed for delete - it just a reversed version of graph
         for key, value in new_dependencies.items():
             new_set = set()
             for elem in value:
@@ -293,7 +327,6 @@ class ProviderToscaTemplate(object):
                 elif templ_mappling[key] not in reversed_templ_dependencies[templ_mappling[elem]]:
                     reversed_templ_dependencies[templ_mappling[elem]].add(templ_mappling[key])
             templ_dependencies[templ_mappling[key]] = new_set
-        ts = TopologicalSorter(templ_dependencies)
         return templ_dependencies, reversed_templ_dependencies
 
     def add_template_dependency(self, node_name, dependency_name):
