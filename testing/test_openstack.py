@@ -447,20 +447,10 @@ class TestAnsibleOpenStackOutput (unittest.TestCase, TestAnsibleProvider):
         self.assertTrue(checked)
 
     def test_ansible_facts_in_provider_template(self):
-        if os.path.isfile(CLOUDS_YAML):
-            os.makedirs(os.path.dirname(CLOUDS_YAML_NEW), exist_ok=True)
-            copyfile(CLOUDS_YAML, CLOUDS_YAML_NEW)
-            super(TestAnsibleOpenStackOutput, self).test_ansible_facts_in_provider_template()
-        else:
-            super(TestAnsibleOpenStackOutput, self).test_ansible_facts_in_provider_template()
+        super(TestAnsibleOpenStackOutput, self).test_ansible_facts_in_provider_template()
 
     def test_tasks_success(self):
-        if os.path.isfile(CLOUDS_YAML):
-            os.makedirs(os.path.dirname(CLOUDS_YAML_NEW), exist_ok=True)
-            copyfile(CLOUDS_YAML, CLOUDS_YAML_NEW)
-            super(TestAnsibleOpenStackOutput, self).test_tasks_success()
-        else:
-            super(TestAnsibleOpenStackOutput, self).test_tasks_success()
+        super(TestAnsibleOpenStackOutput, self).test_tasks_success()
 
     def check_tasks_success(self, tasks):
         correct = True

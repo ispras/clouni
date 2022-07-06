@@ -1,3 +1,5 @@
+from shutil import copyfile
+
 from toscatranslator.common.translator_to_configuration_dsl import translate as common_translate
 from shell_clouni import shell
 import os
@@ -11,6 +13,8 @@ from toscatranslator.common.tosca_reserved_keys import PROVIDERS, ANSIBLE, TYPE,
 
 TEST = 'test'
 
+OPENSTACK_CLOUDS_YAML = '/tmp/clouds.yaml'
+OPENSTACK_CLOUDS_YAML_NEW = '/tmp/clouni/test/clouds.yaml'
 
 class BaseAnsibleProvider:
     TESTING_TEMPLATE_FILENAME_TO_JOIN = ['examples', 'testing-example.yaml']
@@ -493,6 +497,9 @@ class TestAnsibleProvider(BaseAnsibleProvider):
                     }
                 }
             }
+            if os.path.isfile(OPENSTACK_CLOUDS_YAML):
+                os.makedirs(os.path.dirname(OPENSTACK_CLOUDS_YAML_NEW), exist_ok=True)
+                copyfile(OPENSTACK_CLOUDS_YAML, OPENSTACK_CLOUDS_YAML_NEW)
             playbook = self.get_ansible_create_output(template)
 
             assert next(iter(playbook), {}).get('tasks')
@@ -503,6 +510,9 @@ class TestAnsibleProvider(BaseAnsibleProvider):
                     tasks.append(task)
             self.check_tasks_success(tasks)
 
+            if os.path.isfile(OPENSTACK_CLOUDS_YAML):
+                os.makedirs(os.path.dirname(OPENSTACK_CLOUDS_YAML_NEW), exist_ok=True)
+                copyfile(OPENSTACK_CLOUDS_YAML, OPENSTACK_CLOUDS_YAML_NEW)
             playbook = self.get_ansible_delete_output(template)
 
             assert next(iter(playbook), {}).get('tasks')
@@ -568,6 +578,10 @@ class TestAnsibleProvider(BaseAnsibleProvider):
                 "mem_size": "2 GiB"
             }
             template = self.update_template_capability_properties(template, self.NODE_NAME, 'host', testing_parameter)
+
+            if os.path.isfile(OPENSTACK_CLOUDS_YAML):
+                os.makedirs(os.path.dirname(OPENSTACK_CLOUDS_YAML_NEW), exist_ok=True)
+                copyfile(OPENSTACK_CLOUDS_YAML, OPENSTACK_CLOUDS_YAML_NEW)
             playbook = self.get_ansible_create_output(template, host_ip_parameter='private_address')
 
             self.assertEqual(len(playbook), 2)
@@ -580,7 +594,11 @@ class TestAnsibleProvider(BaseAnsibleProvider):
                 for task in play['tasks']:
                     tasks.append(task)
 
+            if os.path.isfile(OPENSTACK_CLOUDS_YAML):
+                os.makedirs(os.path.dirname(OPENSTACK_CLOUDS_YAML_NEW), exist_ok=True)
+                copyfile(OPENSTACK_CLOUDS_YAML, OPENSTACK_CLOUDS_YAML_NEW)
             self.get_ansible_delete_output(template)
+
             self.check_ansible_facts_in_provider_template(tasks, testing_value_host, testing_value_os)
 
     def test_nodes_interfaces_operations(self):
