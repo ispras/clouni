@@ -451,7 +451,6 @@ class TestAnsibleOpenStackOutput (unittest.TestCase, TestAnsibleProvider):
             os.makedirs(os.path.dirname(CLOUDS_YAML_NEW), exist_ok=True)
             copyfile(CLOUDS_YAML, CLOUDS_YAML_NEW)
             super(TestAnsibleOpenStackOutput, self).test_ansible_facts_in_provider_template()
-            os.remove(CLOUDS_YAML_NEW)
         else:
             super(TestAnsibleOpenStackOutput, self).test_ansible_facts_in_provider_template()
 
@@ -460,7 +459,6 @@ class TestAnsibleOpenStackOutput (unittest.TestCase, TestAnsibleProvider):
             os.makedirs(os.path.dirname(CLOUDS_YAML_NEW), exist_ok=True)
             copyfile(CLOUDS_YAML, CLOUDS_YAML_NEW)
             super(TestAnsibleOpenStackOutput, self).test_tasks_success()
-            os.remove(CLOUDS_YAML_NEW)
         else:
             super(TestAnsibleOpenStackOutput, self).test_tasks_success()
 
