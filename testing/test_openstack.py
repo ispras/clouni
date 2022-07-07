@@ -9,6 +9,7 @@ from testing.base import TestAnsibleProvider
 
 import copy, os, re, yaml
 from shell_clouni import shell
+from toscatranslator.common import utils
 
 SERVER_MODULE_NAME = 'os_server'
 PORT_MODULE_NAME = 'os_port'
@@ -18,31 +19,28 @@ SEC_RULE_MODULE_NAME = 'os_security_group_rule'
 NETWORK_MODULE_NAME = 'os_network'
 SUBNET_MODULE_NAME = 'os_subnet'
 
-SUCCESS_CHECK_FILE = '/tmp/clouni/successful_tasks.yaml'
-
-CLOUDS_YAML = '/tmp/clouds.yaml'
-CLOUDS_YAML_NEW = '/tmp/clouni/test/clouds.yaml'
+SUCCESS_CHECK_FILE = 'successful_tasks.yaml'
 
 class TestAnsibleOpenStackOutput (unittest.TestCase, TestAnsibleProvider):
     PROVIDER = 'openstack'
 
     def test_validation(self):
         file_path = os.path.join('examples', 'tosca-server-example-openstack.yaml')
-        shell.main(['--template-file', file_path, '--cluster-name', 'test', '--validate-only'])
+        shell.main(['--template-file', file_path, '--cluster-name', 'test', '--validate-only', '--debug'])
 
     def test_translating_to_ansible(self):
         file_path = os.path.join('examples', 'tosca-server-example-openstack.yaml')
-        shell.main(['--template-file', file_path, '--cluster-name', 'test', '--provider', self.PROVIDER])
+        shell.main(['--template-file', file_path, '--cluster-name', 'test', '--provider', self.PROVIDER, '--debug'])
 
     def test_translating_to_ansible_delete(self):
         file_path = os.path.join('examples', 'tosca-server-example-openstack.yaml')
-        shell.main(['--template-file', file_path, '--cluster-name', 'test', '--delete','false','--provider', self.PROVIDER])
+        shell.main(['--template-file', file_path, '--cluster-name', 'test', '--delete','false','--provider', self.PROVIDER, '--debug'])
 
     def test_full_translating(self):
         file_path = os.path.join('examples', 'tosca-server-example.yaml')
         file_output_path = os.path.join('examples', 'tosca-server-example-output.yaml')
         shell.main(['--template-file', file_path, '--cluster-name', 'test', '--provider', self.PROVIDER,
-                    '--output-file', file_output_path])
+                    '--output-file', file_output_path, '--debug'])
 
         file_diff_path = os.path.join('examples', 'tosca-server-example-ansible-openstack.yaml')
         self.diff_files(file_output_path, file_diff_path)
@@ -51,7 +49,7 @@ class TestAnsibleOpenStackOutput (unittest.TestCase, TestAnsibleProvider):
         file_path = os.path.join('examples', 'tosca-server-example.yaml')
         file_output_path = os.path.join('examples', 'tosca-server-example-output-delete.yaml')
         shell.main(['--template-file', file_path, '--cluster-name', 'test', '--provider', self.PROVIDER, '--delete',
-                    '--output-file', file_output_path])
+                    '--output-file', file_output_path, '--debug'])
 
         file_diff_path = os.path.join('examples', 'tosca-server-example-ansible-delete-openstack.yaml')
         self.diff_files(file_output_path, file_diff_path)
@@ -60,7 +58,7 @@ class TestAnsibleOpenStackOutput (unittest.TestCase, TestAnsibleProvider):
         file_path = os.path.join('examples', 'tosca-network-and-port-example.yaml')
         file_output_path = os.path.join('examples', 'tosca-network-and-port-example-output.yaml')
         shell.main(['--template-file', file_path, '--cluster-name', 'test', '--provider', self.PROVIDER,
-                    '--output-file', file_output_path])
+                    '--output-file', file_output_path, '--debug'])
 
         file_diff_path = os.path.join('examples', 'tosca-network-and-port-example-ansible-openstack.yaml')
         self.diff_files(file_output_path, file_diff_path)
@@ -69,7 +67,7 @@ class TestAnsibleOpenStackOutput (unittest.TestCase, TestAnsibleProvider):
         file_path = os.path.join('examples', 'tosca-network-and-port-example.yaml')
         file_output_path = os.path.join('examples', 'tosca-network-and-port-example-output-delete.yaml')
         shell.main(['--template-file', file_path, '--cluster-name', 'test', '--provider', self.PROVIDER, '--delete',
-                    '--output-file', file_output_path])
+                    '--output-file', file_output_path, '--debug'])
 
         file_diff_path = os.path.join('examples', 'tosca-network-and-port-example-ansible-delete-openstack.yaml')
         self.diff_files(file_output_path, file_diff_path)
@@ -455,7 +453,7 @@ class TestAnsibleOpenStackOutput (unittest.TestCase, TestAnsibleProvider):
     def check_tasks_success(self, tasks):
         correct = True
 
-        with open(SUCCESS_CHECK_FILE, "r") as check:
+        with open(os.path.join(utils.get_tmp_clouni_dir(), SUCCESS_CHECK_FILE), "r") as check:
             succ_tasks = yaml.load(check, Loader=Loader)
             self.assertEqual(len(tasks), len(succ_tasks))
             for task in tasks:

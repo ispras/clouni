@@ -17,7 +17,7 @@ REQUIRED_CONFIGURATION_PARAMS = (TOSCA_ELEMENTS_DEFINITION_FILE, DEFAULT_ARTIFAC
 
 
 def translate(template_file, validate_only, provider, configuration_tool, cluster_name, is_delete=False,
-              a_file=True, extra=None, log_level='info', host_ip_parameter='public_address', public_key_path='~/.ssh/id_rsa.pub'):
+              a_file=True, extra=None, log_level='info', host_ip_parameter='public_address', public_key_path='~/.ssh/id_rsa.pub', debug=False):
     """
     Main function, is called by different shells, i.e. bash, Ansible module, grpc
     :param template_file: filename of TOSCA template or TOSCA template data if a_file is False
@@ -149,5 +149,5 @@ def translate(template_file, validate_only, provider, configuration_tool, cluste
 
     configuration_content = tool.to_dsl(tosca.provider, tosca.provider_operations, tosca.reversed_provider_operations, tosca.cluster_name, is_delete,
                                         artifacts=tool_artifacts, target_directory=default_artifacts_directory,
-                                        inputs=tosca.inputs, outputs=tosca.outputs, extra=extra_full)
+                                        inputs=tosca.inputs, outputs=tosca.outputs, extra=extra_full, debug=debug)
     return configuration_content

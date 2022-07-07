@@ -13,9 +13,6 @@ from toscatranslator.common.tosca_reserved_keys import PROVIDERS, ANSIBLE, TYPE,
 
 TEST = 'test'
 
-OPENSTACK_CLOUDS_YAML = '/tmp/clouds.yaml'
-OPENSTACK_CLOUDS_YAML_NEW = '/tmp/clouni/test/clouds.yaml'
-
 class BaseAnsibleProvider:
     TESTING_TEMPLATE_FILENAME_TO_JOIN = ['examples', 'testing-example.yaml']
     NODE_NAME = 'tosca_server_example'
@@ -74,33 +71,33 @@ class BaseAnsibleProvider:
         assert self.PROVIDER in PROVIDERS
 
     def get_ansible_create_output(self, template, template_filename=None, extra=None, delete_template=True,
-                                  host_ip_parameter='public_address'):
+                                  host_ip_parameter='public_address', debug=True):
         if not template_filename:
             template_filename = self.testing_template_filename()
         self.write_template(self.prepare_yaml(template))
         r = common_translate(template_filename, False, self.PROVIDER, ANSIBLE, TEST, is_delete=False, extra=extra,
-                             log_level='debug', host_ip_parameter=host_ip_parameter)
+                             log_level='debug', host_ip_parameter=host_ip_parameter, debug=debug)
         print(r)
         if delete_template:
             self.delete_template(template_filename)
         playbook = self.parse_yaml(r)
         return playbook
 
-    def get_ansible_delete_output(self, template, template_filename=None, extra=None, delete_template=True):
+    def get_ansible_delete_output(self, template, template_filename=None, extra=None, delete_template=True, debug=True):
         if not template_filename:
             template_filename = self.testing_template_filename()
         self.write_template(self.prepare_yaml(template))
-        r = common_translate(template_filename, False, self.PROVIDER, ANSIBLE, TEST, is_delete=True, extra=extra)
+        r = common_translate(template_filename, False, self.PROVIDER, ANSIBLE, TEST, is_delete=True, extra=extra, debug=debug)
         print(r)
         if delete_template:
             self.delete_template(template_filename)
         playbook = self.parse_yaml(r)
         return playbook
 
-    def get_ansible_delete_output_from_file(self, template, template_filename=None, extra=None):
+    def get_ansible_delete_output_from_file(self, template, template_filename=None, extra=None, debug=True):
         if not template_filename:
             template_filename = self.testing_template_filename()
-        r = common_translate(template_filename, False, self.PROVIDER, ANSIBLE, TEST, is_delete=True, extra=extra)
+        r = common_translate(template_filename, False, self.PROVIDER, ANSIBLE, TEST, is_delete=True, extra=extra, debug=debug)
         print(r)
         playbook = self.parse_yaml(r)
         return playbook
@@ -173,17 +170,15 @@ class TestAnsibleProvider(BaseAnsibleProvider):
             playbook = self.get_ansible_create_output(template, extra=extra)
 
             assert next(iter(playbook), {}).get('tasks')
+
             tasks = []
             for play in playbook:
-                for task in play['tasks']:
-                    tasks.append(task)
+                tasks.extend(play['tasks'])
 
             if extra:
                 self.check_meta(tasks, testing_value=testing_value, extra=extra)
             else:
                 self.check_meta(tasks, testing_value=testing_value)
-
-            playbook = self.get_ansible_delete_output(template, extra=extra)
 
     def test_private_address(self):
         if hasattr(self, 'check_private_address'):
@@ -198,8 +193,7 @@ class TestAnsibleProvider(BaseAnsibleProvider):
             assert next(iter(playbook), {}).get('tasks')
             tasks = []
             for play in playbook:
-                for task in play['tasks']:
-                    tasks.append(task)
+                tasks.extend(play['tasks'])
 
             self.check_private_address(tasks, testing_value)
 
@@ -217,8 +211,7 @@ class TestAnsibleProvider(BaseAnsibleProvider):
 
             tasks = []
             for play in playbook:
-                for task in play['tasks']:
-                    tasks.append(task)
+                tasks.extend(play['tasks'])
             self.check_public_address(tasks, testing_value)
 
     def test_network_name(self):
@@ -239,8 +232,7 @@ class TestAnsibleProvider(BaseAnsibleProvider):
 
             tasks = []
             for play in playbook:
-                for task in play['tasks']:
-                    tasks.append(task)
+                tasks.extend(play['tasks'])
             self.check_network_name(tasks, testing_value)
 
     def test_host_capabilities(self):
@@ -258,8 +250,7 @@ class TestAnsibleProvider(BaseAnsibleProvider):
 
             tasks = []
             for play in playbook:
-                for task in play['tasks']:
-                    tasks.append(task)
+                tasks.extend(play['tasks'])
             self.check_host_capabilities(tasks)
 
     def test_endpoint_capabilities(self):
@@ -281,8 +272,7 @@ class TestAnsibleProvider(BaseAnsibleProvider):
 
             tasks = []
             for play in playbook:
-                for task in play['tasks']:
-                    tasks.append(task)
+                tasks.extend(play['tasks'])
             self.check_endpoint_capabilities(tasks)
 
     def test_os_capabilities(self):
@@ -300,8 +290,7 @@ class TestAnsibleProvider(BaseAnsibleProvider):
 
             tasks = []
             for play in playbook:
-                for task in play['tasks']:
-                    tasks.append(task)
+                tasks.extend(play['tasks'])
             self.check_os_capabilities(tasks)
 
     def test_scalable_capabilities(self):
@@ -319,8 +308,7 @@ class TestAnsibleProvider(BaseAnsibleProvider):
 
             tasks = []
             for play in playbook:
-                for task in play['tasks']:
-                    tasks.append(task)
+                tasks.extend(play['tasks'])
             self.check_scalable_capabilities(tasks)
 
     def test_host_of_software_component(self):
@@ -391,8 +379,7 @@ class TestAnsibleProvider(BaseAnsibleProvider):
 
             tasks = []
             for play in playbook:
-                for task in play['tasks']:
-                    tasks.append(task)
+                tasks.extend(play['tasks'])
             self.check_get_input(tasks, testing_value)
 
     def test_get_property(self):
@@ -419,8 +406,7 @@ class TestAnsibleProvider(BaseAnsibleProvider):
 
             tasks = []
             for play in playbook:
-                for task in play['tasks']:
-                    tasks.append(task)
+                tasks.extend(play['tasks'])
             self.check_get_property(tasks, testing_value)
 
     def test_get_attribute(self):
@@ -447,8 +433,7 @@ class TestAnsibleProvider(BaseAnsibleProvider):
 
             tasks = []
             for play in playbook:
-                for task in play['tasks']:
-                    tasks.append(task)
+                tasks.extend(play['tasks'])
             self.check_get_attribute(tasks, testing_value)
 
     def test_outputs(self):
@@ -472,8 +457,7 @@ class TestAnsibleProvider(BaseAnsibleProvider):
 
             tasks = []
             for play in playbook:
-                for task in play['tasks']:
-                    tasks.append(task)
+                tasks.extend(play['tasks'])
             self.check_outputs(tasks, testing_value)
 
     def test_tasks_success(self):
@@ -497,30 +481,21 @@ class TestAnsibleProvider(BaseAnsibleProvider):
                     }
                 }
             }
-            if os.path.isfile(OPENSTACK_CLOUDS_YAML):
-                os.makedirs(os.path.dirname(OPENSTACK_CLOUDS_YAML_NEW), exist_ok=True)
-                copyfile(OPENSTACK_CLOUDS_YAML, OPENSTACK_CLOUDS_YAML_NEW)
-            playbook = self.get_ansible_create_output(template)
+            playbook = self.get_ansible_create_output(template, debug=False)
 
             assert next(iter(playbook), {}).get('tasks')
 
             tasks = []
             for play in playbook:
-                for task in play['tasks']:
-                    tasks.append(task)
+                tasks.extend(play['tasks'])
             self.check_tasks_success(tasks)
 
-            if os.path.isfile(OPENSTACK_CLOUDS_YAML):
-                os.makedirs(os.path.dirname(OPENSTACK_CLOUDS_YAML_NEW), exist_ok=True)
-                copyfile(OPENSTACK_CLOUDS_YAML, OPENSTACK_CLOUDS_YAML_NEW)
-            playbook = self.get_ansible_delete_output(template)
-
+            playbook = self.get_ansible_delete_output(template, debug=False)
             assert next(iter(playbook), {}).get('tasks')
 
             tasks = []
             for play in playbook:
-                for task in play['tasks']:
-                    tasks.append(task)
+                tasks.extend(play['tasks'])
             self.check_tasks_success(tasks)
 
     def test_host_ip_parameter(self):
@@ -557,8 +532,7 @@ class TestAnsibleProvider(BaseAnsibleProvider):
 
             tasks = []
             for play in playbook:
-                for task in play['tasks']:
-                    tasks.append(task)
+                tasks.extend(play['tasks'])
             self.check_host_ip_parameter(tasks, testing_value)
 
     def test_ansible_facts_in_provider_template(self):
@@ -579,10 +553,7 @@ class TestAnsibleProvider(BaseAnsibleProvider):
             }
             template = self.update_template_capability_properties(template, self.NODE_NAME, 'host', testing_parameter)
 
-            if os.path.isfile(OPENSTACK_CLOUDS_YAML):
-                os.makedirs(os.path.dirname(OPENSTACK_CLOUDS_YAML_NEW), exist_ok=True)
-                copyfile(OPENSTACK_CLOUDS_YAML, OPENSTACK_CLOUDS_YAML_NEW)
-            playbook = self.get_ansible_create_output(template, host_ip_parameter='private_address')
+            playbook = self.get_ansible_create_output(template, host_ip_parameter='private_address', debug=False)
 
             self.assertEqual(len(playbook), 2)
             for play in playbook:
@@ -591,13 +562,9 @@ class TestAnsibleProvider(BaseAnsibleProvider):
 
             tasks = []
             for play in playbook:
-                for task in play['tasks']:
-                    tasks.append(task)
+                tasks.extend(play['tasks'])
 
-            if os.path.isfile(OPENSTACK_CLOUDS_YAML):
-                os.makedirs(os.path.dirname(OPENSTACK_CLOUDS_YAML_NEW), exist_ok=True)
-                copyfile(OPENSTACK_CLOUDS_YAML, OPENSTACK_CLOUDS_YAML_NEW)
-            self.get_ansible_delete_output(template)
+            self.get_ansible_delete_output(template, debug=False)
 
             self.check_ansible_facts_in_provider_template(tasks, testing_value_host, testing_value_os)
 

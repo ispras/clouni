@@ -23,13 +23,14 @@ class TranslatorShell(object):
         self.host_ip_parameter = args.host_parameter
         self.public_key_path = args.public_key_path
         self.log_level = args.log_level
+        self.debug = args.debug
 
         for i in args.extra:
             i_splitted = [j.strip() for j in i.split('=', 1)]
             if len(i_splitted) < 2:
                 raise Exception('Failed parsing parameter \'--extra\', required \'key=value\' format')
             self.extra.update({i_splitted[0]: i_splitted[1]})
-        if args.debug:
+        if self.debug:
             self.log_level = 'debug'
 
         for k, v in self.extra.items():
@@ -43,7 +44,7 @@ class TranslatorShell(object):
         self.working_dir = os.getcwd()
         output = translate(self.template_file, self.validate_only, self.provider, self.configuration_tool,
                            self.cluster_name, public_key_path=self.public_key_path, host_ip_parameter=self.host_ip_parameter, is_delete=self.is_delete,
-                           extra={'global': self.extra}, log_level=self.log_level)
+                           extra={'global': self.extra}, log_level=self.log_level, debug=self.debug)
         self.output_print(output)
 
     def get_parser(self):
@@ -100,6 +101,8 @@ class TranslatorShell(object):
         if self.output_file:
             with open(self.output_file, 'w') as file_obj:
                 file_obj.write(output_msg)
+        if self.debug:
+            print(output_msg)
 
 def main(args=None):
     if args is None:

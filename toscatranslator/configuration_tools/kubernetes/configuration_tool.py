@@ -13,7 +13,7 @@ class KubernetesConfigurationTool(ConfigurationTool):
     TOOL_NAME = KUBERNETES
 
     def to_dsl(self, provider, nodes_relationships_queue, reversed_nodes_relationships_queue, cluster_name, is_delete, artifacts=None,
-               target_directory=None, inputs=None, outputs=None, extra=None):
+               target_directory=None, inputs=None, outputs=None, extra=None, debug=False):
         if not is_delete:
             return self.to_dsl_for_create(provider, nodes_relationships_queue, artifacts, target_directory,
                                           cluster_name, extra)

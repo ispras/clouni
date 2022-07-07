@@ -2,8 +2,8 @@ from toscaparser.imports import ImportsLoader
 from toscaparser.topology_template import TopologyTemplate
 from toscaparser.functions import GetProperty
 
-from toscatranslator.common.tosca_reserved_keys import *
 from toscatranslator.common import utils
+from toscatranslator.common.tosca_reserved_keys import *
 
 from toscatranslator.providers.common.provider_configuration import ProviderConfiguration
 from toscatranslator.providers.common.translator_to_provider import translate as translate_to_provider
@@ -14,11 +14,6 @@ from graphlib import TopologicalSorter
 import os, copy, json, yaml, logging, sys, six
 
 SEPARATOR = ':'
-
-
-
-LIFECICLE = ['create', 'configure', 'start', 'stop', 'delete']
-
 
 class ProviderToscaTemplate(object):
     REQUIRED_CONFIG_PARAMS = (TOSCA_ELEMENTS_MAP_FILE, TOSCA_ELEMENTS_DEFINITION_FILE)
