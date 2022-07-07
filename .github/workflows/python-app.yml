@@ -43,8 +43,8 @@ jobs:
 
     - name: Create clouds.yaml
       run: |
-        mkdir /etc/openstack
-        cat > /etc/openstack/clouds.yaml << EOF
+        sudo mkdir /etc/openstack
+        sudo cat > /etc/openstack/clouds.yaml << EOF
         clouds:
           openstack:
             auth:
