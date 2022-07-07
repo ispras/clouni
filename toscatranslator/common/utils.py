@@ -62,6 +62,9 @@ def deep_update_dict(source, overrides):
 def get_project_root_path():
     return os.path.dirname(os.path.dirname(os.path.dirname(__file__)))
 
+def get_tmp_clouni_dir():
+    return '/tmp/clouni'
+
 
 def get_random_int(start, end):
     seed(time())

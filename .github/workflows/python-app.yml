@@ -40,10 +40,13 @@ jobs:
     - name: Install application
       run: |
         python setup.py install
-
+    - name: Create /etc/openstack
+      run: |
+          sudo mkdir /etc/openstack
+          sudo chmod 777 /etc/openstack
     - name: Create clouds.yaml
       run: |
-        cat > /tmp/clouds.yaml << EOF
+        cat > /etc/openstack/clouds.yaml << EOF
         clouds:
           openstack:
             auth:

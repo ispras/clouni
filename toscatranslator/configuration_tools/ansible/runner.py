@@ -8,6 +8,7 @@ from shutil import copyfile
 import yaml
 from distutils.dir_util import copy_tree
 
+from toscatranslator.common import utils
 from toscatranslator.common.utils import get_random_int
 
 from cotea.runner import runner
@@ -16,17 +17,10 @@ from cotea.arguments_maker import argument_maker
 import ast
 
 SEPARATOR = '.'
-TMP_DIR = '/tmp/clouni'
 
 
-def prepare_for_run(cluster_name):
-    os.makedirs(TMP_DIR, exist_ok=True)
-    os.makedirs(TMP_DIR, exist_ok=True)
-    os.makedirs(os.path.join(TMP_DIR, cluster_name), exist_ok=True)
-    tmp_current_dir = os.path.join(TMP_DIR, cluster_name)
-    successful_tasks_path = os.path.join(TMP_DIR, 'successful_tasks.yaml')
-    if not os.path.isdir(TMP_DIR):
-        os.makedirs(tmp_current_dir)
+def prepare_for_run():
+    successful_tasks_path = os.path.join(utils.get_tmp_clouni_dir(), 'successful_tasks.yaml')
     if os.path.isfile(successful_tasks_path):
         os.remove(successful_tasks_path)
 
@@ -35,14 +29,15 @@ def run_ansible(ansible_playbook, cluster_name):
     """
 
     :param ansible_playbook: dict which is equal to Ansible playbook in YAML
+    :param cluster_name: name of cluster
     :return: empty
     """
     random_id = get_random_int(1000, 9999)
-    os.makedirs(TMP_DIR, exist_ok=True)
-    os.makedirs(os.path.join(TMP_DIR, cluster_name), exist_ok=True)
-    tmp_current_dir = os.path.join(TMP_DIR, cluster_name)
+    os.makedirs(utils.get_tmp_clouni_dir(), exist_ok=True)
+    os.makedirs(os.path.join(utils.get_tmp_clouni_dir(), cluster_name), exist_ok=True)
+    tmp_current_dir = os.path.join(utils.get_tmp_clouni_dir(), cluster_name)
     playbook_path = os.path.join(tmp_current_dir, str(random_id) + '_ansible_playbook.yaml')
-    successful_tasks_path = os.path.join(TMP_DIR, 'successful_tasks.yaml')
+    successful_tasks_path = os.path.join(utils.get_tmp_clouni_dir(), 'successful_tasks.yaml')
     with open(playbook_path, 'w') as playbook_file:
         playbook_file.write(yaml.dump(ansible_playbook, default_flow_style=False, sort_keys=False))
         logging.info("Running ansible playbook from: %s" % playbook_path)

@@ -15,7 +15,6 @@ from toscatranslator.providers.common.translator_to_provider import execute
 
 SET_FACT_SOURCE = "set_fact"
 IMPORT_TASKS_MODULE = "include"
-TMP_DIRECTORY = '/tmp/clouni'
 
 class ProviderResource(object):
 

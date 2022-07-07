@@ -27,7 +27,6 @@ ARTIFACT_RANGE_START = 1000
 ARTIFACT_RANGE_END = 9999
 PYTHON_EXECUTOR = 'python'
 PYTHON_SOURCE_DIRECTORY = 'toscatranslator.providers.common.python_sources'
-TMP_DIRECTORY = '/tmp/clouni/'
 
 
 def translate_element_from_provider(tmpl_name, node_tmpl):
@@ -960,14 +959,15 @@ def execute(new_global_elements_map_total_implementation, is_delete, cluster_nam
             'tasks': new_ansible_tasks
         }
 
-        os.makedirs(os.path.join(TMP_DIRECTORY, cluster_name, configuration_class.initial_artifacts_directory), exist_ok=True)
+        os.makedirs(os.path.join(utils.get_tmp_clouni_dir(), cluster_name, configuration_class.initial_artifacts_directory), exist_ok=True)
         copy_tree(utils.get_project_root_path() + '/toscatranslator/configuration_tools/ansible/artifacts',
-                  os.path.join(TMP_DIRECTORY, cluster_name, configuration_class.initial_artifacts_directory))
+                  os.path.join(utils.get_tmp_clouni_dir(), cluster_name, configuration_class.initial_artifacts_directory))
         configuration_class.parallel_run([playbook], 'artifacts', 'artifacts', q, cluster_name)
 
-        # есть такая проблема что если в текущем процессе был запущен runner cotea то все последующие запуски
-        # других плейбуков из этого процесса невозможны т.к. запускаться будет первоначальный плейбук, причем даже если
-        # этот процесс форкнуть то эффект остается тк что то там внутри cotea сохраняется в контексте процесса
+        # there is such a problem that if runner cotea was launched in the current process, then all subsequent launches
+        # of other playbooks from this process are impossible because the initial playbook will be launched, and
+        # even if this process is forked, the effect remains so that something inside cotea
+        # is preserved in the context of the process
         results = q.get()
         if target_parameter is not None:
             value = 'not_found'

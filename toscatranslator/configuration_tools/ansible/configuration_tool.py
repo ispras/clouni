@@ -4,10 +4,9 @@ from random import seed, randint
 
 from graphlib import TopologicalSorter
 
-from toscatranslator.common.tosca_reserved_keys import *
 from toscatranslator.common import utils
 from toscatranslator.common.tosca_reserved_keys import PARAMETERS, VALUE, EXTRA, SOURCE, INPUTS, NODE_FILTER, NAME, \
-    NODES, GET_OPERATION_OUTPUT, IMPLEMENTATION, ANSIBLE, GET_INPUT
+    NODES, GET_OPERATION_OUTPUT, IMPLEMENTATION, ANSIBLE, GET_INPUT, RELATIONSHIPS
 
 from toscatranslator.providers.common.provider_configuration import ProviderConfiguration
 from toscatranslator.configuration_tools.common.configuration_tool import ConfigurationTool, \
@@ -29,8 +28,6 @@ ANSIBLE_RESERVED_KEYS = \
     ('register', 'path', 'file', 'state', 'lineinfile', 'set_fact', ' is defined', ' is undefined', 'include')
 
 REQUIRED_CONFIG_PARAMS = (INITIAL_ARTIFACTS_DIRECTORY, DEFAULT_HOST) = ("initial_artifacts_directory", "default_host")
-TMP_DIR = '/tmp/clouni'
-
 
 class AnsibleConfigurationTool(ConfigurationTool):
     TOOL_NAME = ANSIBLE
@@ -51,7 +48,7 @@ class AnsibleConfigurationTool(ConfigurationTool):
             setattr(self, param, main_config[param])
 
     def to_dsl(self, provider, operations_graph, reversed_operations_graph, cluster_name, is_delete,
-               artifacts=None, target_directory=None, inputs=None, outputs=None, extra=None):
+               artifacts=None, target_directory=None, inputs=None, outputs=None, extra=None, debug=False):
         if artifacts is None:
             artifacts = []
         if target_directory is None:
@@ -83,7 +80,8 @@ class AnsibleConfigurationTool(ConfigurationTool):
         # first operations from on top of the graph in state 'ready'
 
         ansible_playbook = []
-        self.prepare_for_run(cluster_name)
+        if not debug:
+            self.prepare_for_run()
         # function for initializing tmp clouni directory
         q = Queue()
         # queue for node names + operations
@@ -193,9 +191,12 @@ class AnsibleConfigurationTool(ConfigurationTool):
                                                               additional_args=extra)))
                 ansible_playbook.append(ansible_play_for_elem)
                 # run playbooks
-                self.parallel_run([ansible_play_for_elem], v.name, v.operation, q, cluster_name)
-                # add element to active list
-                active.append(v)
+                if not debug:
+                    self.parallel_run([ansible_play_for_elem], v.name, v.operation, q, cluster_name)
+                    # add element to active list
+                    active.append(v)
+                else:
+                    elements.done(v)
         if is_delete:
             last_play = dict(
                 name='Renew id_vars_example.yaml',
@@ -205,14 +206,16 @@ class AnsibleConfigurationTool(ConfigurationTool):
             last_play['tasks'].append(copy.deepcopy({FILE: {
                 PATH: ids_file_path,
                 STATE: 'absent'}}))
-            self.parallel_run([last_play], None, None, q, cluster_name)
-            done = q.get()
-            if done != 'Done':
-                logging.error("Something wrong with multiprocessing queue")
-                sys.exit(1)
+            if not debug:
+                self.parallel_run([last_play], None, None, q, cluster_name)
+                done = q.get()
+                if done != 'Done':
+                    logging.error("Something wrong with multiprocessing queue")
+                    sys.exit(1)
             ansible_playbook.append(last_play)
         # delete dir with cluster_name in tmp clouni dir
-        rmtree(os.path.join(TMP_DIR, cluster_name))
+        if not debug:
+            rmtree(os.path.join(utils.get_tmp_clouni_dir(), cluster_name))
         return yaml.dump(ansible_playbook, default_flow_style=False, sort_keys=False)
 
     def init_graph(self, operations_graph):
@@ -365,7 +368,7 @@ class AnsibleConfigurationTool(ConfigurationTool):
                     primary = True
                 scripts.extend(implementations)
                 for script in implementations:
-                    target_filename = os.path.join(TMP_DIR, cluster_name, target_directory, script)
+                    target_filename = os.path.join(utils.get_tmp_clouni_dir(), cluster_name, target_directory, script)
                     os.makedirs(os.path.dirname(target_filename), exist_ok=True)
                     script_filename_1 = os.path.join(os.getcwd(), script)
                     script_filename_2 = os.path.join(self.get_ansible_artifacts_directory(), script)
@@ -450,7 +453,7 @@ class AnsibleConfigurationTool(ConfigurationTool):
                 new_tasks = self.create_artifact_data(art_data)
                 tasks.extend(new_tasks)
             else:
-                target_filename = os.path.join(TMP_DIR, target_directory, cluster_name, art)
+                target_filename = os.path.join(utils.get_tmp_clouni_dir(), target_directory, cluster_name, art)
                 art_filename_1 = os.path.join(os.getcwd(), art)
                 art_filename_2 = os.path.join(self.get_ansible_artifacts_directory(), art)
                 if os.path.isfile(art_filename_1):
@@ -589,8 +592,8 @@ class AnsibleConfigurationTool(ConfigurationTool):
             })
         return ansible_tasks
 
-    def prepare_for_run(self, cluster_name):
-        prepare_for_run(cluster_name)
+    def prepare_for_run(self):
+        prepare_for_run()
 
     def parallel_run(self, ansible_play, name, op, q, cluster_name):
         parallel_run_ansible(ansible_play, name, op, q, cluster_name)
