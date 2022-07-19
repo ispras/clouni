@@ -84,12 +84,14 @@ def list_ec2_instance_types(module):
             raise ValueError("memory unable to parse: " + str(t['memory']))
         t['memory'] = float(temp)
         if t['storage'] != 'EBSonly':
-            temp = t['storage'].split('GiB', 1)[0]
+            if 'GB' in t['storage']:
+                temp = t['storage'].split('GB', 1)[0]
+            elif 'TB' in t['storage']:
+                temp = float(t['storage'].split('TB', 1)[0]) * 1024
 
             if not temp:
                 raise ValueError("storage unable to parse: " + str(t['storage']))
             t['storage'] = float(temp)
-
     return instancetypes
 
 

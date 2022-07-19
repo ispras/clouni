@@ -281,9 +281,20 @@ tosca.nodes.Compute:
               - parameter: "{self[extra][ansible][{self[keyname]}_security_group_rule][vars][port]}"
                 value:
                   - "{self[value]}"
-      os.properties.architecture: "{self[buffer][os][architecture]}"
-      os.properties.type:
-        - "{self[buffer][os][type]}"
+      os:
+        - properties:
+            architecture: "{self[buffer][os][architecture]}"
+            type:
+              - parameter: "{self[buffer][os][type]}"
+                value: '{self[value]}'
+              - parameter: '{self[buffer][add_host][ansible_user]}'
+                value: '{self[value]}'
+            distribution:
+              - parameter: "{self[buffer][os][distribution]}"
+                value: '{self[value]}'
+              - parameter: '{self[buffer][add_host][ansible_user]}'
+                value: '{self[value]}'
+            version: "{self[buffer][os][version]}"
         - parameter: openstack.nodes.Server.requirements.image.node_filter.properties
           value:
             - parameter: name
@@ -296,10 +307,6 @@ tosca.nodes.Compute:
                   - - name
                     - properties
                   - "{self[buffer][os]}"
-        - parameter: '{self[buffer][add_host][ansible_user]}'
-          value: '{self[value]}'
-      os.properties.distribution: "{self[buffer][os][distribution]}"
-      os.properties.version: "{self[buffer][os][version]}"
       scalable.properties:
         default_instances:
           - parameter: "{self[extra][ansible][{self[keyname]}_server][with_sequence]}"

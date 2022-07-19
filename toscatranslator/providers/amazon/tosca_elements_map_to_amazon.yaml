@@ -21,18 +21,38 @@ tosca.nodes.Compute:
         error: true
         reason: Not implemented yet
     capabilities:
-      host.properties:
-        parameter: amazon.nodes.Instance.properties.instance_type
+      host.properties.num_cpus:
+        parameter: amazon.nodes.Instance.requirements.instance_type.node_filter.properties
         value:
-          value: apiname
-          facts: ec2_instance_info # не факт, надо поразбираться, но ec2_instance_type_facts точно не работает
-          executor: ansible
-          condition: contains
-          arguments:
-            - "{self[value]}"
-            - - vcpus
-              - memory
-              - storage
+          - parameter: vcpus
+            value: "{self[value]}"
+      host.properties.cpu_frequency:
+        error: true
+        reason: Amazon doesn't support parameter {self[parameter]}
+      host.properties.disk_size:
+        parameter: amazon.nodes.Instance.requirements.instance_type.node_filter.properties
+        value:
+          - parameter: storage
+            value:
+              source: transform_units
+              executor: python
+              parameters:
+                source_value: "{self[value]}"
+                target_unit: GiB
+                is_only_numb: true
+              value: default_tmp
+      host.properties.mem_size:
+        parameter: amazon.nodes.Instance.requirements.instance_type.node_filter.properties
+        value:
+          - parameter: memory
+            value:
+              source: transform_units
+              executor: python
+              parameters:
+                source_value: "{self[value]}"
+                target_unit: GiB
+                is_only_numb: true
+              value: default_tmp
       endpoint.properties.ip_address:
         - parameter: "{self[buffer][security_group_rule][cidr_ip]}"
           value: "{self[value]}"
@@ -97,3 +117,63 @@ tosca.nodes.Compute:
     requirements.local_storage:
       error: true
       reason: Bad description in TOSCA Profile YAML v1.0
+
+tosca.nodes.SoftwareComponent:
+  - requirements:
+    - host.node:
+        parameter: tosca.nodes.SoftwareComponent.requirements.host.node
+        value: "{self[value]}_server"
+    - host.relationship:
+        parameter: tosca.nodes.SoftwareComponent.requirements.host.relationship
+        value: "{self[value]}_hosted_on"
+  - properties: tosca.nodes.SoftwareComponent.properties
+  - interfaces: tosca.nodes.SoftwareComponent.interfaces
+
+tosca.relationships.DependsOn:
+  - requirements: amazon.relationships.DependsOn.requirements
+  - attributes: amazon.relationships.DependsOn.attributes
+  - properties: amazon.relationships.DependsOn.properties
+  - capabilities: amazon.relationships.DependsOn.capabilities
+  - interfaces: amazon.relationships.DependsOn.interfaces
+
+tosca.relationships.HostedOn:
+  - requirements: amazon.relationships.HostedOn.requirements
+  - attributes: amazon.relationships.HostedOn.attributes
+  - properties: amazon.relationships.HostedOn.properties
+  - capabilities: amazon.relationships.HostedOn.capabilities
+  - interfaces: amazon.relationships.HostedOn.interfaces
+
+tosca.relationships.ConnectsTo:
+  - requirements: amazon.relationships.ConnectsTo.requirements
+  - attributes: amazon.relationships.ConnectsTo.attributes
+  - properties: amazon.relationships.ConnectsTo.properties
+  - capabilities: amazon.relationships.ConnectsTo.capabilities
+  - interfaces: amazon.relationships.ConnectsTo.interfaces
+
+tosca.relationships.AttachesTo:
+  - requirements: amazon.relationships.AttachesTo.requirements
+  - attributes: amazon.relationships.AttachesTo.attributes
+  - properties: amazon.relationships.AttachesTo.properties
+  - capabilities: amazon.relationships.AttachesTo.capabilities
+  - interfaces: amazon.relationships.AttachesTo.interfaces
+
+tosca.relationships.RoutesTo:
+  - requirements: amazon.relationships.RoutesTo.requirements
+  - attributes: amazon.relationships.RoutesTo.attributes
+  - properties: amazon.relationships.RoutesTo.properties
+  - capabilities: amazon.relationships.RoutesTo.capabilities
+  - interfaces: amazon.relationships.RoutesTo.interfaces
+
+tosca.relationships.network.LinksTo:
+  - requirements: amazon.relationships.network.LinksTo.requirements
+  - attributes: amazon.relationships.network.LinksTo.attributes
+  - properties: amazon.relationships.network.LinksTo.properties
+  - capabilities: amazon.relationships.network.LinksTo.capabilities
+  - interfaces: amazon.relationships.network.LinksTo.interfaces
+
+tosca.relationships.network.BindsTo:
+  - requirements: amazon.relationships.network.BindsTo.requirements
+  - attributes: amazon.relationships.network.BindsTo.attributes
+  - properties: amazon.relationships.network.BindsTo.properties
+  - capabilities: amazon.relationships.network.BindsTo.capabilities
+  - interfaces: amazon.relationships.network.BindsTo.interfaces

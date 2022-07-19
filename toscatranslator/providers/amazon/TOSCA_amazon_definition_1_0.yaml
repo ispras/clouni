@@ -238,9 +238,6 @@ node_types:
       instance_id: # not used when create
         type: string
         required: false
-      instance_type:
-        type: string
-        default: t2.micro
       key_name:
         type: string
         required: false
@@ -255,11 +252,16 @@ node_types:
         type: amazon.capabilities.network.Bindable
         occurrences: [ 0, UNBOUNDED ]
     requirements:
+      - instance_type:
+          capability: amazon.capabilities.Node
+          node: amazon.nodes.instanceType
+          relationship: amazon.relationships.DependsOn
+          occurrences: [ 1, 1 ]
       - image_id:
           capability: amazon.capabilities.Node
           node: amazon.nodes.Ami
           relationship: amazon.relationships.DependsOn
-          occurrences: [ 0, 1 ]
+          occurrences: [ 1, 1 ]
       - network: # network_interfaces after create, network_interfaces in facts
           capability: amazon.capabilities.Node
           node: amazon.nodes.Eni
@@ -275,6 +277,26 @@ node_types:
           node: amazon.nodes.VpcSubnet
           relationship: amazon.relationships.DependsOn
           occurrences: [ 0, 1 ]
+
+  amazon.nodes.instanceType: # ec2_instance_type_facts
+    derived_from: amazon.nodes.Root
+    properties:
+      storage:
+        type: scalar-unit.size
+        required: false
+      vcpus:
+        type: integer
+        required: false
+      memory:
+        type: scalar-unit.size
+        required: false
+      name:
+        type: string
+        required: false
+      apiname:
+        type: string
+        required: true
+      # there are a lot of other params, if you know how to support it - please insert
 
   amazon.nodes.Group: # ec2_group, ec2_group_facts
     derived_from: amazon.nodes.Root

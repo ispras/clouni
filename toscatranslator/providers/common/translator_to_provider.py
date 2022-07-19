@@ -623,20 +623,19 @@ def translate_node_from_tosca(restructured_mapping, tpl_name, self):
     return resulted_structure
 
 
-def get_source_structure_from_facts(condition, fact_name, value, arguments, executor, source_value, is_delete, cluster_name):
+def get_source_structure_from_facts(condition, fact_name, value, arguments, executor, self, is_delete, cluster_name):
     """
     :param condition:
     :param fact_name:
     :param value:
     :param arguments:
     :param executor
-    :param source_value:
     :return:
     """
     if isinstance(arguments, list):
         for i in range(len(arguments)):
             if isinstance(arguments[i], str) and 'self' in arguments[i]:
-                arguments[i] = source_value
+                arguments[i] = restructure_value(arguments[i], self)
     if isinstance(fact_name, six.string_types):
         fact_name_splitted = fact_name.split(SEPARATOR)
         source_name = fact_name_splitted[0]
@@ -817,7 +816,7 @@ def restructure_mapping_facts(elements_map, self, is_delete, cluster_name, extra
             if not get_configuration_tool_class(executor):
                 logging.critical("Unsupported executor name \'%s\'" % json.dumps(executor))
                 sys.exit(1)
-            new_value = get_source_structure_from_facts(condition, fact_name, value, arguments, executor, source_value, is_delete, cluster_name)
+            new_value = get_source_structure_from_facts(condition, fact_name, value, arguments, executor, self, is_delete, cluster_name)
             return new_value, extra_elements_map
 
         return new_elements_map, extra_elements_map
