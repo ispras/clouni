@@ -223,6 +223,22 @@ node_types:
         type: string
         required: false
 
+  amazon.nodes.Key: # ec2_key
+    derived_from: amazon.nodes.Root
+    properties:
+      name:
+        type: string
+        required: true
+      key_type:
+        type: string
+        required: false
+      key_material:
+        type: string
+        required: false
+      profile:
+        type: string
+        required: false
+
   amazon.nodes.Instance: # ec2_instance, ec2_instance_facts
     derived_from: amazon.nodes.Root
     properties:
@@ -238,9 +254,6 @@ node_types:
       instance_id: # not used when create
         type: string
         required: false
-      key_name:
-        type: string
-        required: false
       public_ip_address: # not used when create
         type: string
         required: false
@@ -252,6 +265,11 @@ node_types:
         type: amazon.capabilities.network.Bindable
         occurrences: [ 0, UNBOUNDED ]
     requirements:
+      - key_name:
+          capability: amazon.capabilities.Node
+          node: amazon.nodes.Key
+          relationship: amazon.relationships.DependsOn
+          occurrences: [ 0, 1 ]
       - instance_type:
           capability: amazon.capabilities.Node
           node: amazon.nodes.instanceType
@@ -296,6 +314,7 @@ node_types:
       apiname:
         type: string
         required: true
+
       # there are a lot of other params, if you know how to support it - please insert
 
   amazon.nodes.Group: # ec2_group, ec2_group_facts

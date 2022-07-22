@@ -1,4 +1,13 @@
 tosca.nodes.Compute:
+  - parameter: amazon.nodes.Key.properties.key_material
+    value: "\\{\\{ lookup('file', '{self[public_key_path]}') \\}\\}"
+  - parameter: amazon.nodes.Key.properties.name
+    value: '{self[keyname]}_key'
+  - parameter: amazon.nodes.Instance.requirements
+    value:
+      parameter: key_name
+      value:
+        node: "{self[keyname]}_key"
   - parameter: amazon.nodes.Instance.properties.name
     value: "{self[name]}"
   - properties:
@@ -98,22 +107,39 @@ tosca.nodes.Compute:
       endpoint.properties.ports:
         error: true
         reason: Not implemented yet
-      os.properties:
-        parameter: amazon.nodes.Instance.requirements.image_id.node_filter.properties
-        value:
-          - parameter: image_id
-            value:
-              value: image_id
-              facts: ec2_ami_info
-              executor: ansible
-              condition: contains
-              arguments:
-                - - architecture
-                  - name
-                - "{self[value]}"
-      scalable:
-        error: true
-        reason: Not described in TOSCA Profile YAML v1.0
+      os:
+        - properties:
+            architecture: "{self[buffer][os][architecture]}"
+            type:
+              - parameter: "{self[buffer][os][type]}"
+                value: '{self[value]}'
+              - parameter: '{self[buffer][add_host][ansible_user]}'
+                value: '{self[value]}'
+            distribution:
+              - parameter: "{self[buffer][os][distribution]}"
+                value: '{self[value]}'
+              - parameter: '{self[buffer][add_host][ansible_user]}'
+                value: '{self[value]}'
+            version: "{self[buffer][os][version]}"
+        - parameter: amazon.nodes.Instance.requirements.image_id.node_filter.properties
+          value:
+            - parameter: image_id
+              value:
+                value: image_id
+                facts: ec2_ami_info.images
+                executor: ansible
+                condition: contains
+                arguments:
+                  - - name
+                    - description
+                    - architecture
+                  - "{self[buffer][os]}"
+      scalable.properties:
+        default_instances:
+          - parameter: "{self[extra][ansible][{self[keyname]}_instance][with_sequence]}"
+            value: "start=1 end={self[value]} format={self[name]}-%d"
+          - parameter: amazon.nodes.Instance.properties.name
+            value: "\\{\\{ item \\}\\}"
     requirements.local_storage:
       error: true
       reason: Bad description in TOSCA Profile YAML v1.0

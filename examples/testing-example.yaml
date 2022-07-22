@@ -2,23 +2,10 @@ topology_template:
   node_templates:
     tosca_server_example:
       capabilities:
-        endpoint:
-          properties:
-            initiator: target
-            ip_address: 0.0.0.0
-            port: 22
-            protocol: tcp
         host:
           properties:
-            disk_size: 10 GiB
-            mem_size: 1 GiB
+            disk_size: 5 GiB
+            mem_size: 1024 MiB
             num_cpus: 1
-        os:
-          properties:
-            architecture: x86_64
-            type: cirros
-            version: 0.4.0
-      properties:
-        meta: cube_master=true
       type: tosca.nodes.Compute
 tosca_definitions_version: tosca_simple_yaml_1_0
