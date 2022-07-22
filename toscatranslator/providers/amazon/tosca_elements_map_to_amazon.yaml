@@ -10,6 +10,8 @@ tosca.nodes.Compute:
         node: "{self[keyname]}_key"
   - parameter: amazon.nodes.Instance.properties.name
     value: "{self[name]}"
+  - parameter: "{self[extra][ansible][{self[keyname]}_server][with_sequence]}"
+    value: "start=1 end=1"
   - properties:
       meta:
         parameter: amazon.nodes.Instance.properties.tags
@@ -136,6 +138,16 @@ tosca.nodes.Compute:
                   - "{self[buffer][os]}"
       scalable.properties:
         default_instances:
+          - parameter: "{self[extra][ansible][{self[keyname]}_instance][with_sequence]}"
+            value: "start=1 end={self[value]} format={self[name]}-%d"
+          - parameter: amazon.nodes.Instance.properties.name
+            value: "\\{\\{ item \\}\\}"
+        max_instances:
+          - parameter: "{self[extra][ansible][{self[keyname]}_instance][with_sequence]}"
+            value: "start=1 end={self[value]} format={self[name]}-%d"
+          - parameter: amazon.nodes.Instance.properties.name
+            value: "\\{\\{ item \\}\\}"
+        min_instances:
           - parameter: "{self[extra][ansible][{self[keyname]}_instance][with_sequence]}"
             value: "start=1 end={self[value]} format={self[name]}-%d"
           - parameter: amazon.nodes.Instance.properties.name

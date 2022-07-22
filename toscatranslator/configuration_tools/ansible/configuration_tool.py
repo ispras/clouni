@@ -515,11 +515,10 @@ class AnsibleConfigurationTool(ConfigurationTool):
 
     def get_extra_tasks_for_delete(self, type, task_name, path):
         ansible_tasks_for_create = []
-        (_, _, node_type) = utils.tosca_type_parse(type)
-        node_type = utils.snake_case(node_type)
+        # TODO: deleting by names (not ids)
         if type == 'openstack.nodes.FloatingIp':
             ansible_tasks_for_create.append({
-                'set_fact': {
+                'set_fact': { # TODO: deleting floating IPS
                     task_name + '_dict': {task_name + '_dict': {'floating_ip_address': self.rap_ansible_variable(
                         task_name + '.floating_ip.floating_ip_address'),
                         'server': self.rap_ansible_variable(
@@ -534,15 +533,6 @@ class AnsibleConfigurationTool(ConfigurationTool):
                     'line': self.rap_ansible_variable(task_name + '_dict' + ' | to_nice_yaml')},
                 'when': task_name + '_dict' + IS_DEFINED
             })
-        elif type == 'amazon.nodes.Key':
-            # amazon ec2 has very BAD return values - there is no id in return value for ec2_key module
-            ansible_tasks_for_create.append({
-                LINEINFILE: {
-                    PATH: path,
-                    'line': '' + task_name + '_delete' + ': ' + self.rap_ansible_variable(
-                        task_name + '.' + node_type + '.name')},
-                'when': task_name + '.' + node_type + '.name' + IS_DEFINED
-            })
         else:
             ansible_tasks_for_create.append({
                 'set_fact': {
@@ -550,13 +540,6 @@ class AnsibleConfigurationTool(ConfigurationTool):
                         task_name + '_list' + " | default([])") + " + [ \"{{ item.id }}\" ]"},
                 'loop': self.rap_ansible_variable(task_name + '.results | flatten(levels=1) '),
                 'when': 'item.id ' + IS_DEFINED
-            })
-            ansible_tasks_for_create.append({
-                'set_fact': {
-                    task_name + '_list': self.rap_ansible_variable(
-                        task_name + '_list' + " | default([])") + " + [ \"{{ item }}\" ]"},
-                'with_items': self.rap_ansible_variable(task_name + '.' + node_type + '_ids'),
-                'when': task_name + '.' + node_type + '_ids' + IS_DEFINED
             })
             ansible_tasks_for_create.append({
                 'set_fact': {
@@ -568,19 +551,6 @@ class AnsibleConfigurationTool(ConfigurationTool):
                     PATH: path,
                     'line': '' + task_name + '_delete' + ': ' + self.rap_ansible_variable(task_name + '.id')},
                 'when': task_name + '.id' + IS_DEFINED
-            })
-            # amazon ec2 has very BAD return values - we need to search where is id of current node
-            ansible_tasks_for_create.append({
-                LINEINFILE: {
-                    PATH: path,
-                    'line': '' + task_name + '_delete' + ': ' + self.rap_ansible_variable(task_name + '.' + node_type + '_id')},
-                'when': task_name + '.' + node_type + '_id' + IS_DEFINED
-            })
-            ansible_tasks_for_create.append({
-                LINEINFILE: {
-                    PATH: path,
-                    'line': '' + task_name + '_delete' + ': ' + self.rap_ansible_variable(task_name + '.' + node_type + '.id')},
-                'when': task_name + '.' + node_type + '.id' + IS_DEFINED
             })
             ansible_tasks_for_create.append({
                 LINEINFILE: {

@@ -9,6 +9,8 @@ tosca.nodes.Compute:
       parameter: key_name
       value:
         node: "{self[keyname]}_keypair"
+  - parameter: "{self[extra][ansible][{self[keyname]}_server][with_sequence]}"
+    value: "start=1 end=1"
   - parameter: openstack.nodes.Server.properties.name
     value: "{self[name]}"
   - attributes:
@@ -22,7 +24,7 @@ tosca.nodes.Compute:
       implementation: add_host.yaml
       inputs:
         ansible_user: "{self[buffer][add_host][ansible_user]}"
-        host_ip: '\\{\\{ {self[keyname]}_server.server.public_v4 \\}\\}'
+        host_ip: '\\{\\{ {self[keyname]}_server.results[0].server.public_v4 \\}\\}'
         group: "{self[name]}_private_address"
   - properties:
       tosca_name:
@@ -32,6 +34,8 @@ tosca.nodes.Compute:
         - parameter: openstack.nodes.Port.properties.fixed_ips
           value:
             - ip_address: "{self[value]}"
+        - parameter: "{self[buffer][private_address]}"
+          value: "{self[value]}"
         - parameter: openstack.nodes.Port.requirements.network.node_filter.properties
           value:
             - parameter: id
@@ -69,11 +73,10 @@ tosca.nodes.Compute:
                 arguments:
                   - allocation_pool_start
                   - allocation_pool_end
-                  - "{self[value]}"
+                  - "{self[buffer][private_address]}" # please don't use self[value] in arguments
         - parameter: openstack.nodes.Port.properties.name
           value: "{self[name]}_port_0"
         - parameter: openstack.nodes.Server.properties.nics
-#        - parameter: openstack.nodes.Server.requirements.network
           value:
           - port-name: "{self[name]}_port_0"
       public_address:
@@ -82,6 +85,10 @@ tosca.nodes.Compute:
             parameter: server
             value:
               node: "{self[keyname]}_server"
+        - parameter: "{self[buffer][public_address]}"
+          value: "{self[value]}"
+        - parameter: "{self[extra][ansible][{self[keyname]}_floating_ip][with_sequence]}"
+          value: "\\{\\{ scalable | default('start=1 end=1') \\}\\}"
         - parameter: openstack.nodes.FloatingIp
           value:
             - properties.floating_ip_address
@@ -128,13 +135,13 @@ tosca.nodes.Compute:
                         arguments:
                           - allocation_pool_start
                           - allocation_pool_end
-                          - "{self[value]}"
+                          - "{self[buffer][public_address]}" # please don't use self[value] in arguments
         - parameter: openstack.nodes.FloatingIp.interfaces.Standard.create
           value:
             implementation: add_host.yaml
             inputs:
               ansible_user: "{self[buffer][add_host][ansible_user]}"
-              host_ip: '\\{\\{ {self[keyname]}_floating_ip.floating_ip.floating_ip_address \\}\\}'
+              host_ip: '\\{\\{ {self[keyname]}_floating_ip.results[0].floating_ip.floating_ip_address \\}\\}'
               group: "{self[name]}_public_address"
       networks.*.network_name:
         parameter: openstack.nodes.Server.properties.nics
@@ -145,17 +152,19 @@ tosca.nodes.Compute:
         value:
           - net-id: "{self[value]}"
       networks.*.addresses:
-        parameter: openstack.nodes.Server.requirements.nics.node_filter.properties
-        value:
-          - parameter: id
-            value: network_id
-            facts: os_subnets_facts.ansible_facts.openstack_subnets
-            executor: ansible
-            condition: ip_contains
-            arguments:
-              - allocation_pool_start
-              - allocation_pool_end
-              - "{self[value]}"
+        - parameter: "{self[buffer][address]}"
+          value: "{self[value]}"
+        - parameter: openstack.nodes.Server.requirements.nics.node_filter.properties
+          value:
+            - parameter: id
+              value: network_id
+              facts: os_subnets_facts.ansible_facts.openstack_subnets
+              executor: ansible
+              condition: ip_contains
+              arguments:
+                - allocation_pool_start
+                - allocation_pool_end
+                - "{self[buffer][address]}" # please don't use self[value] in arguments
       ports.*.port_name:
         parameter: openstack.nodes.Server.properties.nics
         value:
@@ -174,18 +183,20 @@ tosca.nodes.Compute:
           - parameter: mac_address
             value: "{self[value]}"
       ports.*.addresses:
-        parameter: openstack.nodes.Server.requirements.nics.node_filter.properties
-        value:
-          - parameter: id
-            value:
-              value: network_id
-              facts: os_subnets_facts.ansible_facts.openstack_subnets
-              executor: ansible
-              condition: ip_contains
-              arguments:
-                - allocation_pool_start
-                - allocation_pool_end
-                - "{self[value]}"
+        - parameter: "{self[buffer][address]}"
+          value: "{self[value]}"
+        - parameter: openstack.nodes.Server.requirements.nics.node_filter.properties
+          value:
+            - parameter: id
+              value:
+                value: network_id
+                facts: os_subnets_facts.ansible_facts.openstack_subnets
+                executor: ansible
+                condition: ip_contains
+                arguments:
+                  - allocation_pool_start
+                  - allocation_pool_end
+                  - "{self[buffer][address]}"
     capabilities:
       host.properties.num_cpus:
         parameter: openstack.nodes.Server.requirements.flavor.node_filter.properties
@@ -310,6 +321,22 @@ tosca.nodes.Compute:
       scalable.properties:
         default_instances:
           - parameter: "{self[extra][ansible][{self[keyname]}_server][with_sequence]}"
+            value: "start=1 end={self[value]} format={self[name]}-%d"
+          - parameter: "{self[extra][ansible][{self[name]}_floating_ip][vars][scalable]}"
+            value: "start=1 end={self[value]} format={self[name]}-%d"
+          - parameter: openstack.nodes.Server.properties.name
+            value: "\\{\\{ item \\}\\}"
+        min_instances:
+          - parameter: "{self[extra][ansible][{self[keyname]}_server][with_sequence]}"
+            value: "start=1 end={self[value]} format={self[name]}-%d"
+          - parameter: "{self[extra][ansible][{self[name]}_floating_ip][vars][scalable]}"
+            value: "start=1 end={self[value]} format={self[name]}-%d"
+          - parameter: openstack.nodes.Server.properties.name
+            value: "\\{\\{ item \\}\\}"
+        max_instances:
+          - parameter: "{self[extra][ansible][{self[keyname]}_server][with_sequence]}"
+            value: "start=1 end={self[value]} format={self[name]}-%d"
+          - parameter: "{self[extra][ansible][{self[name]}_floating_ip][vars][scalable]}"
             value: "start=1 end={self[value]} format={self[name]}-%d"
           - parameter: openstack.nodes.Server.properties.name
             value: "\\{\\{ item \\}\\}"
