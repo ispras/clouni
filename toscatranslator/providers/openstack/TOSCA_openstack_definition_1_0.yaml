@@ -180,14 +180,10 @@ node_types:
       public_key:
         type: string
         required: false
+    artifacts:
       public_key_file:
-        type: string
+        type: openstack.artifacts.File
         required: false
-    # need to change it later, when artifact support will be added
-    # artifacts:
-      # public_key_file:
-        # type: openstack.artifacts.File
-        # required: false
 
   openstack.nodes.Network: # os_network, os_networks_facts
     derived_from: openstack.nodes.Root

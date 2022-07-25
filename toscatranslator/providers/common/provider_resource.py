@@ -91,7 +91,7 @@ class ProviderResource(object):
                             sys.exit(1)
                         if host_ip_parameter not in ('public_address', 'private_address'):
                             host_ip_parameter = 'private_address'
-                        self.host = req.value + '_' + host_ip_parameter
+                        self.host = req.data['node'] + '_' + host_ip_parameter
 
             self.node_filter_artifacts = []
             for key, req in self.requirements.items():

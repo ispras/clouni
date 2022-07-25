@@ -29,6 +29,7 @@ ANSIBLE_RESERVED_KEYS = \
 
 REQUIRED_CONFIG_PARAMS = (INITIAL_ARTIFACTS_DIRECTORY, DEFAULT_HOST) = ("initial_artifacts_directory", "default_host")
 
+
 class AnsibleConfigurationTool(ConfigurationTool):
     TOOL_NAME = ANSIBLE
     """
@@ -138,7 +139,8 @@ class AnsibleConfigurationTool(ConfigurationTool):
                         ansible_tasks = self.get_ansible_tasks_for_delete(v, description_by_type, module_by_type,
                                                                           additional_args=extra)
                         ansible_tasks.extend(
-                            self.get_ansible_tasks_from_interface(v, target_directory, is_delete, v.operation, cluster_name,
+                            self.get_ansible_tasks_from_interface(v, target_directory, is_delete, v.operation,
+                                                                  cluster_name,
                                                                   additional_args=extra))
                         if not any(item == module_by_type for item in
                                    ansible_config.get('modules_skipping_delete', [])):
@@ -150,7 +152,8 @@ class AnsibleConfigurationTool(ConfigurationTool):
                                                                           description_by_type, module_by_type,
                                                                           additional_args=extra)
                         ansible_tasks.extend(
-                            self.get_ansible_tasks_from_interface(v, target_directory, is_delete, v.operation, cluster_name,
+                            self.get_ansible_tasks_from_interface(v, target_directory, is_delete, v.operation,
+                                                                  cluster_name,
                                                                   additional_args=extra))
 
                         ansible_play_for_elem['tasks'].extend(copy.deepcopy(ansible_tasks))
@@ -159,7 +162,8 @@ class AnsibleConfigurationTool(ConfigurationTool):
                     else:
                         ansible_play_for_elem['hosts'] = v.host
                         ansible_play_for_elem['tasks'].extend(copy.deepcopy(
-                            self.get_ansible_tasks_from_interface(v, target_directory, is_delete, v.operation, cluster_name,
+                            self.get_ansible_tasks_from_interface(v, target_directory, is_delete, v.operation,
+                                                                  cluster_name,
                                                                   additional_args=extra)))
                 else:
                     (_, element_type, _) = utils.tosca_type_parse(v.type)
@@ -323,11 +327,12 @@ class AnsibleConfigurationTool(ConfigurationTool):
             NAME: self.rap_ansible_variable(task_name + '_delete'), 'state': 'absent'}
         ansible_task_list[1][module_by_type] = {
             NAME: self.rap_ansible_variable('item'), 'state': 'absent'}
-        ansible_task_list[2][module_by_type] = self.rap_ansible_variable(task_name + '_dict')
+        ansible_task_list[2][module_by_type] = self.rap_ansible_variable('item')
+        ansible_task_list[2]['loop'] = self.rap_ansible_variable(task_name + '_dicts')
         ansible_task_list[0]['when'] = task_name + '_delete' + IS_DEFINED
         ansible_task_list[1]['when'] = task_name + '_ids is defined'
         ansible_task_list[1]['loop'] = self.rap_ansible_variable(task_name + '_ids | flatten(levels=1)')
-        ansible_task_list[2]['when'] = task_name + '_dict' + IS_DEFINED
+        ansible_task_list[2]['when'] = task_name + '_dicts' + IS_DEFINED
         for task in ansible_task_list:
             task[REGISTER] = task_name + '_var'
             task.update(additional_args)
@@ -378,7 +383,8 @@ class AnsibleConfigurationTool(ConfigurationTool):
                         copyfile(script_filename_2, target_filename)
                     else:
                         logging.error(
-                            "Artifact filename %s was not found in %s or %s" % (script, script_filename_1, script_filename_2))
+                            "Artifact filename %s was not found in %s or %s" % (
+                            script, script_filename_1, script_filename_2))
                     if not primary and interface_operation.get(INPUTS) is not None:
                         for input_name, input_value in interface_operation[INPUTS].items():
                             ansible_tasks.append({
@@ -389,7 +395,8 @@ class AnsibleConfigurationTool(ConfigurationTool):
                     new_ansible_task = {
                         IMPORT_TASKS_MODULE: target_filename
                     }
-                    new_ansible_task.update(additional_args)
+                    for task in ansible_tasks:
+                        task.update(additional_args)
                     ansible_tasks.append(new_ansible_task)
         return ansible_tasks
 
@@ -518,20 +525,28 @@ class AnsibleConfigurationTool(ConfigurationTool):
         # TODO: deleting by names (not ids)
         if type == 'openstack.nodes.FloatingIp':
             ansible_tasks_for_create.append({
-                'set_fact': { # TODO: deleting floating IPS
-                    task_name + '_dict': {task_name + '_dict': {'floating_ip_address': self.rap_ansible_variable(
-                        task_name + '.floating_ip.floating_ip_address'),
-                        'server': self.rap_ansible_variable(
-                            task_name + '.floating_ip.port_details.device_id'),
-                        'purge': 'yes',
-                        'state': 'absent'}}},
-                'when': task_name + IS_DEFINED
+                'set_fact': {task_name + '_dict': {'floating_ip_address': self.rap_ansible_variable(
+                    'item.floating_ip.floating_ip_address'),
+                    'server': self.rap_ansible_variable('item.floating_ip.port_details.device_id'),
+                    'purge': 'yes',
+                    'state': 'absent'}},
+                'with_items': self.rap_ansible_variable(task_name + ".results"),
+                'when': task_name + IS_DEFINED,
+                'register': 'tmp'
+            })
+            ansible_tasks_for_create.append({
+                'set_fact': {
+                    task_name + '_dicts': self.rap_ansible_variable(
+                        task_name + '_dicts | default([]) + [item.ansible_facts.' + task_name + '_dict]')
+                },
+                'with_items': self.rap_ansible_variable("tmp.results"),
+                'when': task_name + '_dict' + IS_DEFINED
             })
             ansible_tasks_for_create.append({
                 LINEINFILE: {
                     PATH: path,
-                    'line': self.rap_ansible_variable(task_name + '_dict' + ' | to_nice_yaml')},
-                'when': task_name + '_dict' + IS_DEFINED
+                    'line': task_name + '_dicts:\n' + self.rap_ansible_variable(task_name + '_dicts | to_nice_yaml')},
+                'when': task_name + '_dicts' + IS_DEFINED,
             })
         else:
             ansible_tasks_for_create.append({

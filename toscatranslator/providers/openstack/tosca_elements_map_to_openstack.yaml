@@ -1,7 +1,7 @@
 ---
 tosca.nodes.Compute:
-  - parameter: openstack.nodes.Keypair.properties.public_key_file
-    value: '{self[public_key_path]}'
+  - parameter: openstack.nodes.Keypair.properties.public_key
+    value: "\\{\\{ lookup('file', '{self[public_key_path]}') \\}\\}"
   - parameter: openstack.nodes.Keypair.properties.name
     value: '{self[keyname]}_keypair'
   - parameter: openstack.nodes.Server.requirements
@@ -10,7 +10,9 @@ tosca.nodes.Compute:
       value:
         node: "{self[keyname]}_keypair"
   - parameter: "{self[extra][ansible][{self[keyname]}_server][with_sequence]}"
-    value: "start=1 end=1"
+    value: "start=1 end=1 format=%d"
+  - parameter: "{self[extra][ansible][{self[keyname]}_floating_ip][with_sequence]}"
+    value: "start=1 end=1 format=%d"
   - parameter: openstack.nodes.Server.properties.name
     value: "{self[name]}"
   - attributes:
@@ -24,8 +26,8 @@ tosca.nodes.Compute:
       implementation: add_host.yaml
       inputs:
         ansible_user: "{self[buffer][add_host][ansible_user]}"
-        host_ip: '\\{\\{ {self[keyname]}_server.results[0].server.public_v4 \\}\\}'
-        group: "{self[name]}_private_address"
+        host_ip: '\\{\\{ host_ip | default([]) + [[ "{self[keyname]}_private_address_" + item, {self[keyname]}_server.results[item | int - 1].server.public_v4 ]] \\}\\}'
+        group: "{self[name]}_server_private_address"
   - properties:
       tosca_name:
         parameter: "{self[name]}"
@@ -87,8 +89,6 @@ tosca.nodes.Compute:
               node: "{self[keyname]}_server"
         - parameter: "{self[buffer][public_address]}"
           value: "{self[value]}"
-        - parameter: "{self[extra][ansible][{self[keyname]}_floating_ip][with_sequence]}"
-          value: "\\{\\{ scalable | default('start=1 end=1') \\}\\}"
         - parameter: openstack.nodes.FloatingIp
           value:
             - properties.floating_ip_address
@@ -141,8 +141,8 @@ tosca.nodes.Compute:
             implementation: add_host.yaml
             inputs:
               ansible_user: "{self[buffer][add_host][ansible_user]}"
-              host_ip: '\\{\\{ {self[keyname]}_floating_ip.results[0].floating_ip.floating_ip_address \\}\\}'
-              group: "{self[name]}_public_address"
+              host_ip: '\\{\\{ host_ip | default([]) + [[ "{self[keyname]}_public_address_" + item, {self[keyname]}_floating_ip.results[item | int - 1].floating_ip.floating_ip_address ]] \\}\\}'
+              group: "{self[name]}_server_public_address"
       networks.*.network_name:
         parameter: openstack.nodes.Server.properties.nics
         value:
@@ -319,27 +319,27 @@ tosca.nodes.Compute:
                     - properties
                   - "{self[buffer][os]}"
       scalable.properties:
-        default_instances:
-          - parameter: "{self[extra][ansible][{self[keyname]}_server][with_sequence]}"
-            value: "start=1 end={self[value]} format={self[name]}-%d"
-          - parameter: "{self[extra][ansible][{self[name]}_floating_ip][vars][scalable]}"
-            value: "start=1 end={self[value]} format={self[name]}-%d"
-          - parameter: openstack.nodes.Server.properties.name
-            value: "\\{\\{ item \\}\\}"
         min_instances:
           - parameter: "{self[extra][ansible][{self[keyname]}_server][with_sequence]}"
-            value: "start=1 end={self[value]} format={self[name]}-%d"
-          - parameter: "{self[extra][ansible][{self[name]}_floating_ip][vars][scalable]}"
-            value: "start=1 end={self[value]} format={self[name]}-%d"
+            value: "start=1 end={self[value]} format=%d"
+          - parameter: "{self[extra][ansible][{self[name]}_floating_ip][with_sequence]}"
+            value: "start=1 end={self[value]} format=%d"
           - parameter: openstack.nodes.Server.properties.name
-            value: "\\{\\{ item \\}\\}"
+            value: "{self[name]}_\\{\\{ item \\}\\}"
+        default_instances:
+          - parameter: "{self[extra][ansible][{self[keyname]}_server][with_sequence]}"
+            value: "start=1 end={self[value]} format=%d"
+          - parameter: "{self[extra][ansible][{self[name]}_floating_ip][with_sequence]}"
+            value: "start=1 end={self[value]} format=%d"
+          - parameter: openstack.nodes.Server.properties.name
+            value: "{self[name]}_\\{\\{ item \\}\\}"
         max_instances:
           - parameter: "{self[extra][ansible][{self[keyname]}_server][with_sequence]}"
-            value: "start=1 end={self[value]} format={self[name]}-%d"
-          - parameter: "{self[extra][ansible][{self[name]}_floating_ip][vars][scalable]}"
-            value: "start=1 end={self[value]} format={self[name]}-%d"
+            value: "start=1 end={self[value]} format=%d"
+          - parameter: "{self[extra][ansible][{self[name]}_floating_ip][with_sequence]}"
+            value: "start=1 end={self[value]} format=%d"
           - parameter: openstack.nodes.Server.properties.name
-            value: "\\{\\{ item \\}\\}"
+            value: "{self[name]}_\\{\\{ item \\}\\}"
     requirements.local_storage:
       error: true
       reason: Bad description in TOSCA Profile YAML v1.0
