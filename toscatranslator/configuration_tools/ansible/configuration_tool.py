@@ -146,6 +146,7 @@ class AnsibleConfigurationTool(ConfigurationTool):
                                    ansible_config.get('modules_skipping_delete', [])):
                             ansible_play_for_elem['tasks'].extend(copy.deepcopy(ansible_tasks))
                 elif v.operation == 'create':
+                    ansible_play_for_elem['tasks'].append(copy.deepcopy({'include_vars': ids_file_path}))
                     if not v.is_software_component:
                         ansible_play_for_elem['tasks'].extend(copy.deepcopy(self.get_ansible_tasks_for_inputs(inputs)))
                         ansible_tasks = self.get_ansible_tasks_for_create(v, target_directory, node_filter_config,
@@ -522,8 +523,10 @@ class AnsibleConfigurationTool(ConfigurationTool):
 
     def get_extra_tasks_for_delete(self, type, task_name, path):
         ansible_tasks_for_create = []
-        # TODO: deleting by names (not ids)
-        if type == 'openstack.nodes.FloatingIp':
+        (_, _, node_type) = utils.tosca_type_parse(type)
+        node_type = utils.snake_case(node_type)
+        # TODO: fix this chaos
+        if type == 'openstack.nodes.FloatingIp': # temporary solutions
             ansible_tasks_for_create.append({
                 'set_fact': {task_name + '_dict': {'floating_ip_address': self.rap_ansible_variable(
                     'item.floating_ip.floating_ip_address'),
@@ -548,6 +551,15 @@ class AnsibleConfigurationTool(ConfigurationTool):
                     'line': task_name + '_dicts:\n' + self.rap_ansible_variable(task_name + '_dicts | to_nice_yaml')},
                 'when': task_name + '_dicts' + IS_DEFINED,
             })
+        elif type == 'amazon.nodes.Key': # temporary solutions
+            # amazon ec2 has very BAD return values - there is no id in return value for ec2_key module
+            ansible_tasks_for_create.append({
+                LINEINFILE: {
+                    PATH: path,
+                    'line': '' + task_name + '_delete' + ': ' + self.rap_ansible_variable(
+                        task_name + '.' + node_type + '.name')},
+                'when': task_name + '.' + node_type + '.name' + IS_DEFINED
+            })
         else:
             ansible_tasks_for_create.append({
                 'set_fact': {
@@ -555,6 +567,13 @@ class AnsibleConfigurationTool(ConfigurationTool):
                         task_name + '_list' + " | default([])") + " + [ \"{{ item.id }}\" ]"},
                 'loop': self.rap_ansible_variable(task_name + '.results | flatten(levels=1) '),
                 'when': 'item.id ' + IS_DEFINED
+            })
+            ansible_tasks_for_create.append({ # temporary solutions
+                'set_fact': {
+                    task_name + '_list': self.rap_ansible_variable(
+                        task_name + '_list' + " | default([])") + " + [ \"{{ item." + node_type + "_ids[0] }}\" ]"},
+                'loop': self.rap_ansible_variable(task_name + '.results | flatten(levels=1) '),
+                'when': 'item.' + node_type + '_ids' + IS_DEFINED
             })
             ansible_tasks_for_create.append({
                 'set_fact': {
@@ -567,6 +586,22 @@ class AnsibleConfigurationTool(ConfigurationTool):
                     'line': '' + task_name + '_delete' + ': ' + self.rap_ansible_variable(task_name + '.id')},
                 'when': task_name + '.id' + IS_DEFINED
             })
+            # amazon ec2 has very BAD return values - we need to search where is id of current node
+            ansible_tasks_for_create.append({
+                LINEINFILE: {
+                    PATH: path,
+                    'line': '' + task_name + '_delete' + ': ' + self.rap_ansible_variable(
+                        task_name + '.' + node_type + '_id')},
+                'when': task_name + '.' + node_type + '_id' + IS_DEFINED
+            })
+            for elem in node_type.split('_'): # temporary solutions
+                ansible_tasks_for_create.append({
+                    LINEINFILE: {
+                        PATH: path,
+                        'line': '' + task_name + '_delete' + ': ' + self.rap_ansible_variable(
+                            task_name + '.' + elem + '.id')},
+                    'when': task_name + '.' + elem + '.id' + IS_DEFINED
+                })
             ansible_tasks_for_create.append({
                 LINEINFILE: {
                     PATH: path,

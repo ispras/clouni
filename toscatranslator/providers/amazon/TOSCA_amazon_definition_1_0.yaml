@@ -42,6 +42,9 @@ data_types:
       device_index:
         type: integer
         required: false
+      interfaces:
+        type: list
+        required: false
       groups:
         type: list
         required: false
@@ -75,8 +78,6 @@ data_types:
         required: false
       ports:
         type: list
-        entry_schema:
-          type: integer
         required: false
       cidr_ip:
         type: string
@@ -260,6 +261,9 @@ node_types:
       tags:
         type: map
         required: false
+      vpc_subnet_id:
+        type: string
+        required: false
     capabilities:
       bind:
         type: amazon.capabilities.network.Bindable
@@ -342,11 +346,11 @@ node_types:
     requirements:
       - vpc_id:
           capability: amazon.capabilities.Node
-          node: amazon.nodes.VirtualPrivateCloud
+          node: amazon.nodes.VpcNet
           relationship: amazon.relationships.DependsOn
           occurrences: [ 0, 1 ]
 
-  amazon.nodes.Vpc: # ec2_vpc_net, ec2_vpc_net_facts
+  amazon.nodes.VpcNet: # ec2_vpc_net, ec2_vpc_net_facts
     derived_from: amazon.nodes.Root
     properties:
       cidr_block:
@@ -360,8 +364,12 @@ node_types:
         required: true
       tags:
         type: map
+        required: false
       vpc_id: # not used when create, after create id
         type: string
+        required: false
+      internet_gateway:
+        type: boolean
         required: false
 
   amazon.nodes.VpcSubnet: # ec2_vpc_subnet, ec2_vpc_subnet_facts
@@ -378,10 +386,11 @@ node_types:
         required: false
       tags:
         type: map
+        required: false
     requirements:
       - vpc_id: # after create id
           capability: amazon.capabilities.Node
-          node: amazon.nodes.VirtualPrivateCloud
+          node: amazon.nodes.VpcNet
           relationship: amazon.relationships.DependsOn
           occurrences: [ 1, 1 ]
 

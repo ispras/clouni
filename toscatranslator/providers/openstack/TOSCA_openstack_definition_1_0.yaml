@@ -360,8 +360,6 @@ node_types:
       direction:
         type: string
         default: ingress
-        constraints:
-          - valid_values: [ egress, ingress ]
       ethertype:
         type: string
         default: IPv4
