@@ -98,7 +98,7 @@ tosca.nodes.Compute:
       ports.*.port_id:
         parameter: amazon.nodes.Instance.properties.network.interfaces
         value:
-          - id: '{self[value]}' # TODO: fix, not works but fully correct https://docs.ansible.com/ansible/2.9/modules/ec2_instance_module.html
+          - id: '{self[value]}' # TODO: fix: not works but fully correct https://docs.ansible.com/ansible/2.9/modules/ec2_instance_module.html
       ports.*.network_id:
         parameter: amazon.nodes.Instance.properties.vpc_subnet_id
         value: '{self[value]}'

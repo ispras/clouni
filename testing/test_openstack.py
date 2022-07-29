@@ -166,9 +166,9 @@ class TestAnsibleOpenStackOutput (unittest.TestCase, TestAnsibleProvider):
         for play in playbook:
             for task in play['tasks']:
                 tasks.append(task)
-        self.assertEqual(len(tasks), 18)
-        self.assertIsNotNone(tasks[8][SERVER_MODULE_NAME])
-        server = tasks[8][SERVER_MODULE_NAME]
+        self.assertEqual(len(tasks), 26)
+        self.assertIsNotNone(tasks[13][SERVER_MODULE_NAME])
+        server = tasks[13][SERVER_MODULE_NAME]
         self.assertEqual(server['name'], self.NODE_NAME)
 
     def test_meta(self, extra=None):
@@ -303,7 +303,7 @@ class TestAnsibleOpenStackOutput (unittest.TestCase, TestAnsibleProvider):
         playbook = self.get_ansible_delete_output_from_file(copy.deepcopy(self.DEFAULT_TEMPLATE),
                                                   template_filename='examples/tosca-server-example-scalable.yaml')
         self.assertIsNotNone(playbook[0]['tasks'][0]['include_vars'])
-        self.assertIsNotNone(playbook[4]['tasks'][0]['file'])
+        self.assertIsNotNone(playbook[3]['tasks'][0]['file'])
         module_names= ['os_floating_ip','os_server','os_port','os_security_group',]
         tasks = []
         for play in playbook:
@@ -318,7 +318,7 @@ class TestAnsibleOpenStackOutput (unittest.TestCase, TestAnsibleProvider):
                             self.assertEqual(state, 'absent')
                         else:
                             self.assertIsInstance(task.get(name), six.string_types)
-                            self.assertTrue('dict' in task.get(name))
+                            self.assertTrue('{{ item }}' in task.get(name))
 
     def test_os_capabilities(self):
         super(TestAnsibleOpenStackOutput, self).test_os_capabilities()
@@ -382,9 +382,10 @@ class TestAnsibleOpenStackOutput (unittest.TestCase, TestAnsibleProvider):
                 self.assertIsNotNone(tasks[i + 1].get('set_fact', {}).get('ansible_user'))
                 self.assertIsNotNone(tasks[i + 2].get('set_fact', None))
                 self.assertEqual(tasks[i + 2]['set_fact'].get('host_ip', None),
-                                 '{{ ' + fip_var + '.floating_ip.floating_ip_address }}')
+                                 '{{ host_ip | default([]) + [[ "tosca_server_example_public_address_" + item, ' +
+                                 fip_var + '.results[item | int - 1].floating_ip.floating_ip_address ]] }}')
 
-                self.assertEqual(tasks[i + 3].get('set_fact', {}).get('group'), self.NODE_NAME + '_public_address')
+                self.assertEqual(tasks[i + 3].get('set_fact', {}).get('group'), self.NODE_NAME + '_server_public_address')
                 self.assertIsNotNone(tasks[i + 4].get('include', None))
                 self.assertEqual(tasks[i + 4]['include'], '/tmp/clouni/test/artifacts/add_host.yaml')
                 checked = True
@@ -473,8 +474,8 @@ class TestAnsibleOpenStackOutput (unittest.TestCase, TestAnsibleProvider):
                 group = tasks[i + 3].get('set_fact', {}).get('group')
                 include = tasks[i + 4].get('include')
                 self.assertEqual(ansible_user, 'cirros')
-                self.assertEqual(host_ip, '{{ tosca_server_example_server.server.public_v4 }}')
-                self.assertEqual(group, 'tosca_server_example_private_address')
+                self.assertEqual(host_ip, '{{ host_ip | default([]) + [[ "tosca_server_example_private_address_" + item, tosca_server_example_server.results[item | int - 1].server.public_v4 ]] }}')
+                self.assertEqual(group, 'tosca_server_example_server_private_address')
                 self.assertEqual(include, '/tmp/clouni/test/artifacts/add_host.yaml')
 
     def check_ansible_facts_in_provider_template(self, tasks, flavor, image):
@@ -518,6 +519,7 @@ class TestAnsibleOpenStackOutput (unittest.TestCase, TestAnsibleProvider):
 
     def check_relationships_interfaces_operations(self, plays, rel_name, soft_name, testing_value):
         self.assertTrue('create' in plays[0].get('name'))
+        self.assertTrue('create' in plays[1].get('name'))
 
         checked = False
         for task in plays[1]['tasks']:
@@ -546,7 +548,7 @@ class TestAnsibleOpenStackOutput (unittest.TestCase, TestAnsibleProvider):
 
         if 'pre_configure_source' in plays[7].get('name'):
             self.assertTrue(rel_name+ '_hosted_on' in plays[7].get('name'))
-            self.assertEqual(plays[7].get('hosts'), 'tosca_server_example_public_address')
+            self.assertEqual(plays[7].get('hosts'), 'tosca_server_example_server_public_address')
 
             self.assertTrue('add_source' in plays[8].get('name'))
             self.assertTrue(rel_name + '_hosted_on' in plays[8].get('name'))
@@ -557,7 +559,7 @@ class TestAnsibleOpenStackOutput (unittest.TestCase, TestAnsibleProvider):
 
             self.assertTrue('pre_configure_source' in plays[8].get('name'))
             self.assertTrue(rel_name + '_hosted_on' in plays[8].get('name'))
-            self.assertEqual(plays[8].get('hosts'), 'tosca_server_example_public_address')
+            self.assertEqual(plays[8].get('hosts'), 'tosca_server_example_server_public_address')
         else:
             self.assertTrue(False)
 
@@ -566,7 +568,7 @@ class TestAnsibleOpenStackOutput (unittest.TestCase, TestAnsibleProvider):
 
         self.assertTrue('post_configure_source' in plays[10].get('name'))
         self.assertTrue(rel_name + '_hosted_on' in plays[10].get('name'))
-        self.assertEqual(plays[10].get('hosts'), 'tosca_server_example_public_address')
+        self.assertEqual(plays[10].get('hosts'), 'tosca_server_example_server_public_address')
 
 
         for i in list(range(2, 5)) + list(range(6, 11)):

@@ -135,9 +135,9 @@ class AnsibleConfigurationTool(ConfigurationTool):
                 # create playbook for every operation
                 if v.operation == 'delete':
                     if not v.is_software_component:
-                        ansible_play_for_elem['tasks'].append(copy.deepcopy({'include_vars': ids_file_path}))
-                        ansible_tasks = self.get_ansible_tasks_for_delete(v, description_by_type, module_by_type,
-                                                                          additional_args=extra)
+                        ansible_tasks = [copy.deepcopy({'include_vars': ids_file_path})]
+                        ansible_tasks.extend(self.get_ansible_tasks_for_delete(v, description_by_type, module_by_type,
+                                                                          additional_args=extra))
                         ansible_tasks.extend(
                             self.get_ansible_tasks_from_interface(v, target_directory, is_delete, v.operation,
                                                                   cluster_name,
@@ -146,8 +146,8 @@ class AnsibleConfigurationTool(ConfigurationTool):
                                    ansible_config.get('modules_skipping_delete', [])):
                             ansible_play_for_elem['tasks'].extend(copy.deepcopy(ansible_tasks))
                 elif v.operation == 'create':
-                    ansible_play_for_elem['tasks'].append(copy.deepcopy({'include_vars': ids_file_path}))
                     if not v.is_software_component:
+                        ansible_play_for_elem['tasks'].append(copy.deepcopy({'include_vars': ids_file_path}))
                         ansible_play_for_elem['tasks'].extend(copy.deepcopy(self.get_ansible_tasks_for_inputs(inputs)))
                         ansible_tasks = self.get_ansible_tasks_for_create(v, target_directory, node_filter_config,
                                                                           description_by_type, module_by_type,
@@ -194,10 +194,14 @@ class AnsibleConfigurationTool(ConfigurationTool):
                     ansible_play_for_elem['tasks'].extend(copy.deepcopy(
                         self.get_ansible_tasks_from_interface(v, target_directory, is_delete, v.operation, cluster_name,
                                                               additional_args=extra)))
-                ansible_playbook.append(ansible_play_for_elem)
+                if len(ansible_play_for_elem['tasks']) > 0:
+                    ansible_playbook.append(ansible_play_for_elem)
                 # run playbooks
                 if not debug:
-                    self.parallel_run([ansible_play_for_elem], v.name, v.operation, q, cluster_name)
+                    if len(ansible_play_for_elem['tasks']) > 0:
+                        self.parallel_run([ansible_play_for_elem], v.name, v.operation, q, cluster_name)
+                    else:
+                        elements.done(v)
                     # add element to active list
                     active.append(v)
                 else:

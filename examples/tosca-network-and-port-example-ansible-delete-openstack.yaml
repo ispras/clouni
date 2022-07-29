@@ -1,7 +1,8 @@
-- name: Delete OpenStack component openstack cluster
+---
+- name: 'Delete OpenStack component openstack cluster: my_port_port:delete'
   hosts: localhost
   tasks:
-  - include_vars: '{{ playbook_dir }}/id_vars_test.yaml'
+  - include_vars: /home/sadimer/Desktop/ISPRAS/clouni/examples/id_vars_example.yaml
   - name: Delete OpenStack component port
     os_port:
       name: '{{ my_port_port_delete }}'
@@ -19,6 +20,17 @@
     register: my_port_port_var
   - set_fact: my_port_port='{{ my_port_port_var }}'
     when: my_port_port_var.changed
+  - name: Delete OpenStack component port
+    os_port: '{{ item }}'
+    loop: '{{ my_port_port_dicts }}'
+    when: my_port_port_dicts is defined
+    register: my_port_port_var
+  - set_fact: my_port_port='{{ my_port_port_var }}'
+    when: my_port_port_var.changed
+- name: 'Delete OpenStack component openstack cluster: my_network_subnet:delete'
+  hosts: localhost
+  tasks:
+  - include_vars: /home/sadimer/Desktop/ISPRAS/clouni/examples/id_vars_example.yaml
   - name: Delete OpenStack component subnet
     os_subnet:
       name: '{{ my_network_subnet_delete }}'
@@ -36,6 +48,17 @@
     register: my_network_subnet_var
   - set_fact: my_network_subnet='{{ my_network_subnet_var }}'
     when: my_network_subnet_var.changed
+  - name: Delete OpenStack component subnet
+    os_subnet: '{{ item }}'
+    loop: '{{ my_network_subnet_dicts }}'
+    when: my_network_subnet_dicts is defined
+    register: my_network_subnet_var
+  - set_fact: my_network_subnet='{{ my_network_subnet_var }}'
+    when: my_network_subnet_var.changed
+- name: 'Delete OpenStack component openstack cluster: my_network_network:delete'
+  hosts: localhost
+  tasks:
+  - include_vars: /home/sadimer/Desktop/ISPRAS/clouni/examples/id_vars_example.yaml
   - name: Delete OpenStack component network
     os_network:
       name: '{{ my_network_network_delete }}'
@@ -53,6 +76,16 @@
     register: my_network_network_var
   - set_fact: my_network_network='{{ my_network_network_var }}'
     when: my_network_network_var.changed
+  - name: Delete OpenStack component network
+    os_network: '{{ item }}'
+    loop: '{{ my_network_network_dicts }}'
+    when: my_network_network_dicts is defined
+    register: my_network_network_var
+  - set_fact: my_network_network='{{ my_network_network_var }}'
+    when: my_network_network_var.changed
+- name: Renew id_vars_example.yaml
+  hosts: localhost
+  tasks:
   - file:
-      path: '{{ playbook_dir }}/id_vars_test.yaml'
+      path: /home/sadimer/Desktop/ISPRAS/clouni/examples/id_vars_example.yaml
       state: absent

@@ -14,12 +14,11 @@ PUBLIC_ADDRESS = 'public_address'
 class TestAnsibleAmazonOutput (unittest.TestCase, TestAnsibleProvider):
     PROVIDER = 'amazon'
 
-    @unittest.expectedFailure
     def test_full_translating(self):
         file_path = os.path.join('examples', 'tosca-server-example.yaml')
         file_output_path = os.path.join('examples', 'tosca-server-example-output.yaml')
         shell.main(['--template-file', file_path, '--cluster-name', 'test', '--provider', self.PROVIDER,
-                    '--output-file', file_output_path])
+                    '--output-file', file_output_path, '--debug'])
 
     def test_full_translating_no_public(self):
         file_path = os.path.join('examples', 'tosca-server-example.yaml')
@@ -33,16 +32,16 @@ class TestAnsibleAmazonOutput (unittest.TestCase, TestAnsibleProvider):
     def test_validation(self):
         # Public address is not supported in AWS
         file_path = os.path.join('examples', 'tosca-server-example-amazon.yaml')
-        shell.main(['--template-file', file_path, '--validate-only', '--cluster-name', 'test'])
+        shell.main(['--template-file', file_path, '--cluster-name', 'test', '--validate-only', '--debug'])
 
     def test_translating_to_ansible(self):
-        shell.main(['--template-file', 'examples/tosca-server-example-amazon.yaml', '--provider', self.PROVIDER,
-                    '--cluster-name', 'test'])
+        shell.main(['--template-file', 'examples/tosca-server-example-amazon.yaml', '--cluster-name',
+                    'test', '--provider', self.PROVIDER, '--debug'])
 
     def test_server_name(self):
         template = copy.deepcopy(self.DEFAULT_TEMPLATE)
         playbook = self.get_ansible_create_output(template)
-        self.assertEqual(len(playbook), 1)
+        self.assertEqual(len(playbook), 2)
         for play in playbook:
             self.assertIsInstance(play, dict)
             self.assertIsNotNone(play['tasks'])
@@ -50,9 +49,9 @@ class TestAnsibleAmazonOutput (unittest.TestCase, TestAnsibleProvider):
         for play in playbook:
             for task in play['tasks']:
                 tasks.append(task)
-        self.assertEqual(len(tasks), 8)
-        self.assertIsNotNone(tasks[2][INSTANCE_MODULE_NAME])
-        server = tasks[2][INSTANCE_MODULE_NAME]
+        self.assertEqual(len(tasks), 15)
+        self.assertIsNotNone(tasks[6][INSTANCE_MODULE_NAME])
+        server = tasks[6][INSTANCE_MODULE_NAME]
         self.assertEqual(server['name'], self.NODE_NAME)
 
     def test_meta(self, extra=None):
@@ -85,8 +84,15 @@ class TestAnsibleAmazonOutput (unittest.TestCase, TestAnsibleProvider):
         self.assertIsNotNone(server_private_ip)
 
     def check_network_name(self, tasks, testing_value=None):
-        # NOTE must be an error, but nothing happens
-        pass
+        instance_name = None
+        for task in tasks:
+            if task.get(INSTANCE_MODULE_NAME):
+                self.assertIsNotNone(task[INSTANCE_MODULE_NAME].get('name'))
+                self.assertIsNotNone(task[INSTANCE_MODULE_NAME].get('vpc_subnet_id'))
+                instance_name = task[INSTANCE_MODULE_NAME]['name']
+                instance_subnet = task[INSTANCE_MODULE_NAME]['vpc_subnet_id']
+        self.assertIsNotNone(instance_name)
+        self.assertIsNotNone(instance_subnet)
 
     def test_host_capabilities(self):
         super(TestAnsibleAmazonOutput, self).test_host_capabilities()
@@ -144,7 +150,6 @@ class TestAnsibleAmazonOutput (unittest.TestCase, TestAnsibleProvider):
                 server_name = task[INSTANCE_MODULE_NAME]['name']
         self.assertIsNotNone(server_name)
 
-    @unittest.expectedFailure
     def test_network_name(self):
         super(TestAnsibleAmazonOutput, self).test_network_name()
 

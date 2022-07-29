@@ -1,307 +1,296 @@
-- name: Create openstack cluster
+---
+- name: 'Create OpenStack component openstack cluster: tosca_server_example_security_group:create'
   hosts: localhost
   tasks:
-  - os_subnets_facts: {}
-    register: target_objects
-  - set_fact:
-      target_objects: '{{ target_objects[''ansible_facts''][''openstack_subnets'']
-        }}'
-    register: temp_value
-  - set_fact:
-      new_target_objects: '{{ [] }}'
-    register: tmp_value
-  - set_fact:
-      new_target_objects: '{{ new_target_objects + [item | combine({ ''allocation_pool_start'':
-        item[''allocation_pools''][0][''start''] | default([]), ''allocation_pool_end'':
-        item[''allocation_pools''][0][''end''] | default([]) })] }}'
-    register: temp_value
-    with_items: '{{ target_objects }}'
-  - set_fact:
-      target_objects: '{{ new_target_objects }}'
-    register: temp_value
-  - set_fact:
-      target_objects_7564: '{{ target_objects }}'
-  - set_fact:
-      input_facts: '{{ target_objects_7564 }}'
-  - set_fact:
-      input_args_7740:
-      - allocation_pool_start
-      - allocation_pool_end
-      - 192.168.12.26
-  - set_fact:
-      input_args: '{{ input_args_7740 }}'
-  - include: /home/user/git/clouni/artifacts/ip_contains.yaml
-  - set_fact:
-      network_id: '{{ matched_object["network_id"] }}'
-    register: tmp_value
-  - set_fact:
-      network_id_2937: '{{ network_id }}'
-  - os_subnets_facts: {}
-    register: target_objects
-  - set_fact:
-      target_objects: '{{ target_objects[''ansible_facts''][''openstack_subnets'']
-        }}'
-    register: temp_value
-  - set_fact:
-      new_target_objects: '{{ [] }}'
-    register: tmp_value
-  - set_fact:
-      new_target_objects: '{{ new_target_objects + [item | combine({ ''allocation_pool_start'':
-        item[''allocation_pools''][0][''start''] | default([]), ''allocation_pool_end'':
-        item[''allocation_pools''][0][''end''] | default([]) })] }}'
-    register: temp_value
-    with_items: '{{ target_objects }}'
-  - set_fact:
-      target_objects: '{{ new_target_objects }}'
-    register: temp_value
-  - set_fact:
-      target_objects_1778: '{{ target_objects }}'
-  - os_networks_facts: {}
-    register: facts_result
-  - set_fact:
-      target_objects: '{{ facts_result["ansible_facts"]["openstack_networks"] }}'
-    register: tmp_value
-  - set_fact:
-      target_objects_5869: '{{ target_objects }}'
-  - os_image_facts: {}
-    register: facts_result
-  - set_fact:
-      target_objects: '{{ facts_result["ansible_facts"]["openstack_image"] }}'
-    register: tmp_value
-  - set_fact:
-      target_objects_6224: '{{ target_objects }}'
-  - set_fact:
-      input_facts: '{{ target_objects_1778 }}'
-  - set_fact:
-      input_args_4094:
-      - allocation_pool_start
-      - allocation_pool_end
-      - 10.10.18.217
-  - set_fact:
-      input_args: '{{ input_args_4094 }}'
-  - include: /home/user/git/clouni/artifacts/ip_contains.yaml
-  - set_fact:
-      network_id: '{{ matched_object["network_id"] }}'
-    register: tmp_value
-  - set_fact:
-      network_id_4029: '{{ network_id }}'
-  - set_fact:
-      input_facts: '{{ target_objects_5869 }}'
-  - set_fact:
-      input_args_1326:
-      - id
-      - '{{ network_id_4029 }}'
-  - set_fact:
-      input_args: '{{ input_args_1326 }}'
-  - include: /home/user/git/clouni/artifacts/equals.yaml
-  - set_fact:
-      name: '{{ matched_object["name"] }}'
-    register: tmp_value
-  - set_fact:
-      name_6495: '{{ name }}'
-  - set_fact:
-      input_facts: '{{ target_objects_6224 }}'
-  - set_fact:
-      input_args_6146:
-      - - name
-        - properties
-      - architecture: x86_64
-        type: ubuntu
-        distribution: xenial
-        version: 16.04
-  - set_fact:
-      input_args: '{{ input_args_6146 }}'
-  - include: /home/user/git/clouni/artifacts/contains.yaml
-  - set_fact:
-      name: '{{ matched_object["name"] }}'
-    register: tmp_value
-  - set_fact:
-      name_9282: '{{ name }}'
   - file:
-      path: '{{ playbook_dir }}/id_vars_test.yaml'
+      path: /home/sadimer/Desktop/ISPRAS/clouni/examples/id_vars_example.yaml
       state: absent
   - file:
-      path: '{{ playbook_dir }}/id_vars_test.yaml'
+      path: /home/sadimer/Desktop/ISPRAS/clouni/examples/id_vars_example.yaml
       state: touch
+  - include_vars: /home/sadimer/Desktop/ISPRAS/clouni/examples/id_vars_example.yaml
   - name: Create OpenStack component security group
     os_security_group:
-      name: server_kube_master_security_group
-    register: server_kube_master_security_group
+      name: tosca_server_example_security_group
+    register: tosca_server_example_security_group
   - set_fact:
-      server_kube_master_security_group_list: '{{ server_kube_master_security_group_list
+      tosca_server_example_security_group_list: '{{ tosca_server_example_security_group_list
         | default([]) }} + [ "{{ item.id }}" ]'
-    loop: '{{ server_kube_master_security_group.results | flatten(levels=1)  }}'
+    loop: '{{ tosca_server_example_security_group.results | flatten(levels=1)  }}'
     when: item.id  is defined
   - set_fact:
-      server_kube_master_security_group_list:
-        server_kube_master_security_group_ids: '{{ server_kube_master_security_group_list
+      tosca_server_example_security_group_list: '{{ tosca_server_example_security_group_list
+        | default([]) }} + [ "{{ item.security_group_ids[0] }}" ]'
+    loop: '{{ tosca_server_example_security_group.results | flatten(levels=1)  }}'
+    when: item.security_group_ids is defined
+  - set_fact:
+      tosca_server_example_security_group_list:
+        tosca_server_example_security_group_ids: '{{ tosca_server_example_security_group_list
           }}'
-    when: server_kube_master_security_group_list is defined
+    when: tosca_server_example_security_group_list is defined
   - lineinfile:
-      path: '{{ playbook_dir }}/id_vars_test.yaml'
-      line: 'server_kube_master_security_group_delete: {{ server_kube_master_security_group.id
+      path: /home/sadimer/Desktop/ISPRAS/clouni/examples/id_vars_example.yaml
+      line: 'tosca_server_example_security_group_delete: {{ tosca_server_example_security_group.id
         }}'
-    when: server_kube_master_security_group.id is defined
+    when: tosca_server_example_security_group.id is defined
   - lineinfile:
-      path: '{{ playbook_dir }}/id_vars_test.yaml'
-      line: '{{ server_kube_master_security_group_list | to_nice_yaml }}'
-    when: server_kube_master_security_group_list is defined
+      path: /home/sadimer/Desktop/ISPRAS/clouni/examples/id_vars_example.yaml
+      line: 'tosca_server_example_security_group_delete: {{ tosca_server_example_security_group.security_group_id
+        }}'
+    when: tosca_server_example_security_group.security_group_id is defined
+  - lineinfile:
+      path: /home/sadimer/Desktop/ISPRAS/clouni/examples/id_vars_example.yaml
+      line: 'tosca_server_example_security_group_delete: {{ tosca_server_example_security_group.security.id
+        }}'
+    when: tosca_server_example_security_group.security.id is defined
+  - lineinfile:
+      path: /home/sadimer/Desktop/ISPRAS/clouni/examples/id_vars_example.yaml
+      line: 'tosca_server_example_security_group_delete: {{ tosca_server_example_security_group.group.id
+        }}'
+    when: tosca_server_example_security_group.group.id is defined
+  - lineinfile:
+      path: /home/sadimer/Desktop/ISPRAS/clouni/examples/id_vars_example.yaml
+      line: '{{ tosca_server_example_security_group_list | to_nice_yaml }}'
+    when: tosca_server_example_security_group_list is defined
   - fail:
-      msg: Variable server_kube_master_security_group is undefined! So it will not
+      msg: Variable tosca_server_example_security_group is undefined! So it will not
         be deleted
-    when: server_kube_master_security_group_list is undefined and server_kube_master_security_group.id
+    when: tosca_server_example_security_group_list is undefined and tosca_server_example_security_group.id
       is undefined
     ignore_errors: true
+- name: 'Create OpenStack component openstack cluster: tosca_server_example_keypair:create'
+  hosts: localhost
+  tasks:
+  - include_vars: /home/sadimer/Desktop/ISPRAS/clouni/examples/id_vars_example.yaml
+  - name: Create OpenStack component keypair
+    os_keypair:
+      name: tosca_server_example_keypair
+      public_key: '{{ lookup(''file'', ''~/.ssh/id_rsa.pub'') }}'
+    register: tosca_server_example_keypair
   - set_fact:
-      server_kube_master_protocols:
-      - tcp
-    register: tmp
+      tosca_server_example_keypair_list: '{{ tosca_server_example_keypair_list | default([])
+        }} + [ "{{ item.id }}" ]'
+    loop: '{{ tosca_server_example_keypair.results | flatten(levels=1)  }}'
+    when: item.id  is defined
   - set_fact:
-      server_kube_master_ports:
-      - 22
-    register: tmp
+      tosca_server_example_keypair_list: '{{ tosca_server_example_keypair_list | default([])
+        }} + [ "{{ item.keypair_ids[0] }}" ]'
+    loop: '{{ tosca_server_example_keypair.results | flatten(levels=1)  }}'
+    when: item.keypair_ids is defined
+  - set_fact:
+      tosca_server_example_keypair_list:
+        tosca_server_example_keypair_ids: '{{ tosca_server_example_keypair_list }}'
+    when: tosca_server_example_keypair_list is defined
+  - lineinfile:
+      path: /home/sadimer/Desktop/ISPRAS/clouni/examples/id_vars_example.yaml
+      line: 'tosca_server_example_keypair_delete: {{ tosca_server_example_keypair.id
+        }}'
+    when: tosca_server_example_keypair.id is defined
+  - lineinfile:
+      path: /home/sadimer/Desktop/ISPRAS/clouni/examples/id_vars_example.yaml
+      line: 'tosca_server_example_keypair_delete: {{ tosca_server_example_keypair.keypair_id
+        }}'
+    when: tosca_server_example_keypair.keypair_id is defined
+  - lineinfile:
+      path: /home/sadimer/Desktop/ISPRAS/clouni/examples/id_vars_example.yaml
+      line: 'tosca_server_example_keypair_delete: {{ tosca_server_example_keypair.keypair.id
+        }}'
+    when: tosca_server_example_keypair.keypair.id is defined
+  - lineinfile:
+      path: /home/sadimer/Desktop/ISPRAS/clouni/examples/id_vars_example.yaml
+      line: '{{ tosca_server_example_keypair_list | to_nice_yaml }}'
+    when: tosca_server_example_keypair_list is defined
+  - fail:
+      msg: Variable tosca_server_example_keypair is undefined! So it will not be deleted
+    when: tosca_server_example_keypair_list is undefined and tosca_server_example_keypair.id
+      is undefined
+    ignore_errors: true
+- name: 'Create OpenStack component openstack cluster: tosca_server_example_security_group_rule:create'
+  hosts: localhost
+  tasks:
+  - include_vars: /home/sadimer/Desktop/ISPRAS/clouni/examples/id_vars_example.yaml
   - name: Create OpenStack component security group rule
     os_security_group_rule:
-      direction: ingress
-      port_range_max: '{{ server_kube_master_ports[item | int] | default(omit) }}'
-      port_range_min: '{{ server_kube_master_ports[item | int] | default(omit) }}'
-      protocol: '{{ server_kube_master_protocols[item | int] | default(omit) }}'
+      direction: '{{ initiator[item | int] | default(omit) }}'
+      ethertype: IPv4
+      port_range_max: '{{ port[item | int] | default(omit) }}'
+      port_range_min: '{{ port[item | int] | default(omit) }}'
+      protocol: '{{ protocol[item | int] | default(omit) }}'
       remote_ip_prefix: 0.0.0.0
-      security_group: server_kube_master_security_group
-    register: server_kube_master_security_group_rule
-    with_sequence: start=0 end={{ [server_kube_master_protocols | length, server_kube_master_ports
-      | length] | max - 1 }} format=%d
+      security_group: tosca_server_example_security_group
+    register: tosca_server_example_security_group_rule
+    with_sequence: start=0 end={{ [protocol | length, port | length, initiator | length]
+      | max - 1 }} format=%d
+    vars:
+      protocol:
+      - tcp
+      port:
+      - 22
+      initiator:
+      - ingress
   - set_fact:
-      server_kube_master_security_group_rule_list: '{{ server_kube_master_security_group_rule_list
+      tosca_server_example_security_group_rule_list: '{{ tosca_server_example_security_group_rule_list
         | default([]) }} + [ "{{ item.id }}" ]'
-    loop: '{{ server_kube_master_security_group_rule.results | flatten(levels=1)  }}'
+    loop: '{{ tosca_server_example_security_group_rule.results | flatten(levels=1)  }}'
     when: item.id  is defined
   - set_fact:
-      server_kube_master_security_group_rule_list:
-        server_kube_master_security_group_rule_ids: '{{ server_kube_master_security_group_rule_list
+      tosca_server_example_security_group_rule_list: '{{ tosca_server_example_security_group_rule_list
+        | default([]) }} + [ "{{ item.security_group_rule_ids[0] }}" ]'
+    loop: '{{ tosca_server_example_security_group_rule.results | flatten(levels=1)  }}'
+    when: item.security_group_rule_ids is defined
+  - set_fact:
+      tosca_server_example_security_group_rule_list:
+        tosca_server_example_security_group_rule_ids: '{{ tosca_server_example_security_group_rule_list
           }}'
-    when: server_kube_master_security_group_rule_list is defined
+    when: tosca_server_example_security_group_rule_list is defined
   - lineinfile:
-      path: '{{ playbook_dir }}/id_vars_test.yaml'
-      line: 'server_kube_master_security_group_rule_delete: {{ server_kube_master_security_group_rule.id
+      path: /home/sadimer/Desktop/ISPRAS/clouni/examples/id_vars_example.yaml
+      line: 'tosca_server_example_security_group_rule_delete: {{ tosca_server_example_security_group_rule.id
         }}'
-    when: server_kube_master_security_group_rule.id is defined
+    when: tosca_server_example_security_group_rule.id is defined
   - lineinfile:
-      path: '{{ playbook_dir }}/id_vars_test.yaml'
-      line: '{{ server_kube_master_security_group_rule_list | to_nice_yaml }}'
-    when: server_kube_master_security_group_rule_list is defined
+      path: /home/sadimer/Desktop/ISPRAS/clouni/examples/id_vars_example.yaml
+      line: 'tosca_server_example_security_group_rule_delete: {{ tosca_server_example_security_group_rule.security_group_rule_id
+        }}'
+    when: tosca_server_example_security_group_rule.security_group_rule_id is defined
+  - lineinfile:
+      path: /home/sadimer/Desktop/ISPRAS/clouni/examples/id_vars_example.yaml
+      line: 'tosca_server_example_security_group_rule_delete: {{ tosca_server_example_security_group_rule.security.id
+        }}'
+    when: tosca_server_example_security_group_rule.security.id is defined
+  - lineinfile:
+      path: /home/sadimer/Desktop/ISPRAS/clouni/examples/id_vars_example.yaml
+      line: 'tosca_server_example_security_group_rule_delete: {{ tosca_server_example_security_group_rule.group.id
+        }}'
+    when: tosca_server_example_security_group_rule.group.id is defined
+  - lineinfile:
+      path: /home/sadimer/Desktop/ISPRAS/clouni/examples/id_vars_example.yaml
+      line: 'tosca_server_example_security_group_rule_delete: {{ tosca_server_example_security_group_rule.rule.id
+        }}'
+    when: tosca_server_example_security_group_rule.rule.id is defined
+  - lineinfile:
+      path: /home/sadimer/Desktop/ISPRAS/clouni/examples/id_vars_example.yaml
+      line: '{{ tosca_server_example_security_group_rule_list | to_nice_yaml }}'
+    when: tosca_server_example_security_group_rule_list is defined
   - fail:
-      msg: Variable server_kube_master_security_group_rule is undefined! So it will
+      msg: Variable tosca_server_example_security_group_rule is undefined! So it will
         not be deleted
-    when: server_kube_master_security_group_rule_list is undefined and server_kube_master_security_group_rule.id
+    when: tosca_server_example_security_group_rule_list is undefined and tosca_server_example_security_group_rule.id
       is undefined
     ignore_errors: true
-  - name: Create OpenStack component port
-    os_port:
-      fixed_ips:
-      - ip_address: 192.168.12.26
-      name: server_kube_master_port_0
-      vnic_type: normal
-      network: '{{ network_id_2937 }}'
-    register: server_kube_master_port
-  - set_fact:
-      server_kube_master_port_list: '{{ server_kube_master_port_list | default([])
-        }} + [ "{{ item.id }}" ]'
-    loop: '{{ server_kube_master_port.results | flatten(levels=1)  }}'
-    when: item.id  is defined
-  - set_fact:
-      server_kube_master_port_list:
-        server_kube_master_port_ids: '{{ server_kube_master_port_list }}'
-    when: server_kube_master_port_list is defined
-  - lineinfile:
-      path: '{{ playbook_dir }}/id_vars_test.yaml'
-      line: 'server_kube_master_port_delete: {{ server_kube_master_port.id }}'
-    when: server_kube_master_port.id is defined
-  - lineinfile:
-      path: '{{ playbook_dir }}/id_vars_test.yaml'
-      line: '{{ server_kube_master_port_list | to_nice_yaml }}'
-    when: server_kube_master_port_list is defined
-  - fail:
-      msg: Variable server_kube_master_port is undefined! So it will not be deleted
-    when: server_kube_master_port_list is undefined and server_kube_master_port.id
-      is undefined
-    ignore_errors: true
-  - os_flavor_facts: {}
-    register: node_filter_facts_raw
-  - set_fact:
-      input_facts: '{{ node_filter_facts_raw["ansible_facts"]["openstack_flavors"]
-        }}'
-  - set_fact:
-      input_args:
-        vcpus: 1
-        disk: 5.0
-        ram: 1024.0
-  - include: /home/user/git/clouni/artifacts/equals.yaml
-  - set_fact:
-      id_6824: '{{ matched_object["id"] }}'
+- name: 'Create OpenStack component openstack cluster: tosca_server_example_server:create'
+  hosts: localhost
+  tasks:
+  - include_vars: /home/sadimer/Desktop/ISPRAS/clouni/examples/id_vars_example.yaml
   - name: Create OpenStack component server
     os_server:
-      config_drive: false
-      name: server_kube_master
-      nics:
-      - port-name: server_kube_master_port_0
-      - net-name: test-two-routers
       auto_ip: false
-      flavor: '{{ id_6824 }}'
+      boot_from_volume: false
+      reuse_ips: true
+      config_drive: false
+      meta: cube_master=true
+      name: tosca_server_example
+      nics:
+      - net-name: sandbox_net
+      key_name: tosca_server_example_keypair
+      flavor: 3d7e6639-730d-4bac-aebd-60b1baa2dd70
       security_groups:
-      - server_kube_master_security_group
-      image: '{{ name_9282 }}'
-    register: server_kube_master_server
+      - tosca_server_example_security_group
+      image: cirros-0.4.0-x86_64
+    register: tosca_server_example_server
+    with_sequence: start=1 end=1 format=%d
   - set_fact:
-      server_kube_master_server_list: '{{ server_kube_master_server_list | default([])
+      ansible_user: cirros
+    with_sequence: start=1 end=1 format=%d
+  - set_fact:
+      host_ip: '{{ host_ip | default([]) + [[ "tosca_server_example_private_address_"
+        + item, tosca_server_example_server.results[item | int - 1].server.public_v4
+        ]] }}'
+    with_sequence: start=1 end=1 format=%d
+  - set_fact:
+      group: tosca_server_example_server_private_address
+    with_sequence: start=1 end=1 format=%d
+  - include: /tmp/clouni/example/artifacts/add_host.yaml
+  - set_fact:
+      tosca_server_example_server_list: '{{ tosca_server_example_server_list | default([])
         }} + [ "{{ item.id }}" ]'
-    loop: '{{ server_kube_master_server.results | flatten(levels=1)  }}'
+    loop: '{{ tosca_server_example_server.results | flatten(levels=1)  }}'
     when: item.id  is defined
   - set_fact:
-      server_kube_master_server_list:
-        server_kube_master_server_ids: '{{ server_kube_master_server_list }}'
-    when: server_kube_master_server_list is defined
+      tosca_server_example_server_list: '{{ tosca_server_example_server_list | default([])
+        }} + [ "{{ item.server_ids[0] }}" ]'
+    loop: '{{ tosca_server_example_server.results | flatten(levels=1)  }}'
+    when: item.server_ids is defined
+  - set_fact:
+      tosca_server_example_server_list:
+        tosca_server_example_server_ids: '{{ tosca_server_example_server_list }}'
+    when: tosca_server_example_server_list is defined
   - lineinfile:
-      path: '{{ playbook_dir }}/id_vars_test.yaml'
-      line: 'server_kube_master_server_delete: {{ server_kube_master_server.id }}'
-    when: server_kube_master_server.id is defined
+      path: /home/sadimer/Desktop/ISPRAS/clouni/examples/id_vars_example.yaml
+      line: 'tosca_server_example_server_delete: {{ tosca_server_example_server.id
+        }}'
+    when: tosca_server_example_server.id is defined
   - lineinfile:
-      path: '{{ playbook_dir }}/id_vars_test.yaml'
-      line: '{{ server_kube_master_server_list | to_nice_yaml }}'
-    when: server_kube_master_server_list is defined
+      path: /home/sadimer/Desktop/ISPRAS/clouni/examples/id_vars_example.yaml
+      line: 'tosca_server_example_server_delete: {{ tosca_server_example_server.server_id
+        }}'
+    when: tosca_server_example_server.server_id is defined
+  - lineinfile:
+      path: /home/sadimer/Desktop/ISPRAS/clouni/examples/id_vars_example.yaml
+      line: 'tosca_server_example_server_delete: {{ tosca_server_example_server.server.id
+        }}'
+    when: tosca_server_example_server.server.id is defined
+  - lineinfile:
+      path: /home/sadimer/Desktop/ISPRAS/clouni/examples/id_vars_example.yaml
+      line: '{{ tosca_server_example_server_list | to_nice_yaml }}'
+    when: tosca_server_example_server_list is defined
   - fail:
-      msg: Variable server_kube_master_server is undefined! So it will not be deleted
-    when: server_kube_master_server_list is undefined and server_kube_master_server.id
+      msg: Variable tosca_server_example_server is undefined! So it will not be deleted
+    when: tosca_server_example_server_list is undefined and tosca_server_example_server.id
       is undefined
     ignore_errors: true
+- name: 'Create OpenStack component openstack cluster: tosca_server_example_floating_ip:create'
+  hosts: localhost
+  tasks:
+  - include_vars: /home/sadimer/Desktop/ISPRAS/clouni/examples/id_vars_example.yaml
   - name: Create OpenStack component floating ip
     os_floating_ip:
-      floating_ip_address: 10.10.18.217
-      network: '{{ name_6495 }}'
-      server: server_kube_master
-    register: server_kube_master_floating_ip
+      floating_ip_address: 10.100.157.77
+      server: tosca_server_example
+      network: not_found
+    register: tosca_server_example_floating_ip
+    with_sequence: start=1 end=1 format=%d
   - set_fact:
-      server_kube_master_floating_ip_list: '{{ server_kube_master_floating_ip_list
-        | default([]) }} + [ "{{ item.id }}" ]'
-    loop: '{{ server_kube_master_floating_ip.results | flatten(levels=1)  }}'
-    when: item.id  is defined
+      ansible_user: cirros
+    with_sequence: start=1 end=1 format=%d
   - set_fact:
-      server_kube_master_floating_ip_list:
-        server_kube_master_floating_ip_ids: '{{ server_kube_master_floating_ip_list
-          }}'
-    when: server_kube_master_floating_ip_list is defined
-  - lineinfile:
-      path: '{{ playbook_dir }}/id_vars_test.yaml'
-      line: 'server_kube_master_floating_ip_delete: {{ server_kube_master_floating_ip.id
+      host_ip: '{{ host_ip | default([]) + [[ "tosca_server_example_public_address_"
+        + item, tosca_server_example_floating_ip.results[item | int - 1].floating_ip.floating_ip_address
+        ]] }}'
+    with_sequence: start=1 end=1 format=%d
+  - set_fact:
+      group: tosca_server_example_server_public_address
+    with_sequence: start=1 end=1 format=%d
+  - include: /tmp/clouni/example/artifacts/add_host.yaml
+  - set_fact:
+      tosca_server_example_floating_ip_dict:
+        floating_ip_address: '{{ item.floating_ip.floating_ip_address }}'
+        server: '{{ item.floating_ip.port_details.device_id }}'
+        purge: 'yes'
+        state: absent
+    with_items: '{{ tosca_server_example_floating_ip.results }}'
+    when: tosca_server_example_floating_ip is defined
+    register: tmp
+  - set_fact:
+      tosca_server_example_floating_ip_dicts: '{{ tosca_server_example_floating_ip_dicts
+        | default([]) + [item.ansible_facts.tosca_server_example_floating_ip_dict]
         }}'
-    when: server_kube_master_floating_ip.id is defined
+    with_items: '{{ tmp.results }}'
+    when: tosca_server_example_floating_ip_dict is defined
   - lineinfile:
-      path: '{{ playbook_dir }}/id_vars_test.yaml'
-      line: '{{ server_kube_master_floating_ip_list | to_nice_yaml }}'
-    when: server_kube_master_floating_ip_list is defined
-  - fail:
-      msg: Variable server_kube_master_floating_ip is undefined! So it will not be
-        deleted
-    when: server_kube_master_floating_ip_list is undefined and server_kube_master_floating_ip.id
-      is undefined
-    ignore_errors: true
+      path: /home/sadimer/Desktop/ISPRAS/clouni/examples/id_vars_example.yaml
+      line: 'tosca_server_example_floating_ip_dicts:
+
+        {{ tosca_server_example_floating_ip_dicts | to_nice_yaml }}'
+    when: tosca_server_example_floating_ip_dicts is defined
+

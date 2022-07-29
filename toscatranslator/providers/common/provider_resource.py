@@ -122,8 +122,6 @@ class ProviderResource(object):
                                 if self.configuration_args[elem].get(VALUE):
                                     self.configuration_args[elem][VALUE] = node_filter_inner_value[elem]
                 for arg_key, arg in self.configuration_args.items():
-                    if isinstance(arg, list) and len(arg) == 1:
-                        arg = arg[0]
                     if isinstance(arg, dict):
                         node_filter_key = arg.get(SOURCE, {}).get(NODE_FILTER)
                         node_filter_value = arg.get(VALUE)

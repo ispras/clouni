@@ -1,41 +1,147 @@
 ---
 # For authentication are used environment variables AWS_ACCESS_KEY, AWS_SECRET_KEY, EC2_URL, AWS_REGION, AWS_SECURITY_TOKEN
-
-- name: Create server Amazon
-  hosts: all
+- name: 'Create Amazon aws component amazon cluster: tosca_server_example_key:create'
+  hosts: localhost
   tasks:
-    - name: Create security_group
-      ec2_group:
-        name: server_kube_master_security_group
-        description: security group test create for instance kube master
-        rules:
-        - ports:
-          - 1000
-          cidr_ip: 0.0.0.0/0
-          proto: tcp
-
-    - name: Create VPC
-      ec2_vpc_net:
-        cidr_block: 192.168.12.0/22
-        name: server_kube_master_virtual_private_cloud
-      register: server_kube_master_virtual_private_cloud
-
-    - name: Create subnet
-      ec2_vpc_subnet:
-        vpc_id: "{{ server_kube_master_virtual_private_cloud.id }}"
-        cidr: 192.168.12.0/24
-      register: server_kube_master_subnet
-
-    - name: Create instance
-      ec2_instance:
-        image_id: ami-0653e888ec96eab9b
-        instance_type: t2.micro
-        name: server_kube_master
-        network:
-          assign_public_ip: true
-#          private_ip_address: 192.168.12.25
-          subnet_id: "{{ server_kube_master_subnet.id }}"
-        security_groups:
-        - server_kube_master_security_group
-        tags:
-          metadata: kube_master=true
+  - file:
+      path: /home/sadimer/Desktop/ISPRAS/clouni/examples/id_vars_example.yaml
+      state: absent
+  - file:
+      path: /home/sadimer/Desktop/ISPRAS/clouni/examples/id_vars_example.yaml
+      state: touch
+  - include_vars: /home/sadimer/Desktop/ISPRAS/clouni/examples/id_vars_example.yaml
+  - name: Create Amazon aws component key
+    ec2_key:
+      name: tosca_server_example_key
+      key_material: '{{ lookup(''file'', ''~/.ssh/id_rsa.pub'') }}'
+    register: tosca_server_example_key
+  - lineinfile:
+      path: /home/sadimer/Desktop/ISPRAS/clouni/examples/id_vars_example.yaml
+      line: 'tosca_server_example_key_delete: {{ tosca_server_example_key.key.name
+        }}'
+    when: tosca_server_example_key.key.name is defined
+- name: 'Create Amazon aws component amazon cluster: tosca_server_example_group:create'
+  hosts: localhost
+  tasks:
+  - include_vars: /home/sadimer/Desktop/ISPRAS/clouni/examples/id_vars_example.yaml
+  - name: Create Amazon aws component group
+    ec2_group:
+      description: tosca_server_example_group
+      name: tosca_server_example_group
+      rules:
+      - proto: tcp
+        ports:
+        - 22
+        cidr_ip: 0.0.0.0
+      - cidr_ip: 0.0.0.0
+      rules_egress:
+      - cidr_ip: 0.0.0.0
+    register: tosca_server_example_group
+  - set_fact:
+      tosca_server_example_group_list: '{{ tosca_server_example_group_list | default([])
+        }} + [ "{{ item.id }}" ]'
+    loop: '{{ tosca_server_example_group.results | flatten(levels=1)  }}'
+    when: item.id  is defined
+  - set_fact:
+      tosca_server_example_group_list: '{{ tosca_server_example_group_list | default([])
+        }} + [ "{{ item.group_ids[0] }}" ]'
+    loop: '{{ tosca_server_example_group.results | flatten(levels=1)  }}'
+    when: item.group_ids is defined
+  - set_fact:
+      tosca_server_example_group_list:
+        tosca_server_example_group_ids: '{{ tosca_server_example_group_list }}'
+    when: tosca_server_example_group_list is defined
+  - lineinfile:
+      path: /home/sadimer/Desktop/ISPRAS/clouni/examples/id_vars_example.yaml
+      line: 'tosca_server_example_group_delete: {{ tosca_server_example_group.id }}'
+    when: tosca_server_example_group.id is defined
+  - lineinfile:
+      path: /home/sadimer/Desktop/ISPRAS/clouni/examples/id_vars_example.yaml
+      line: 'tosca_server_example_group_delete: {{ tosca_server_example_group.group_id
+        }}'
+    when: tosca_server_example_group.group_id is defined
+  - lineinfile:
+      path: /home/sadimer/Desktop/ISPRAS/clouni/examples/id_vars_example.yaml
+      line: 'tosca_server_example_group_delete: {{ tosca_server_example_group.group.id
+        }}'
+    when: tosca_server_example_group.group.id is defined
+  - lineinfile:
+      path: /home/sadimer/Desktop/ISPRAS/clouni/examples/id_vars_example.yaml
+      line: '{{ tosca_server_example_group_list | to_nice_yaml }}'
+    when: tosca_server_example_group_list is defined
+  - fail:
+      msg: Variable tosca_server_example_group is undefined! So it will not be deleted
+    when: tosca_server_example_group_list is undefined and tosca_server_example_group.id
+      is undefined
+    ignore_errors: true
+- name: 'Create Amazon aws component amazon cluster: tosca_server_example_instance:create'
+  hosts: localhost
+  tasks:
+  - include_vars: /home/sadimer/Desktop/ISPRAS/clouni/examples/id_vars_example.yaml
+  - name: Create Amazon aws component instance
+    ec2_instance:
+      network:
+        assign_public_ip: true
+      name: tosca_server_example
+      tags:
+        metadata: cube_master=true
+      key_name: tosca_server_example_key
+      vpc_subnet_id: not_found
+      instance_type: not_found
+      security_groups:
+      - tosca_server_example_group
+      image_id: not_found
+    register: tosca_server_example_instance
+    with_sequence: start=1 end=1 format=%d
+  - set_fact:
+      ansible_user: cirros
+    with_sequence: start=1 end=1 format=%d
+  - set_fact:
+      host_ip: '{{ host_ip | default([]) + [[ "tosca_server_example_public_address_"
+        + item, tosca_server_example_instance.results[item | int - 1].instances[0].public_ip_address
+        ]] }}'
+    with_sequence: start=1 end=1 format=%d
+  - set_fact:
+      group: tosca_server_example_instance_public_address
+    with_sequence: start=1 end=1 format=%d
+  - include: /tmp/clouni/example/artifacts/add_host.yaml
+  - set_fact:
+      tosca_server_example_instance_list: '{{ tosca_server_example_instance_list |
+        default([]) }} + [ "{{ item.id }}" ]'
+    loop: '{{ tosca_server_example_instance.results | flatten(levels=1)  }}'
+    when: item.id  is defined
+  - set_fact:
+      tosca_server_example_instance_list: '{{ tosca_server_example_instance_list |
+        default([]) }} + [ "{{ item.instance_ids[0] }}" ]'
+    loop: '{{ tosca_server_example_instance.results | flatten(levels=1)  }}'
+    when: item.instance_ids is defined
+  - set_fact:
+      tosca_server_example_instance_list:
+        tosca_server_example_instance_ids: '{{ tosca_server_example_instance_list
+          }}'
+    when: tosca_server_example_instance_list is defined
+  - lineinfile:
+      path: /home/sadimer/Desktop/ISPRAS/clouni/examples/id_vars_example.yaml
+      line: 'tosca_server_example_instance_delete: {{ tosca_server_example_instance.id
+        }}'
+    when: tosca_server_example_instance.id is defined
+  - lineinfile:
+      path: /home/sadimer/Desktop/ISPRAS/clouni/examples/id_vars_example.yaml
+      line: 'tosca_server_example_instance_delete: {{ tosca_server_example_instance.instance_id
+        }}'
+    when: tosca_server_example_instance.instance_id is defined
+  - lineinfile:
+      path: /home/sadimer/Desktop/ISPRAS/clouni/examples/id_vars_example.yaml
+      line: 'tosca_server_example_instance_delete: {{ tosca_server_example_instance.instance.id
+        }}'
+    when: tosca_server_example_instance.instance.id is defined
+  - lineinfile:
+      path: /home/sadimer/Desktop/ISPRAS/clouni/examples/id_vars_example.yaml
+      line: '{{ tosca_server_example_instance_list | to_nice_yaml }}'
+    when: tosca_server_example_instance_list is defined
+  - fail:
+      msg: Variable tosca_server_example_instance is undefined! So it will not be
+        deleted
+    when: tosca_server_example_instance_list is undefined and tosca_server_example_instance.id
+      is undefined
+    ignore_errors: true

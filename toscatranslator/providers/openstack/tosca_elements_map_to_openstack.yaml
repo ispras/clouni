@@ -209,7 +209,7 @@ tosca.nodes.Compute:
           value: "{self[value]}"
         - parameter: openstack.nodes.Server.properties.nics
           value:
-            - port-id: # bug: nics:port-id instead of nics:[port-id] when other params in nics not specified
+            - port-id:
                 value: id
                 facts: os_port_facts.ansible_facts.openstack_ports
                 executor: ansible

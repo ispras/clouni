@@ -353,7 +353,7 @@ class TestAnsibleProvider(BaseAnsibleProvider):
             for play in playbook:
                 self.assertIsNotNone(play.get('tasks'))
 
-            self.assertEqual(playbook[3].get('hosts'), self.NODE_NAME + '_public_address')
+            self.assertEqual(playbook[3].get('hosts'), self.NODE_NAME + '_server_public_address')
             tasks2 = playbook[3]['tasks']
             tasks1 = playbook[0]['tasks'] + playbook[1]['tasks'] + playbook[2]['tasks']
             self.check_host_of_software_component(tasks1, tasks2)

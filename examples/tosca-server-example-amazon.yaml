@@ -7,89 +7,56 @@ imports:
 topology_template:
   node_templates:
     tosca_server_example_group:
-      type: amazon.nodes.Group
       properties:
+        description: tosca_server_example_group
         name: tosca_server_example_group
         rules:
-          - cidr_ip: 0.0.0.0
-            ports:
-              - 22
-            proto: tcp
+        - cidr_ip: 0.0.0.0
+          ports:
+          - 22
+          proto: tcp
+        - cidr_ip: 0.0.0.0
+        rules_egress:
+        - cidr_ip: 0.0.0.0
+      type: amazon.nodes.Group
     tosca_server_example_instance:
-      type: amazon.nodes.Instance
+      interfaces:
+        Standard:
+          create:
+            implementation: add_host.yaml
+            inputs:
+              ansible_user: cirros
+              group: tosca_server_example_instance_public_address
+              host_ip: '{{ host_ip | default([]) + [[ "tosca_server_example_public_address_"
+                + item, tosca_server_example_instance.results[item | int - 1].instances[0].public_ip_address
+                ]] }}'
       properties:
         name: tosca_server_example
         network:
           assign_public_ip: true
-          private_ip_address: 192.168.12.27
-        instance_type:
-          get_operation_output:
-            - tosca_server_example_server_instance_type
-            - Target
-            - choose
-            - apiname
+        tags:
+          metadata: cube_master=true
       requirements:
-        - security_groups: tosca_server_example_group
-        - image_id:
-            node_filter:
-              properties:
-                - image_id:
-                    get_operation_output:
-                      - tosca_server_example_server_image_id
-                      - Target
-                      - choose
-                      - image_id
-
-  relationship_templates:
-    tosca_server_example_server_image_id:
-      type: amazon.relationships.DependsOn
-      interfaces:
-        Target:
-          choose:
-            implementation:
-              - contains.yaml
-              - tosca_server_example_ansible_set_fact.yaml
-            inputs:
-              input_args:
-                - - architecture
-                  - name
-                - architecture: x86_64
-                  distribution: xenial
-                  type: ubuntu
-                  version: 16.04
-              input_facts:
-                get_operation_output:
-                  - SELF
-                  - Target
-                  - total
-                  - target_objects
-          total:
-            implementation:
-              - tosca_server_example_ansible_ec2_ami_facts.yaml
-              - tosca_server_example_ansible_set_fact.yaml
-    tosca_server_example_server_instance_type:
-      type: amazon.relationships.DependsOn
-      interfaces:
-        Target:
-          choose:
-            implementation:
-              - contains.yaml
-              - tosca_server_example_ansible_set_fact.yaml
-            inputs:
-              input_args:
-                - disk_size: 5 GiB
-                  mem_size: 1024 MiB
-                  num_cpus: 1
-                - - vcpus
-                  - memory
-                  - storage
-              input_facts:
-                get_operation_output:
-                  - SELF
-                  - Target
-                  - total
-                  - target_objects
-          total:
-            implementation:
-              - tosca_server_example_ansible_ec2_instance_type_facts.yaml
-              - tosca_server_example_ansible_set_fact.yaml
+      - key_name:
+          node: tosca_server_example_key
+      - vpc_subnet_id:
+          node_filter:
+            properties:
+            - id: not_found
+      - instance_type:
+          node_filter:
+            properties:
+            - vcpus: 1
+            - storage: 10.0
+            - memory: 1.0
+      - security_groups: tosca_server_example_group
+      - image_id:
+          node_filter:
+            properties:
+            - image_id: not_found
+      type: amazon.nodes.Instance
+    tosca_server_example_key:
+      properties:
+        key_material: '{{ lookup(''file'', ''~/.ssh/id_rsa.pub'') }}'
+        name: tosca_server_example_key
+      type: amazon.nodes.Key
