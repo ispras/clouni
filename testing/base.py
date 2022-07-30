@@ -349,14 +349,7 @@ class TestAnsibleProvider(BaseAnsibleProvider):
             }
             playbook = self.get_ansible_create_output(template)
 
-            self.assertEqual(len(playbook), 4)
-            for play in playbook:
-                self.assertIsNotNone(play.get('tasks'))
-
-            self.assertEqual(playbook[3].get('hosts'), self.NODE_NAME + '_server_public_address')
-            tasks2 = playbook[3]['tasks']
-            tasks1 = playbook[0]['tasks'] + playbook[1]['tasks'] + playbook[2]['tasks']
-            self.check_host_of_software_component(tasks1, tasks2)
+            self.check_host_of_software_component(playbook)
 
     def test_get_input(self):
         if hasattr(self, 'check_get_input'):
@@ -525,15 +518,7 @@ class TestAnsibleProvider(BaseAnsibleProvider):
             template = self.update_template_capability_properties(template, self.NODE_NAME, 'os', testing_parameter)
             playbook = self.get_ansible_create_output(template, host_ip_parameter='networks.default')
 
-            self.assertEqual(len(playbook), 4)
-            for play in playbook:
-                self.assertIsNotNone(play.get('tasks'))
-                self.assertEqual(play.get('hosts'), 'localhost')
-
-            tasks = []
-            for play in playbook:
-                tasks.extend(play['tasks'])
-            self.check_host_ip_parameter(tasks, testing_value)
+            self.check_host_ip_parameter(playbook, testing_value)
 
     def test_ansible_facts_in_provider_template(self):
         if hasattr(self, "check_ansible_facts_in_provider_template"):
@@ -555,18 +540,9 @@ class TestAnsibleProvider(BaseAnsibleProvider):
 
             playbook = self.get_ansible_create_output(template, host_ip_parameter='private_address', debug=False)
 
-            self.assertEqual(len(playbook), 2)
-            for play in playbook:
-                self.assertIsNotNone(play.get('tasks'))
-                self.assertEqual(play.get('hosts'), 'localhost')
-
-            tasks = []
-            for play in playbook:
-                tasks.extend(play['tasks'])
-
             self.get_ansible_delete_output(template, debug=False)
 
-            self.check_ansible_facts_in_provider_template(tasks, testing_value_host, testing_value_os)
+            self.check_ansible_facts_in_provider_template(playbook, testing_value_host, testing_value_os)
 
     def test_nodes_interfaces_operations(self):
         if hasattr(self, "check_nodes_interfaces_operations"):
@@ -601,11 +577,6 @@ class TestAnsibleProvider(BaseAnsibleProvider):
             template = self.update_template_property(template, self.NODE_NAME, testing_parameter)
 
             playbook = self.get_ansible_create_output(template, host_ip_parameter='public_address')
-
-            self.assertEqual(len(playbook), 6)
-            for play in playbook:
-                self.assertIsNotNone(play.get('tasks'))
-                self.assertEqual(play.get('hosts'), 'localhost')
 
             self.check_nodes_interfaces_operations(playbook, testing_value)
 
@@ -702,9 +673,5 @@ class TestAnsibleProvider(BaseAnsibleProvider):
                 }
             }
             playbook = self.get_ansible_create_output(template, host_ip_parameter='public_address')
-
-            self.assertEqual(len(playbook), 11)
-            for play in playbook:
-                self.assertIsNotNone(play.get('tasks'))
 
             self.check_relationships_interfaces_operations(playbook, rel_name, soft_name, testing_value)

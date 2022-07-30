@@ -372,7 +372,14 @@ class TestAnsibleOpenStackOutput (unittest.TestCase, TestAnsibleProvider):
     def test_host_of_software_component(self):
         super(TestAnsibleOpenStackOutput, self).test_host_of_software_component()
 
-    def check_host_of_software_component(self, tasks1, tasks2):
+    def check_host_of_software_component(self, playbook):
+        self.assertEqual(len(playbook), 4)
+        for play in playbook:
+            self.assertIsNotNone(play.get('tasks'))
+
+        self.assertEqual(playbook[3].get('hosts'), self.NODE_NAME + '_server_public_address')
+        tasks2 = playbook[3]['tasks']
+        tasks1 = playbook[0]['tasks'] + playbook[1]['tasks'] + playbook[2]['tasks']
         tasks = tasks1
         checked = False
         for i in range(len(tasks)):
@@ -465,7 +472,15 @@ class TestAnsibleOpenStackOutput (unittest.TestCase, TestAnsibleProvider):
     def test_host_ip_parameter(self):
         super(TestAnsibleOpenStackOutput, self).test_host_ip_parameter()
 
-    def check_host_ip_parameter(self, tasks, testing_value):
+    def check_host_ip_parameter(self, playbook, testing_value):
+        self.assertEqual(len(playbook), 4)
+        for play in playbook:
+            self.assertIsNotNone(play.get('tasks'))
+            self.assertEqual(play.get('hosts'), 'localhost')
+
+        tasks = []
+        for play in playbook:
+            tasks.extend(play['tasks'])
         for i in range(len(tasks)):
             if tasks[i].get('os_server'):
                 self.assertEqual(tasks[i]['os_server']['nics'][0]['net-name'], testing_value)
@@ -478,7 +493,15 @@ class TestAnsibleOpenStackOutput (unittest.TestCase, TestAnsibleProvider):
                 self.assertEqual(group, 'tosca_server_example_server_private_address')
                 self.assertEqual(include, '/tmp/clouni/test/artifacts/add_host.yaml')
 
-    def check_ansible_facts_in_provider_template(self, tasks, flavor, image):
+    def check_ansible_facts_in_provider_template(self, playbook, flavor, image):
+        self.assertEqual(len(playbook), 2)
+        for play in playbook:
+            self.assertIsNotNone(play.get('tasks'))
+            self.assertEqual(play.get('hosts'), 'localhost')
+
+        tasks = []
+        for play in playbook:
+            tasks.extend(play['tasks'])
         checked = False
         for task in tasks:
             if task.get('os_server'):
@@ -493,6 +516,12 @@ class TestAnsibleOpenStackOutput (unittest.TestCase, TestAnsibleProvider):
         super(TestAnsibleOpenStackOutput, self).test_nodes_interfaces_operations()
 
     def check_nodes_interfaces_operations(self, plays, testing_value):
+        self.assertEqual(len(plays), 6)
+
+        for play in plays:
+            self.assertIsNotNone(play.get('tasks'))
+            self.assertEqual(play.get('hosts'), 'localhost')
+
         self.assertTrue('create' in plays[1].get('name'))
         self.assertTrue('configure' in plays[2].get('name'))
         self.assertTrue('start' in plays[3].get('name'))
@@ -518,6 +547,10 @@ class TestAnsibleOpenStackOutput (unittest.TestCase, TestAnsibleProvider):
         super(TestAnsibleOpenStackOutput, self).test_relationships_interfaces_operations()
 
     def check_relationships_interfaces_operations(self, plays, rel_name, soft_name, testing_value):
+        self.assertEqual(len(plays), 11)
+        for play in plays:
+            self.assertIsNotNone(play.get('tasks'))
+
         self.assertTrue('create' in plays[0].get('name'))
         self.assertTrue('create' in plays[1].get('name'))
 
