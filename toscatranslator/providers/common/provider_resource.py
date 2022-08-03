@@ -204,7 +204,7 @@ class ProviderResource(object):
                                     EXECUTOR: configuration_tool
                                 }
                             ]
-                            arg = str(execute(tmp_ansible_tasks, self.is_delete, self.cluster_name, node_filter_value))
+                            arg = str(execute(tmp_ansible_tasks, self.is_delete, self.cluster_name, self.provider, node_filter_value))
                     self.configuration_args[arg_key] = arg
 
     @property

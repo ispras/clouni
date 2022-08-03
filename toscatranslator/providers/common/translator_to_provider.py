@@ -623,7 +623,7 @@ def translate_node_from_tosca(restructured_mapping, tpl_name, self):
     return resulted_structure
 
 
-def get_source_structure_from_facts(condition, fact_name, value, arguments, executor, self, is_delete, cluster_name):
+def get_source_structure_from_facts(condition, fact_name, value, arguments, executor, self, is_delete, cluster_name, provider):
     """
     :param condition:
     :param fact_name:
@@ -704,7 +704,7 @@ def get_source_structure_from_facts(condition, fact_name, value, arguments, exec
     ]
 
     new_global_elements_map_total_implementation += addition_for_elements_map_total_implementation
-    return execute(new_global_elements_map_total_implementation, is_delete, cluster_name, value)
+    return execute(new_global_elements_map_total_implementation, is_delete, cluster_name, provider, value)
 
 
 def restructure_mapping_facts(elements_map, self, is_delete, cluster_name, extra_elements_map=None, target_parameter=None, source_parameter=None,
@@ -816,7 +816,7 @@ def restructure_mapping_facts(elements_map, self, is_delete, cluster_name, extra
             if not get_configuration_tool_class(executor):
                 logging.critical("Unsupported executor name \'%s\'" % json.dumps(executor))
                 sys.exit(1)
-            new_value = get_source_structure_from_facts(condition, fact_name, value, arguments, executor, self, is_delete, cluster_name)
+            new_value = get_source_structure_from_facts(condition, fact_name, value, arguments, executor, self, is_delete, cluster_name, provider)
             return new_value, extra_elements_map
 
         return new_elements_map, extra_elements_map
@@ -928,19 +928,19 @@ def translate(service_tmpl):
 
     self_extra = utils.replace_brackets(self[EXTRA], False)
     self_artifacts = utils.replace_brackets(self[ARTIFACTS], False)
-    execute(self_artifacts, service_tmpl.is_delete, service_tmpl.cluster_name)
+    execute(self_artifacts, service_tmpl.is_delete, service_tmpl.cluster_name, service_tmpl.provider)
 
     return new_element_templates, self_extra, template_mapping
 
 
-def execute(new_global_elements_map_total_implementation, is_delete, cluster_name, target_parameter=None):
+def execute(new_global_elements_map_total_implementation, is_delete, cluster_name, provider, target_parameter=None):
     if not is_delete:
         default_executor = 'ansible'
-        configuration_class = get_configuration_tool_class(default_executor)()
+        configuration_class = get_configuration_tool_class(default_executor)(provider)
         new_ansible_artifacts = copy.deepcopy(new_global_elements_map_total_implementation)
         for i in range(len(new_ansible_artifacts)):
             new_ansible_artifacts[i]['configuration_tool'] = new_ansible_artifacts[i]['executor']
-            configuration_class = get_configuration_tool_class(new_ansible_artifacts[i]['configuration_tool'])()
+            configuration_class = get_configuration_tool_class(new_ansible_artifacts[i]['configuration_tool'])(provider)
             extension = configuration_class.get_artifact_extension()
 
             seed(time())

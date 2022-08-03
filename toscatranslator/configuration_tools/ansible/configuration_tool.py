@@ -36,9 +36,10 @@ class AnsibleConfigurationTool(ConfigurationTool):
     Must be tested by TestAnsibleOpenstack.test_translating_to_ansible
     """
 
-    def __init__(self):
+    def __init__(self, provider=None):
         super(AnsibleConfigurationTool, self).__init__()
 
+        self.provider = provider
         main_config = self.tool_config.get_section('main')
         for param in REQUIRED_CONFIG_PARAMS:
             if not param in main_config.keys():
@@ -48,7 +49,7 @@ class AnsibleConfigurationTool(ConfigurationTool):
         for param in REQUIRED_CONFIG_PARAMS:
             setattr(self, param, main_config[param])
 
-    def to_dsl(self, provider, operations_graph, reversed_operations_graph, cluster_name, is_delete,
+    def to_dsl(self, operations_graph, reversed_operations_graph, cluster_name, is_delete,
                artifacts=None, target_directory=None, inputs=None, outputs=None, extra=None, debug=False):
         if artifacts is None:
             artifacts = []
@@ -59,14 +60,7 @@ class AnsibleConfigurationTool(ConfigurationTool):
         for art in artifacts:
             self.artifacts[art[NAME]] = art
 
-        if provider == 'amazon':
-            amazon_plugins_path = os.path.join(utils.get_project_root_path(), '.ansible/plugins/modules/cloud/amazon')
-            if "ANSIBLE_LIBRARY" not in os.environ:
-                os.environ["ANSIBLE_LIBRARY"] = amazon_plugins_path
-            elif amazon_plugins_path not in os.environ["ANSIBLE_LIBRARY"]:
-                os.environ["ANSIBLE_LIBRARY"] += os.pathsep + amazon_plugins_path
-
-        provider_config = ProviderConfiguration(provider)
+        provider_config = ProviderConfiguration(self.provider)
         ansible_config = provider_config.get_section(ANSIBLE)
         node_filter_config = provider_config.get_subsection(ANSIBLE, NODE_FILTER)
 
@@ -126,7 +120,7 @@ class AnsibleConfigurationTool(ConfigurationTool):
                 description_by_type = self.ansible_description_by_type(v.type_name, description_prefix)
                 module_by_type = self.ansible_module_by_type(v.type_name, module_prefix)
                 ansible_play_for_elem = dict(
-                    name=description_prefix + ' ' + provider + ' cluster: ' + v.name + ':' + v.operation,
+                    name=description_prefix + ' ' + self.provider + ' cluster: ' + v.name + ':' + v.operation,
                     hosts=self.default_host,
                     tasks=[]
                 )
@@ -657,4 +651,10 @@ class AnsibleConfigurationTool(ConfigurationTool):
         prepare_for_run()
 
     def parallel_run(self, ansible_play, name, op, q, cluster_name):
+        if self.provider == 'amazon':
+            amazon_plugins_path = os.path.join(utils.get_project_root_path(), '.ansible/plugins/modules/cloud/amazon')
+            if "ANSIBLE_LIBRARY" not in os.environ:
+                os.environ["ANSIBLE_LIBRARY"] = amazon_plugins_path
+            elif amazon_plugins_path not in os.environ["ANSIBLE_LIBRARY"]:
+                os.environ["ANSIBLE_LIBRARY"] += os.pathsep + amazon_plugins_path
         parallel_run_ansible(ansible_play, name, op, q, cluster_name)
