@@ -110,13 +110,6 @@ def translate(template_file, validate_only, provider, configuration_tool, cluste
         logging.error("Provider must be specified unless \'validate-only\' flag is used")
         sys.exit(1)
 
-    if provider == 'amazon':
-        amazon_plugins_path = os.path.join(utils.get_project_root_path(), '.ansible/plugins/modules/cloud/amazon')
-        if "ANSIBLE_LIBRARY" not in os.environ:
-            os.environ["ANSIBLE_LIBRARY"] = amazon_plugins_path
-        elif amazon_plugins_path not in os.environ["ANSIBLE_LIBRARY"]:
-            os.environ["ANSIBLE_LIBRARY"] += os.pathsep + amazon_plugins_path
-
     map_files = config.get_section(config.MAIN_SECTION).get(TOSCA_ELEMENTS_MAP_FILE)
     if isinstance(map_files, six.string_types):
         map_files = [ map_files ]

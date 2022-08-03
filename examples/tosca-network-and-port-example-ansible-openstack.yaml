@@ -3,12 +3,12 @@
   hosts: localhost
   tasks:
   - file:
-      path: /home/sadimer/Desktop/ISPRAS/clouni/examples/id_vars_example.yaml
+      path: id_vars_example.yaml
       state: absent
   - file:
-      path: /home/sadimer/Desktop/ISPRAS/clouni/examples/id_vars_example.yaml
+      path: id_vars_example.yaml
       state: touch
-  - include_vars: /home/sadimer/Desktop/ISPRAS/clouni/examples/id_vars_example.yaml
+  - include_vars: id_vars_example.yaml
   - name: Create OpenStack component network
     os_network:
       admin_state_up: true
@@ -32,19 +32,19 @@
         my_network_network_ids: '{{ my_network_network_list }}'
     when: my_network_network_list is defined
   - lineinfile:
-      path: /home/sadimer/Desktop/ISPRAS/clouni/examples/id_vars_example.yaml
+      path: id_vars_example.yaml
       line: 'my_network_network_delete: {{ my_network_network.id }}'
     when: my_network_network.id is defined
   - lineinfile:
-      path: /home/sadimer/Desktop/ISPRAS/clouni/examples/id_vars_example.yaml
+      path: id_vars_example.yaml
       line: 'my_network_network_delete: {{ my_network_network.network_id }}'
     when: my_network_network.network_id is defined
   - lineinfile:
-      path: /home/sadimer/Desktop/ISPRAS/clouni/examples/id_vars_example.yaml
+      path: id_vars_example.yaml
       line: 'my_network_network_delete: {{ my_network_network.network.id }}'
     when: my_network_network.network.id is defined
   - lineinfile:
-      path: /home/sadimer/Desktop/ISPRAS/clouni/examples/id_vars_example.yaml
+      path: id_vars_example.yaml
       line: '{{ my_network_network_list | to_nice_yaml }}'
     when: my_network_network_list is defined
   - fail:
@@ -54,7 +54,7 @@
 - name: 'Create OpenStack component openstack cluster: my_network_subnet:create'
   hosts: localhost
   tasks:
-  - include_vars: /home/sadimer/Desktop/ISPRAS/clouni/examples/id_vars_example.yaml
+  - include_vars: id_vars_example.yaml
   - name: Create OpenStack component subnet
     os_subnet:
       extra_specs: {}
@@ -84,19 +84,19 @@
         my_network_subnet_ids: '{{ my_network_subnet_list }}'
     when: my_network_subnet_list is defined
   - lineinfile:
-      path: /home/sadimer/Desktop/ISPRAS/clouni/examples/id_vars_example.yaml
+      path: id_vars_example.yaml
       line: 'my_network_subnet_delete: {{ my_network_subnet.id }}'
     when: my_network_subnet.id is defined
   - lineinfile:
-      path: /home/sadimer/Desktop/ISPRAS/clouni/examples/id_vars_example.yaml
+      path: id_vars_example.yaml
       line: 'my_network_subnet_delete: {{ my_network_subnet.subnet_id }}'
     when: my_network_subnet.subnet_id is defined
   - lineinfile:
-      path: /home/sadimer/Desktop/ISPRAS/clouni/examples/id_vars_example.yaml
+      path: id_vars_example.yaml
       line: 'my_network_subnet_delete: {{ my_network_subnet.subnet.id }}'
     when: my_network_subnet.subnet.id is defined
   - lineinfile:
-      path: /home/sadimer/Desktop/ISPRAS/clouni/examples/id_vars_example.yaml
+      path: id_vars_example.yaml
       line: '{{ my_network_subnet_list | to_nice_yaml }}'
     when: my_network_subnet_list is defined
   - fail:
@@ -106,7 +106,7 @@
 - name: 'Create OpenStack component openstack cluster: my_port_port:create'
   hosts: localhost
   tasks:
-  - include_vars: /home/sadimer/Desktop/ISPRAS/clouni/examples/id_vars_example.yaml
+  - include_vars: id_vars_example.yaml
   - name: Create OpenStack component port
     os_port:
       admin_state_up: true
@@ -132,19 +132,19 @@
         my_port_port_ids: '{{ my_port_port_list }}'
     when: my_port_port_list is defined
   - lineinfile:
-      path: /home/sadimer/Desktop/ISPRAS/clouni/examples/id_vars_example.yaml
+      path: id_vars_example.yaml
       line: 'my_port_port_delete: {{ my_port_port.id }}'
     when: my_port_port.id is defined
   - lineinfile:
-      path: /home/sadimer/Desktop/ISPRAS/clouni/examples/id_vars_example.yaml
+      path: id_vars_example.yaml
       line: 'my_port_port_delete: {{ my_port_port.port_id }}'
     when: my_port_port.port_id is defined
   - lineinfile:
-      path: /home/sadimer/Desktop/ISPRAS/clouni/examples/id_vars_example.yaml
+      path: id_vars_example.yaml
       line: 'my_port_port_delete: {{ my_port_port.port.id }}'
     when: my_port_port.port.id is defined
   - lineinfile:
-      path: /home/sadimer/Desktop/ISPRAS/clouni/examples/id_vars_example.yaml
+      path: id_vars_example.yaml
       line: '{{ my_port_port_list | to_nice_yaml }}'
     when: my_port_port_list is defined
   - fail:

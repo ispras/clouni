@@ -113,12 +113,7 @@ def main():
         module.fail_json(**result)
 
     instancetypes = list_ec2_instance_types(module)
-    response = dict(
-        amazon_instance_types=instancetypes
-    )
-
-    module.exit_json(ansible_facts=response)
-
+    module.exit_json(instance_types=instancetypes)
 
 if __name__ == '__main__':
     main()

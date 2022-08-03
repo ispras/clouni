@@ -164,7 +164,7 @@ node_types:
         type: scalar-unit.time
         required: false
     artifacts:
-      filename:
+      filename: # TODO artifacts supports
         type: openstack.artifacts.Deployment.Image
         required: false
 
@@ -181,7 +181,7 @@ node_types:
         type: string
         required: false
     artifacts:
-      public_key_file:
+      public_key_file: # TODO artifacts supports
         type: openstack.artifacts.File
         required: false
 

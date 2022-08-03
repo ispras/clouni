@@ -2,7 +2,7 @@
 - name: 'Delete OpenStack component openstack cluster: my_port_port:delete'
   hosts: localhost
   tasks:
-  - include_vars: /home/sadimer/Desktop/ISPRAS/clouni/examples/id_vars_example.yaml
+  - include_vars: id_vars_example.yaml
   - name: Delete OpenStack component port
     os_port:
       name: '{{ my_port_port_delete }}'
@@ -30,7 +30,7 @@
 - name: 'Delete OpenStack component openstack cluster: my_network_subnet:delete'
   hosts: localhost
   tasks:
-  - include_vars: /home/sadimer/Desktop/ISPRAS/clouni/examples/id_vars_example.yaml
+  - include_vars: id_vars_example.yaml
   - name: Delete OpenStack component subnet
     os_subnet:
       name: '{{ my_network_subnet_delete }}'
@@ -58,7 +58,7 @@
 - name: 'Delete OpenStack component openstack cluster: my_network_network:delete'
   hosts: localhost
   tasks:
-  - include_vars: /home/sadimer/Desktop/ISPRAS/clouni/examples/id_vars_example.yaml
+  - include_vars: id_vars_example.yaml
   - name: Delete OpenStack component network
     os_network:
       name: '{{ my_network_network_delete }}'
@@ -87,5 +87,5 @@
   hosts: localhost
   tasks:
   - file:
-      path: /home/sadimer/Desktop/ISPRAS/clouni/examples/id_vars_example.yaml
+      path: id_vars_example.yaml
       state: absent

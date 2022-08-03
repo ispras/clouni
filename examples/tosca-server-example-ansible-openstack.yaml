@@ -3,12 +3,12 @@
   hosts: localhost
   tasks:
   - file:
-      path: /home/sadimer/Desktop/ISPRAS/clouni/examples/id_vars_example.yaml
+      path: id_vars_example.yaml
       state: absent
   - file:
-      path: /home/sadimer/Desktop/ISPRAS/clouni/examples/id_vars_example.yaml
+      path: id_vars_example.yaml
       state: touch
-  - include_vars: /home/sadimer/Desktop/ISPRAS/clouni/examples/id_vars_example.yaml
+  - include_vars: id_vars_example.yaml
   - name: Create OpenStack component security group
     os_security_group:
       name: tosca_server_example_security_group
@@ -29,27 +29,27 @@
           }}'
     when: tosca_server_example_security_group_list is defined
   - lineinfile:
-      path: /home/sadimer/Desktop/ISPRAS/clouni/examples/id_vars_example.yaml
+      path: id_vars_example.yaml
       line: 'tosca_server_example_security_group_delete: {{ tosca_server_example_security_group.id
         }}'
     when: tosca_server_example_security_group.id is defined
   - lineinfile:
-      path: /home/sadimer/Desktop/ISPRAS/clouni/examples/id_vars_example.yaml
+      path: id_vars_example.yaml
       line: 'tosca_server_example_security_group_delete: {{ tosca_server_example_security_group.security_group_id
         }}'
     when: tosca_server_example_security_group.security_group_id is defined
   - lineinfile:
-      path: /home/sadimer/Desktop/ISPRAS/clouni/examples/id_vars_example.yaml
+      path: id_vars_example.yaml
       line: 'tosca_server_example_security_group_delete: {{ tosca_server_example_security_group.security.id
         }}'
     when: tosca_server_example_security_group.security.id is defined
   - lineinfile:
-      path: /home/sadimer/Desktop/ISPRAS/clouni/examples/id_vars_example.yaml
+      path: id_vars_example.yaml
       line: 'tosca_server_example_security_group_delete: {{ tosca_server_example_security_group.group.id
         }}'
     when: tosca_server_example_security_group.group.id is defined
   - lineinfile:
-      path: /home/sadimer/Desktop/ISPRAS/clouni/examples/id_vars_example.yaml
+      path: id_vars_example.yaml
       line: '{{ tosca_server_example_security_group_list | to_nice_yaml }}'
     when: tosca_server_example_security_group_list is defined
   - fail:
@@ -61,7 +61,7 @@
 - name: 'Create OpenStack component openstack cluster: tosca_server_example_keypair:create'
   hosts: localhost
   tasks:
-  - include_vars: /home/sadimer/Desktop/ISPRAS/clouni/examples/id_vars_example.yaml
+  - include_vars: id_vars_example.yaml
   - name: Create OpenStack component keypair
     os_keypair:
       name: tosca_server_example_keypair
@@ -82,22 +82,22 @@
         tosca_server_example_keypair_ids: '{{ tosca_server_example_keypair_list }}'
     when: tosca_server_example_keypair_list is defined
   - lineinfile:
-      path: /home/sadimer/Desktop/ISPRAS/clouni/examples/id_vars_example.yaml
+      path: id_vars_example.yaml
       line: 'tosca_server_example_keypair_delete: {{ tosca_server_example_keypair.id
         }}'
     when: tosca_server_example_keypair.id is defined
   - lineinfile:
-      path: /home/sadimer/Desktop/ISPRAS/clouni/examples/id_vars_example.yaml
+      path: id_vars_example.yaml
       line: 'tosca_server_example_keypair_delete: {{ tosca_server_example_keypair.keypair_id
         }}'
     when: tosca_server_example_keypair.keypair_id is defined
   - lineinfile:
-      path: /home/sadimer/Desktop/ISPRAS/clouni/examples/id_vars_example.yaml
+      path: id_vars_example.yaml
       line: 'tosca_server_example_keypair_delete: {{ tosca_server_example_keypair.keypair.id
         }}'
     when: tosca_server_example_keypair.keypair.id is defined
   - lineinfile:
-      path: /home/sadimer/Desktop/ISPRAS/clouni/examples/id_vars_example.yaml
+      path: id_vars_example.yaml
       line: '{{ tosca_server_example_keypair_list | to_nice_yaml }}'
     when: tosca_server_example_keypair_list is defined
   - fail:
@@ -108,7 +108,7 @@
 - name: 'Create OpenStack component openstack cluster: tosca_server_example_security_group_rule:create'
   hosts: localhost
   tasks:
-  - include_vars: /home/sadimer/Desktop/ISPRAS/clouni/examples/id_vars_example.yaml
+  - include_vars: id_vars_example.yaml
   - name: Create OpenStack component security group rule
     os_security_group_rule:
       direction: '{{ initiator[item | int] | default(omit) }}'
@@ -144,32 +144,32 @@
           }}'
     when: tosca_server_example_security_group_rule_list is defined
   - lineinfile:
-      path: /home/sadimer/Desktop/ISPRAS/clouni/examples/id_vars_example.yaml
+      path: id_vars_example.yaml
       line: 'tosca_server_example_security_group_rule_delete: {{ tosca_server_example_security_group_rule.id
         }}'
     when: tosca_server_example_security_group_rule.id is defined
   - lineinfile:
-      path: /home/sadimer/Desktop/ISPRAS/clouni/examples/id_vars_example.yaml
+      path: id_vars_example.yaml
       line: 'tosca_server_example_security_group_rule_delete: {{ tosca_server_example_security_group_rule.security_group_rule_id
         }}'
     when: tosca_server_example_security_group_rule.security_group_rule_id is defined
   - lineinfile:
-      path: /home/sadimer/Desktop/ISPRAS/clouni/examples/id_vars_example.yaml
+      path: id_vars_example.yaml
       line: 'tosca_server_example_security_group_rule_delete: {{ tosca_server_example_security_group_rule.security.id
         }}'
     when: tosca_server_example_security_group_rule.security.id is defined
   - lineinfile:
-      path: /home/sadimer/Desktop/ISPRAS/clouni/examples/id_vars_example.yaml
+      path: id_vars_example.yaml
       line: 'tosca_server_example_security_group_rule_delete: {{ tosca_server_example_security_group_rule.group.id
         }}'
     when: tosca_server_example_security_group_rule.group.id is defined
   - lineinfile:
-      path: /home/sadimer/Desktop/ISPRAS/clouni/examples/id_vars_example.yaml
+      path: id_vars_example.yaml
       line: 'tosca_server_example_security_group_rule_delete: {{ tosca_server_example_security_group_rule.rule.id
         }}'
     when: tosca_server_example_security_group_rule.rule.id is defined
   - lineinfile:
-      path: /home/sadimer/Desktop/ISPRAS/clouni/examples/id_vars_example.yaml
+      path: id_vars_example.yaml
       line: '{{ tosca_server_example_security_group_rule_list | to_nice_yaml }}'
     when: tosca_server_example_security_group_rule_list is defined
   - fail:
@@ -181,7 +181,7 @@
 - name: 'Create OpenStack component openstack cluster: tosca_server_example_server:create'
   hosts: localhost
   tasks:
-  - include_vars: /home/sadimer/Desktop/ISPRAS/clouni/examples/id_vars_example.yaml
+  - include_vars: id_vars_example.yaml
   - name: Create OpenStack component server
     os_server:
       auto_ip: false
@@ -226,22 +226,22 @@
         tosca_server_example_server_ids: '{{ tosca_server_example_server_list }}'
     when: tosca_server_example_server_list is defined
   - lineinfile:
-      path: /home/sadimer/Desktop/ISPRAS/clouni/examples/id_vars_example.yaml
+      path: id_vars_example.yaml
       line: 'tosca_server_example_server_delete: {{ tosca_server_example_server.id
         }}'
     when: tosca_server_example_server.id is defined
   - lineinfile:
-      path: /home/sadimer/Desktop/ISPRAS/clouni/examples/id_vars_example.yaml
+      path: id_vars_example.yaml
       line: 'tosca_server_example_server_delete: {{ tosca_server_example_server.server_id
         }}'
     when: tosca_server_example_server.server_id is defined
   - lineinfile:
-      path: /home/sadimer/Desktop/ISPRAS/clouni/examples/id_vars_example.yaml
+      path: id_vars_example.yaml
       line: 'tosca_server_example_server_delete: {{ tosca_server_example_server.server.id
         }}'
     when: tosca_server_example_server.server.id is defined
   - lineinfile:
-      path: /home/sadimer/Desktop/ISPRAS/clouni/examples/id_vars_example.yaml
+      path: id_vars_example.yaml
       line: '{{ tosca_server_example_server_list | to_nice_yaml }}'
     when: tosca_server_example_server_list is defined
   - fail:
@@ -252,7 +252,7 @@
 - name: 'Create OpenStack component openstack cluster: tosca_server_example_floating_ip:create'
   hosts: localhost
   tasks:
-  - include_vars: /home/sadimer/Desktop/ISPRAS/clouni/examples/id_vars_example.yaml
+  - include_vars: id_vars_example.yaml
   - name: Create OpenStack component floating ip
     os_floating_ip:
       floating_ip_address: 10.100.157.77
@@ -288,7 +288,7 @@
     with_items: '{{ tmp.results }}'
     when: tosca_server_example_floating_ip_dict is defined
   - lineinfile:
-      path: /home/sadimer/Desktop/ISPRAS/clouni/examples/id_vars_example.yaml
+      path: id_vars_example.yaml
       line: 'tosca_server_example_floating_ip_dicts:
 
         {{ tosca_server_example_floating_ip_dicts | to_nice_yaml }}'

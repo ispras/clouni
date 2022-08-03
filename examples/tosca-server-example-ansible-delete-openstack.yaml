@@ -2,7 +2,7 @@
 - name: 'Delete OpenStack component openstack cluster: tosca_server_example_floating_ip:delete'
   hosts: localhost
   tasks:
-  - include_vars: /home/sadimer/Desktop/ISPRAS/clouni/examples/id_vars_example.yaml
+  - include_vars: id_vars_example.yaml
   - name: Delete OpenStack component floating ip
     os_floating_ip:
       name: '{{ tosca_server_example_floating_ip_delete }}'
@@ -33,7 +33,7 @@
 - name: 'Delete OpenStack component openstack cluster: tosca_server_example_server:delete'
   hosts: localhost
   tasks:
-  - include_vars: /home/sadimer/Desktop/ISPRAS/clouni/examples/id_vars_example.yaml
+  - include_vars: id_vars_example.yaml
   - name: Delete OpenStack component server
     os_server:
       name: '{{ tosca_server_example_server_delete }}'
@@ -61,7 +61,7 @@
 - name: 'Delete OpenStack component openstack cluster: tosca_server_example_keypair:delete'
   hosts: localhost
   tasks:
-  - include_vars: /home/sadimer/Desktop/ISPRAS/clouni/examples/id_vars_example.yaml
+  - include_vars: id_vars_example.yaml
   - name: Delete OpenStack component keypair
     os_keypair:
       name: '{{ tosca_server_example_keypair_delete }}'
@@ -89,7 +89,7 @@
 - name: 'Delete OpenStack component openstack cluster: tosca_server_example_security_group:delete'
   hosts: localhost
   tasks:
-  - include_vars: /home/sadimer/Desktop/ISPRAS/clouni/examples/id_vars_example.yaml
+  - include_vars: id_vars_example.yaml
   - name: Delete OpenStack component security group
     os_security_group:
       name: '{{ tosca_server_example_security_group_delete }}'
@@ -121,5 +121,5 @@
   hosts: localhost
   tasks:
   - file:
-      path: /home/sadimer/Desktop/ISPRAS/clouni/examples/id_vars_example.yaml
+      path: id_vars_example.yaml
       state: absent

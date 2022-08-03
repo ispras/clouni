@@ -59,6 +59,13 @@ class AnsibleConfigurationTool(ConfigurationTool):
         for art in artifacts:
             self.artifacts[art[NAME]] = art
 
+        if provider == 'amazon':
+            amazon_plugins_path = os.path.join(utils.get_project_root_path(), '.ansible/plugins/modules/cloud/amazon')
+            if "ANSIBLE_LIBRARY" not in os.environ:
+                os.environ["ANSIBLE_LIBRARY"] = amazon_plugins_path
+            elif amazon_plugins_path not in os.environ["ANSIBLE_LIBRARY"]:
+                os.environ["ANSIBLE_LIBRARY"] += os.pathsep + amazon_plugins_path
+
         provider_config = ProviderConfiguration(provider)
         ansible_config = provider_config.get_section(ANSIBLE)
         node_filter_config = provider_config.get_subsection(ANSIBLE, NODE_FILTER)
