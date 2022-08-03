@@ -324,6 +324,8 @@ class ProviderToscaTemplate(object):
                 elif templ_mappling[key] not in reversed_templ_dependencies[templ_mappling[elem]]:
                     reversed_templ_dependencies[templ_mappling[elem]].add(templ_mappling[key])
             templ_dependencies[templ_mappling[key]] = new_set
+        if len(templ_dependencies) <= 1:
+            reversed_templ_dependencies = copy.copy(templ_dependencies)
         return templ_dependencies, reversed_templ_dependencies
 
     def add_template_dependency(self, node_name, dependency_name):

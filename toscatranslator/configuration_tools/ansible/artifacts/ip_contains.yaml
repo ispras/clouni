@@ -49,7 +49,7 @@
   set_fact:
     ip_start: "{{ ip_start | combine({ item: input_facts[item][param_start] | default([]) }) }}"
   with_items: "{{ fact_indexes }}"
-  loop_control: 
+  loop_control:
     label: "{{ { param_start: input_facts[item][param_start] } }}"
 
 - set_fact:
@@ -62,7 +62,7 @@
   loop_control:
     label: "{{ { param_end: input_facts[item][param_end] } }}"
 
-- name: Make ip starts list if not 
+- name: Make ip starts list if not
   set_fact:
     ip_start: "{{ ip_start | combine ({ item: [ ip_start[item] ] }) }}"
   with_items: "{{ fact_indexes }}"
@@ -70,7 +70,7 @@
   loop_control:
     label: "{{ ip_start[item] }}"
 
-- name: Make ip ends list if not 
+- name: Make ip ends list if not
   set_fact:
     ip_end: "{{ ip_end | combine ({ item: [ip_end[item]] }) }}"
   with_items: "{{ fact_indexes }}"
@@ -107,7 +107,7 @@
     - ip_start[item[0]][item[1]] is defined
     - ip_end[item[0]][item[1]] is defined
     - item[2] | ipaddr('int') < ip_start[item[0]][item[1]] | ipaddr('int') or item[2] | ipaddr('int') > ip_end[item[0]][item[1]] | ipaddr('int')
-  loop_control: 
+  loop_control:
     label: "{{ item[2] | ipaddr, [ ip_start[item[0]][item[1]] | default('undefined'),  ip_end[item[0]][item[1]] | default('undefined')] }}"
 
 - set_fact:

@@ -29,15 +29,17 @@ ANSIBLE_RESERVED_KEYS = \
 
 REQUIRED_CONFIG_PARAMS = (INITIAL_ARTIFACTS_DIRECTORY, DEFAULT_HOST) = ("initial_artifacts_directory", "default_host")
 
+
 class AnsibleConfigurationTool(ConfigurationTool):
     TOOL_NAME = ANSIBLE
     """
     Must be tested by TestAnsibleOpenstack.test_translating_to_ansible
     """
 
-    def __init__(self):
+    def __init__(self, provider=None):
         super(AnsibleConfigurationTool, self).__init__()
 
+        self.provider = provider
         main_config = self.tool_config.get_section('main')
         for param in REQUIRED_CONFIG_PARAMS:
             if not param in main_config.keys():
@@ -47,7 +49,7 @@ class AnsibleConfigurationTool(ConfigurationTool):
         for param in REQUIRED_CONFIG_PARAMS:
             setattr(self, param, main_config[param])
 
-    def to_dsl(self, provider, operations_graph, reversed_operations_graph, cluster_name, is_delete,
+    def to_dsl(self, operations_graph, reversed_operations_graph, cluster_name, is_delete,
                artifacts=None, target_directory=None, inputs=None, outputs=None, extra=None, debug=False):
         if artifacts is None:
             artifacts = []
@@ -58,7 +60,7 @@ class AnsibleConfigurationTool(ConfigurationTool):
         for art in artifacts:
             self.artifacts[art[NAME]] = art
 
-        provider_config = ProviderConfiguration(provider)
+        provider_config = ProviderConfiguration(self.provider)
         ansible_config = provider_config.get_section(ANSIBLE)
         node_filter_config = provider_config.get_subsection(ANSIBLE, NODE_FILTER)
 
@@ -118,7 +120,7 @@ class AnsibleConfigurationTool(ConfigurationTool):
                 description_by_type = self.ansible_description_by_type(v.type_name, description_prefix)
                 module_by_type = self.ansible_module_by_type(v.type_name, module_prefix)
                 ansible_play_for_elem = dict(
-                    name=description_prefix + ' ' + provider + ' cluster: ' + v.name + ':' + v.operation,
+                    name=description_prefix + ' ' + self.provider + ' cluster: ' + v.name + ':' + v.operation,
                     hosts=self.default_host,
                     tasks=[]
                 )
@@ -134,23 +136,26 @@ class AnsibleConfigurationTool(ConfigurationTool):
                 # create playbook for every operation
                 if v.operation == 'delete':
                     if not v.is_software_component:
-                        ansible_play_for_elem['tasks'].append(copy.deepcopy({'include_vars': ids_file_path}))
-                        ansible_tasks = self.get_ansible_tasks_for_delete(v, description_by_type, module_by_type,
-                                                                          additional_args=extra)
+                        ansible_tasks = [copy.deepcopy({'include_vars': ids_file_path})]
+                        ansible_tasks.extend(self.get_ansible_tasks_for_delete(v, description_by_type, module_by_type,
+                                                                          additional_args=extra))
                         ansible_tasks.extend(
-                            self.get_ansible_tasks_from_interface(v, target_directory, is_delete, v.operation, cluster_name,
+                            self.get_ansible_tasks_from_interface(v, target_directory, is_delete, v.operation,
+                                                                  cluster_name,
                                                                   additional_args=extra))
                         if not any(item == module_by_type for item in
                                    ansible_config.get('modules_skipping_delete', [])):
                             ansible_play_for_elem['tasks'].extend(copy.deepcopy(ansible_tasks))
                 elif v.operation == 'create':
                     if not v.is_software_component:
+                        ansible_play_for_elem['tasks'].append(copy.deepcopy({'include_vars': ids_file_path}))
                         ansible_play_for_elem['tasks'].extend(copy.deepcopy(self.get_ansible_tasks_for_inputs(inputs)))
                         ansible_tasks = self.get_ansible_tasks_for_create(v, target_directory, node_filter_config,
                                                                           description_by_type, module_by_type,
                                                                           additional_args=extra)
                         ansible_tasks.extend(
-                            self.get_ansible_tasks_from_interface(v, target_directory, is_delete, v.operation, cluster_name,
+                            self.get_ansible_tasks_from_interface(v, target_directory, is_delete, v.operation,
+                                                                  cluster_name,
                                                                   additional_args=extra))
 
                         ansible_play_for_elem['tasks'].extend(copy.deepcopy(ansible_tasks))
@@ -159,7 +164,8 @@ class AnsibleConfigurationTool(ConfigurationTool):
                     else:
                         ansible_play_for_elem['hosts'] = v.host
                         ansible_play_for_elem['tasks'].extend(copy.deepcopy(
-                            self.get_ansible_tasks_from_interface(v, target_directory, is_delete, v.operation, cluster_name,
+                            self.get_ansible_tasks_from_interface(v, target_directory, is_delete, v.operation,
+                                                                  cluster_name,
                                                                   additional_args=extra)))
                 else:
                     (_, element_type, _) = utils.tosca_type_parse(v.type)
@@ -189,10 +195,14 @@ class AnsibleConfigurationTool(ConfigurationTool):
                     ansible_play_for_elem['tasks'].extend(copy.deepcopy(
                         self.get_ansible_tasks_from_interface(v, target_directory, is_delete, v.operation, cluster_name,
                                                               additional_args=extra)))
-                ansible_playbook.append(ansible_play_for_elem)
+                if len(ansible_play_for_elem['tasks']) > 0:
+                    ansible_playbook.append(ansible_play_for_elem)
                 # run playbooks
                 if not debug:
-                    self.parallel_run([ansible_play_for_elem], v.name, v.operation, q, cluster_name)
+                    if len(ansible_play_for_elem['tasks']) > 0:
+                        self.parallel_run([ansible_play_for_elem], v.name, v.operation, q, cluster_name)
+                    else:
+                        elements.done(v)
                     # add element to active list
                     active.append(v)
                 else:
@@ -323,11 +333,12 @@ class AnsibleConfigurationTool(ConfigurationTool):
             NAME: self.rap_ansible_variable(task_name + '_delete'), 'state': 'absent'}
         ansible_task_list[1][module_by_type] = {
             NAME: self.rap_ansible_variable('item'), 'state': 'absent'}
-        ansible_task_list[2][module_by_type] = self.rap_ansible_variable(task_name + '_dict')
+        ansible_task_list[2][module_by_type] = self.rap_ansible_variable('item')
+        ansible_task_list[2]['loop'] = self.rap_ansible_variable(task_name + '_dicts')
         ansible_task_list[0]['when'] = task_name + '_delete' + IS_DEFINED
         ansible_task_list[1]['when'] = task_name + '_ids is defined'
         ansible_task_list[1]['loop'] = self.rap_ansible_variable(task_name + '_ids | flatten(levels=1)')
-        ansible_task_list[2]['when'] = task_name + '_dict' + IS_DEFINED
+        ansible_task_list[2]['when'] = task_name + '_dicts' + IS_DEFINED
         for task in ansible_task_list:
             task[REGISTER] = task_name + '_var'
             task.update(additional_args)
@@ -378,7 +389,8 @@ class AnsibleConfigurationTool(ConfigurationTool):
                         copyfile(script_filename_2, target_filename)
                     else:
                         logging.error(
-                            "Artifact filename %s was not found in %s or %s" % (script, script_filename_1, script_filename_2))
+                            "Artifact filename %s was not found in %s or %s" % (
+                            script, script_filename_1, script_filename_2))
                     if not primary and interface_operation.get(INPUTS) is not None:
                         for input_name, input_value in interface_operation[INPUTS].items():
                             ansible_tasks.append({
@@ -389,7 +401,8 @@ class AnsibleConfigurationTool(ConfigurationTool):
                     new_ansible_task = {
                         IMPORT_TASKS_MODULE: target_filename
                     }
-                    new_ansible_task.update(additional_args)
+                    for task in ansible_tasks:
+                        task.update(additional_args)
                     ansible_tasks.append(new_ansible_task)
         return ansible_tasks
 
@@ -515,22 +528,42 @@ class AnsibleConfigurationTool(ConfigurationTool):
 
     def get_extra_tasks_for_delete(self, type, task_name, path):
         ansible_tasks_for_create = []
-        if type == 'openstack.nodes.FloatingIp':
+        (_, _, node_type) = utils.tosca_type_parse(type)
+        node_type = utils.snake_case(node_type)
+        # TODO: fix this chaos
+        if type == 'openstack.nodes.FloatingIp': # temporary solutions
+            ansible_tasks_for_create.append({
+                'set_fact': {task_name + '_dict': {'floating_ip_address': self.rap_ansible_variable(
+                    'item.floating_ip.floating_ip_address'),
+                    'server': self.rap_ansible_variable('item.floating_ip.port_details.device_id'),
+                    'purge': 'yes',
+                    'state': 'absent'}},
+                'with_items': self.rap_ansible_variable(task_name + ".results"),
+                'when': task_name + IS_DEFINED,
+                'register': 'tmp'
+            })
             ansible_tasks_for_create.append({
                 'set_fact': {
-                    task_name + '_dict': {task_name + '_dict': {'floating_ip_address': self.rap_ansible_variable(
-                        task_name + '.floating_ip.floating_ip_address'),
-                        'server': self.rap_ansible_variable(
-                            task_name + '.floating_ip.port_details.device_id'),
-                        'purge': 'yes',
-                        'state': 'absent'}}},
-                'when': task_name + IS_DEFINED
+                    task_name + '_dicts': self.rap_ansible_variable(
+                        task_name + '_dicts | default([]) + [item.ansible_facts.' + task_name + '_dict]')
+                },
+                'with_items': self.rap_ansible_variable("tmp.results"),
+                'when': task_name + '_dict' + IS_DEFINED
             })
             ansible_tasks_for_create.append({
                 LINEINFILE: {
                     PATH: path,
-                    'line': self.rap_ansible_variable(task_name + '_dict' + ' | to_nice_yaml')},
-                'when': task_name + '_dict' + IS_DEFINED
+                    'line': task_name + '_dicts:\n' + self.rap_ansible_variable(task_name + '_dicts | to_nice_yaml')},
+                'when': task_name + '_dicts' + IS_DEFINED,
+            })
+        elif type == 'amazon.nodes.Key': # temporary solutions
+            # amazon ec2 has very BAD return values - there is no id in return value for ec2_key module
+            ansible_tasks_for_create.append({
+                LINEINFILE: {
+                    PATH: path,
+                    'line': '' + task_name + '_delete' + ': ' + self.rap_ansible_variable(
+                        task_name + '.' + node_type + '.name')},
+                'when': task_name + '.' + node_type + '.name' + IS_DEFINED
             })
         else:
             ansible_tasks_for_create.append({
@@ -538,8 +571,14 @@ class AnsibleConfigurationTool(ConfigurationTool):
                     task_name + '_list': self.rap_ansible_variable(
                         task_name + '_list' + " | default([])") + " + [ \"{{ item.id }}\" ]"},
                 'loop': self.rap_ansible_variable(task_name + '.results | flatten(levels=1) '),
-                # 'when': task_name + '.results' + IS_DEFINED
                 'when': 'item.id ' + IS_DEFINED
+            })
+            ansible_tasks_for_create.append({ # temporary solutions
+                'set_fact': {
+                    task_name + '_list': self.rap_ansible_variable(
+                        task_name + '_list' + " | default([])") + " + [ \"{{ item." + node_type + "_ids[0] }}\" ]"},
+                'loop': self.rap_ansible_variable(task_name + '.results | flatten(levels=1) '),
+                'when': 'item.' + node_type + '_ids' + IS_DEFINED
             })
             ansible_tasks_for_create.append({
                 'set_fact': {
@@ -552,6 +591,22 @@ class AnsibleConfigurationTool(ConfigurationTool):
                     'line': '' + task_name + '_delete' + ': ' + self.rap_ansible_variable(task_name + '.id')},
                 'when': task_name + '.id' + IS_DEFINED
             })
+            # amazon ec2 has very BAD return values - we need to search where is id of current node
+            ansible_tasks_for_create.append({
+                LINEINFILE: {
+                    PATH: path,
+                    'line': '' + task_name + '_delete' + ': ' + self.rap_ansible_variable(
+                        task_name + '.' + node_type + '_id')},
+                'when': task_name + '.' + node_type + '_id' + IS_DEFINED
+            })
+            for elem in node_type.split('_'): # temporary solutions
+                ansible_tasks_for_create.append({
+                    LINEINFILE: {
+                        PATH: path,
+                        'line': '' + task_name + '_delete' + ': ' + self.rap_ansible_variable(
+                            task_name + '.' + elem + '.id')},
+                    'when': task_name + '.' + elem + '.id' + IS_DEFINED
+                })
             ansible_tasks_for_create.append({
                 LINEINFILE: {
                     PATH: path,
@@ -596,4 +651,10 @@ class AnsibleConfigurationTool(ConfigurationTool):
         prepare_for_run()
 
     def parallel_run(self, ansible_play, name, op, q, cluster_name):
+        if self.provider == 'amazon':
+            amazon_plugins_path = os.path.join(utils.get_project_root_path(), '.ansible/plugins/modules/cloud/amazon')
+            if "ANSIBLE_LIBRARY" not in os.environ:
+                os.environ["ANSIBLE_LIBRARY"] = amazon_plugins_path
+            elif amazon_plugins_path not in os.environ["ANSIBLE_LIBRARY"]:
+                os.environ["ANSIBLE_LIBRARY"] += os.pathsep + amazon_plugins_path
         parallel_run_ansible(ansible_play, name, op, q, cluster_name)

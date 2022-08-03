@@ -123,7 +123,7 @@ def translate(template_file, validate_only, provider, configuration_tool, cluste
                                   host_ip_parameter, public_key_path, is_delete, common_map_files=default_map_files)
 
     # Init configuration tool class
-    tool = get_configuration_tool_class(configuration_tool)()
+    tool = get_configuration_tool_class(configuration_tool)(tosca.provider)
 
     default_artifacts_directory = config.get_section(config.MAIN_SECTION).get(DEFAULT_ARTIFACTS_DIRECTORY)
 
@@ -137,7 +137,7 @@ def translate(template_file, validate_only, provider, configuration_tool, cluste
         executor = art.get(EXECUTOR)
         if bool(executor) and executor != configuration_tool:
             art_list = [ art ]
-            configuration_class = get_configuration_tool_class(art['executor'])()
+            configuration_class = get_configuration_tool_class(art['executor'])(tosca.provider)
             _, new_art = utils.generate_artifacts(configuration_class, art_list, default_artifacts_directory)
             tosca.artifacts.append(new_art)
         else:
@@ -147,7 +147,7 @@ def translate(template_file, validate_only, provider, configuration_tool, cluste
         extra = {}
     extra_full = utils.deep_update_dict(extra, tosca.extra_configuration_tool_params.get(configuration_tool, {}))
 
-    configuration_content = tool.to_dsl(tosca.provider, tosca.provider_operations, tosca.reversed_provider_operations, tosca.cluster_name, is_delete,
+    configuration_content = tool.to_dsl(tosca.provider_operations, tosca.reversed_provider_operations, tosca.cluster_name, is_delete,
                                         artifacts=tool_artifacts, target_directory=default_artifacts_directory,
                                         inputs=tosca.inputs, outputs=tosca.outputs, extra=extra_full, debug=debug)
     return configuration_content

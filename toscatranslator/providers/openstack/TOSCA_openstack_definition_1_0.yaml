@@ -164,7 +164,7 @@ node_types:
         type: scalar-unit.time
         required: false
     artifacts:
-      filename:
+      filename: # TODO artifacts supports
         type: openstack.artifacts.Deployment.Image
         required: false
 
@@ -180,14 +180,10 @@ node_types:
       public_key:
         type: string
         required: false
-      public_key_file:
-        type: string
+    artifacts:
+      public_key_file: # TODO artifacts supports
+        type: openstack.artifacts.File
         required: false
-    # need to change it later, when artifact support will be added
-    # artifacts:
-      # public_key_file:
-        # type: openstack.artifacts.File
-        # required: false
 
   openstack.nodes.Network: # os_network, os_networks_facts
     derived_from: openstack.nodes.Root
@@ -364,8 +360,6 @@ node_types:
       direction:
         type: string
         default: ingress
-        constraints:
-          - valid_values: [ egress, ingress ]
       ethertype:
         type: string
         default: IPv4

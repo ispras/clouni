@@ -5,183 +5,78 @@ imports:
 
 topology_template:
   node_templates:
-    server_kube_master_floating_ip:
-      type: openstack.nodes.FloatingIp
+    tosca_server_example_floating_ip:
+      interfaces:
+        Standard:
+          create:
+            implementation: add_host.yaml
+            inputs:
+              ansible_user: cirros
+              group: tosca_server_example_server_public_address
+              host_ip: '{{ host_ip | default([]) + [[ "tosca_server_example_public_address_"
+                + item, tosca_server_example_floating_ip.results[item | int - 1].floating_ip.floating_ip_address
+                ]] }}'
       properties:
-        floating_ip_address: 10.100.115.15
+        floating_ip_address: 10.100.157.77
       requirements:
-        - network:
-            relationship: server_kube_master_server_name
-            node_filter:
-              properties:
-                - name:
-                    get_operation_output:
-                      - server_kube_master_server_name
-                      - Target
-                      - choose_os_network_facts_ansible_facts_openstack_networks
-                      - name
-        - server: server_kube_master_server
-    server_kube_master_port:
-      type: openstack.nodes.Port
+      - server:
+          node: tosca_server_example_server
+      - network:
+          node_filter:
+            properties:
+            - name: not_found
+      type: openstack.nodes.FloatingIp
+    tosca_server_example_keypair:
       properties:
-        fixed_ips:
-          - get_operation_output:
-              - server_kube_master_server_fixed_ips
-              - Extra
-              - modify_properties_fixed_ips
-              - modified_properties_fixed_ips
-        name: server_kube_master_port_0
-    server_kube_master_security_group:
+        name: tosca_server_example_keypair
+        public_key: '{{ lookup(''file'', ''~/.ssh/id_rsa.pub'') }}'
+      type: openstack.nodes.Keypair
+    tosca_server_example_security_group:
+      properties:
+        name: tosca_server_example_security_group
       type: openstack.nodes.SecurityGroup
+    tosca_server_example_security_group_rule:
       properties:
-        name: server_kube_master_security_group
-    server_kube_master_security_group_rule:
-      type: openstack.nodes.SecurityGroupRule
-      properties:
-        direction: ingress
-        port_range_max: 1000
-        port_range_min:
-          get_property:
-            - SELF
-            - port_range_max
-        protocol: tcp
+        direction: '{{ initiator[item | int] | default(omit) }}'
+        port_range_max: '{{ port[item | int] | default(omit) }}'
+        port_range_min: '{{ port[item | int] | default(omit) }}'
+        protocol: '{{ protocol[item | int] | default(omit) }}'
         remote_ip_prefix: 0.0.0.0
       requirements:
-        - security_group: server_kube_master_security_group
-    server_kube_master_server:
-      type: openstack.nodes.Server
+      - security_group:
+          node: tosca_server_example_security_group
+      type: openstack.nodes.SecurityGroupRule
+    tosca_server_example_server:
+      interfaces:
+        Standard:
+          create:
+            implementation: add_host.yaml
+            inputs:
+              ansible_user: cirros
+              group: tosca_server_example_server_private_address
+              host_ip: '{{ host_ip | default([]) + [[ "tosca_server_example_private_address_"
+                + item, tosca_server_example_server.results[item | int - 1].server.public_v4
+                ]] }}'
       properties:
-        meta:
-          - cube_master=true
-        name: server_kube_master
+        auto_ip: false
+        meta: cube_master=true
+        name: tosca_server_example
+        nics:
+        - net-name: sandbox_net
       requirements:
-        - nics: server_kube_master_port
-        - flavor:
-            node_filter:
-              properties:
-                - vcpus: 1
-                - disk: 160 MiB
-                - ram: 1024 MiB
-        - security_groups: server_kube_master_security_group
-        - image:
-            node_filter:
-              properties:
-                - name:
-                    get_operation_output:
-                      - server_kube_master_server_name
-                      - Target
-                      - choose_os_server_facts_ansible_facts_openstack_servers
-                      - name
-  relationship_templates:
-    server_kube_master_server_fixed_ips:
-      type: openstack.relationships.DependsOn
-      interfaces:
-        Extra:
-          modify_properties_fixed_ips:
-            implementation: server_kube_master_ansible_set_fact.yaml
-            inputs:
-              input_parameter:
-                get_operation_output:
-                  - server_kube_master_server_fixed_ips
-                  - Target
-                  - choose_os_network_facts_ansible_facts_openstack_networks
-                  - name
-              input_value: 192.168.12.25
-        Target:
-          choose_os_network_facts_ansible_facts_openstack_networks:
-            implementation: equals.yaml
-            inputs:
-              input_args:
-                - id
-                - get_operation_output:
-                    - server_kube_master_server_fixed_ips
-                    - Target
-                    - choose_os_subnet_facts_ansible_facts_openstack_subnets
-                    - network_id
-              input_facts:
-                get_operation_output:
-                  - SELF
-                  - Target
-                  - total_os_network_facts_ansible_facts_openstack_networks
-                  - target_objects
-          choose_os_subnet_facts_ansible_facts_openstack_subnets:
-            implementation: ip_contains.yaml
-            inputs:
-              input_args:
-                - allocation_pool_start
-                - allocation_pool_end
-                - 192.168.12.25
-              input_facts:
-                get_operation_output:
-                  - SELF
-                  - Target
-                  - total_os_subnet_facts_ansible_facts_openstack_subnets
-                  - target_objects
-          total_os_network_facts_ansible_facts_openstack_networks:
-            implementation:
-              - server_kube_master_ansible_os_network_facts.yaml
-              - server_kube_master_ansible_set_fact.yaml
-          total_os_subnet_facts_ansible_facts_openstack_subnets:
-            implementation:
-              - server_kube_master_ansible_os_subnet_facts.yaml
-              - server_kube_master_ansible_set_fact.yaml
-    server_kube_master_server_name:
-      type: openstack.relationships.DependsOn
-      interfaces:
-        Target:
-          choose_os_network_facts_ansible_facts_openstack_networks:
-            implementation: equals.yaml
-            inputs:
-              input_args:
-                - id
-                - get_operation_output:
-                    - server_kube_master_server_name
-                    - Target
-                    - choose_os_subnet_facts_ansible_facts_openstack_subnets
-                    - network_id
-              input_facts:
-                get_operation_output:
-                  - SELF
-                  - Target
-                  - total_os_network_facts_ansible_facts_openstack_networks
-                  - target_objects
-          choose_os_server_facts_ansible_facts_openstack_servers:
-            implementation: contains.yaml
-            inputs:
-              input_args:
-                - name
-                - architecture: x86_64
-                  distribution: xenial
-                  type: ubuntu
-                  version: 16.04
-              input_facts:
-                get_operation_output:
-                  - SELF
-                  - Target
-                  - total_os_server_facts_ansible_facts_openstack_servers
-                  - target_objects
-          choose_os_subnet_facts_ansible_facts_openstack_subnets:
-            implementation: ip_contains.yaml
-            inputs:
-              input_args:
-                - allocation_pool_start
-                - allocation_pool_end
-                - 10.100.115.15
-              input_facts:
-                get_operation_output:
-                  - SELF
-                  - Target
-                  - total_os_subnet_facts_ansible_facts_openstack_subnets
-                  - target_objects
-          total_os_network_facts_ansible_facts_openstack_networks:
-            implementation:
-              - server_kube_master_ansible_os_network_facts.yaml
-              - server_kube_master_ansible_set_fact.yaml
-          total_os_server_facts_ansible_facts_openstack_servers:
-            implementation:
-              - server_kube_master_ansible_os_server_facts.yaml
-              - server_kube_master_ansible_set_fact.yaml
-          total_os_subnet_facts_ansible_facts_openstack_subnets:
-            implementation:
-              - server_kube_master_ansible_os_subnet_facts.yaml
-              - server_kube_master_ansible_set_fact.yaml
+      - key_name:
+          node: tosca_server_example_keypair
+      - flavor:
+          node_filter:
+            properties:
+            - vcpus: 1
+            - disk: 10.0
+            - ram: 1024.0
+      - security_groups:
+          node: tosca_server_example_security_group
+      - image:
+          node_filter:
+            properties:
+            - name: cirros-0.4.0-x86_64
+      type: openstack.nodes.Server
+

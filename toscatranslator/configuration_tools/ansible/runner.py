@@ -11,8 +11,6 @@ from distutils.dir_util import copy_tree
 from toscatranslator.common import utils
 from toscatranslator.common.utils import get_random_int
 
-from cotea.runner import runner
-from cotea.arguments_maker import argument_maker
 
 import ast
 
@@ -32,6 +30,11 @@ def run_ansible(ansible_playbook, cluster_name):
     :param cluster_name: name of cluster
     :return: empty
     """
+
+    # this strange thing recomended for cotea for using local modules in every process
+    from cotea.runner import runner
+    from cotea.arguments_maker import argument_maker
+
     random_id = get_random_int(1000, 9999)
     os.makedirs(utils.get_tmp_clouni_dir(), exist_ok=True)
     os.makedirs(os.path.join(utils.get_tmp_clouni_dir(), cluster_name), exist_ok=True)

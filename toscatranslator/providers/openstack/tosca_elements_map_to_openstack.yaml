@@ -1,7 +1,7 @@
 ---
 tosca.nodes.Compute:
-  - parameter: openstack.nodes.Keypair.properties.public_key_file
-    value: '{self[public_key_path]}'
+  - parameter: openstack.nodes.Keypair.properties.public_key
+    value: "\\{\\{ lookup('file', '{self[public_key_path]}') \\}\\}"
   - parameter: openstack.nodes.Keypair.properties.name
     value: '{self[keyname]}_keypair'
   - parameter: openstack.nodes.Server.requirements
@@ -9,6 +9,10 @@ tosca.nodes.Compute:
       parameter: key_name
       value:
         node: "{self[keyname]}_keypair"
+  - parameter: "{self[extra][ansible][{self[keyname]}_server][with_sequence]}"
+    value: "start=1 end=1 format=%d"
+  - parameter: "{self[extra][ansible][{self[keyname]}_floating_ip][with_sequence]}"
+    value: "start=1 end=1 format=%d"
   - parameter: openstack.nodes.Server.properties.name
     value: "{self[name]}"
   - attributes:
@@ -22,8 +26,8 @@ tosca.nodes.Compute:
       implementation: add_host.yaml
       inputs:
         ansible_user: "{self[buffer][add_host][ansible_user]}"
-        host_ip: '\\{\\{ {self[keyname]}_server.server.public_v4 \\}\\}'
-        group: "{self[name]}_private_address"
+        host_ip: '\\{\\{ host_ip | default([]) + [[ "{self[keyname]}_private_address_" + item, {self[keyname]}_server.results[item | int - 1].server.public_v4 ]] \\}\\}'
+        group: "{self[name]}_server_private_address"
   - properties:
       tosca_name:
         parameter: "{self[name]}"
@@ -32,6 +36,8 @@ tosca.nodes.Compute:
         - parameter: openstack.nodes.Port.properties.fixed_ips
           value:
             - ip_address: "{self[value]}"
+        - parameter: "{self[buffer][private_address]}"
+          value: "{self[value]}"
         - parameter: openstack.nodes.Port.requirements.network.node_filter.properties
           value:
             - parameter: id
@@ -69,11 +75,10 @@ tosca.nodes.Compute:
                 arguments:
                   - allocation_pool_start
                   - allocation_pool_end
-                  - "{self[value]}"
+                  - "{self[buffer][private_address]}" # please don't use self[value] in arguments
         - parameter: openstack.nodes.Port.properties.name
           value: "{self[name]}_port_0"
         - parameter: openstack.nodes.Server.properties.nics
-#        - parameter: openstack.nodes.Server.requirements.network
           value:
           - port-name: "{self[name]}_port_0"
       public_address:
@@ -82,6 +87,8 @@ tosca.nodes.Compute:
             parameter: server
             value:
               node: "{self[keyname]}_server"
+        - parameter: "{self[buffer][public_address]}"
+          value: "{self[value]}"
         - parameter: openstack.nodes.FloatingIp
           value:
             - properties.floating_ip_address
@@ -128,14 +135,14 @@ tosca.nodes.Compute:
                         arguments:
                           - allocation_pool_start
                           - allocation_pool_end
-                          - "{self[value]}"
+                          - "{self[buffer][public_address]}" # please don't use self[value] in arguments
         - parameter: openstack.nodes.FloatingIp.interfaces.Standard.create
           value:
             implementation: add_host.yaml
             inputs:
               ansible_user: "{self[buffer][add_host][ansible_user]}"
-              host_ip: '\\{\\{ {self[keyname]}_floating_ip.floating_ip.floating_ip_address \\}\\}'
-              group: "{self[name]}_public_address"
+              host_ip: '\\{\\{ host_ip | default([]) + [[ "{self[keyname]}_public_address_" + item, {self[keyname]}_floating_ip.results[item | int - 1].floating_ip.floating_ip_address ]] \\}\\}'
+              group: "{self[name]}_server_public_address"
       networks.*.network_name:
         parameter: openstack.nodes.Server.properties.nics
         value:
@@ -145,17 +152,46 @@ tosca.nodes.Compute:
         value:
           - net-id: "{self[value]}"
       networks.*.addresses:
-        parameter: openstack.nodes.Server.requirements.nics.node_filter.properties
-        value:
-          - parameter: id
-            value: network_id
-            facts: os_subnets_facts.ansible_facts.openstack_subnets
-            executor: ansible
-            condition: ip_contains
-            arguments:
-              - allocation_pool_start
-              - allocation_pool_end
-              - "{self[value]}"
+        - parameter: "{self[buffer][address]}"
+          value: "{self[value]}"
+        - parameter: openstack.nodes.Server.requirements.network.node_filter.properties
+          value:
+            - parameter: id
+              value:
+                value: network_id
+                condition: ip_contains
+                facts:
+                  - source: os_subnets_facts
+                    executor: ansible
+                    value: target_objects
+                    parameters: {}
+                  - source: set_fact
+                    executor: ansible
+                    parameters:
+                      target_objects: "\\{\\{ target_objects['ansible_facts']['openstack_subnets'] \\}\\}"
+                    value: temp_value
+                  - source: set_fact
+                    executor: ansible
+                    parameters:
+                      new_target_objects: "\\{\\{ [] \\}\\}"
+                    value: tmp_value
+                  - source: set_fact
+                    parameters:
+                      new_target_objects: "\\{\\{ new_target_objects + [item | combine(\\{ 'allocation_pool_start': item['allocation_pools'][0]['start'] | default([]), 'allocation_pool_end': item['allocation_pools'][0]['end'] | default([]) \\})] \\}\\}"
+                    extra:
+                      with_items: "\\{\\{ target_objects \\}\\}"
+                    value: temp_value
+                    executor: ansible
+                  - source: set_fact
+                    parameters:
+                      target_objects: "\\{\\{ new_target_objects \\}\\}"
+                    value: temp_value
+                    executor: ansible
+                executor: ansible
+                arguments:
+                  - allocation_pool_start
+                  - allocation_pool_end
+                  - "{self[buffer][address]}" # please don't use self[value] in arguments
       ports.*.port_name:
         parameter: openstack.nodes.Server.properties.nics
         value:
@@ -169,23 +205,59 @@ tosca.nodes.Compute:
         value:
           - net-id: "{self[value]}"
       ports.*.mac_address:
-        parameter: openstack.nodes.Server.requirements.nics.node_filter.properties
-        value:
-          - parameter: mac_address
-            value: "{self[value]}"
+        - parameter: "{self[buffer][mac_address]}"
+          value: "{self[value]}"
+        - parameter: openstack.nodes.Server.properties.nics
+          value:
+            - port-id:
+                value: id
+                facts: os_port_facts.ansible_facts.openstack_ports
+                executor: ansible
+                condition: equals
+                arguments:
+                  - mac_address
+                  - "{self[buffer][mac_address]}"
       ports.*.addresses:
-        parameter: openstack.nodes.Server.requirements.nics.node_filter.properties
-        value:
-          - parameter: id
-            value:
-              value: network_id
-              facts: os_subnets_facts.ansible_facts.openstack_subnets
-              executor: ansible
-              condition: ip_contains
-              arguments:
-                - allocation_pool_start
-                - allocation_pool_end
-                - "{self[value]}"
+        - parameter: "{self[buffer][address]}"
+          value: "{self[value]}"
+        - parameter: openstack.nodes.Server.requirements.network.node_filter.properties
+          value:
+            - parameter: id
+              value:
+                value: network_id
+                condition: ip_contains
+                facts:
+                  - source: os_subnets_facts
+                    executor: ansible
+                    value: target_objects
+                    parameters: {}
+                  - source: set_fact
+                    executor: ansible
+                    parameters:
+                      target_objects: "\\{\\{ target_objects['ansible_facts']['openstack_subnets'] \\}\\}"
+                    value: temp_value
+                  - source: set_fact
+                    executor: ansible
+                    parameters:
+                      new_target_objects: "\\{\\{ [] \\}\\}"
+                    value: tmp_value
+                  - source: set_fact
+                    parameters:
+                      new_target_objects: "\\{\\{ new_target_objects + [item | combine(\\{ 'allocation_pool_start': item['allocation_pools'][0]['start'] | default([]), 'allocation_pool_end': item['allocation_pools'][0]['end'] | default([]) \\})] \\}\\}"
+                    extra:
+                      with_items: "\\{\\{ target_objects \\}\\}"
+                    value: temp_value
+                    executor: ansible
+                  - source: set_fact
+                    parameters:
+                      target_objects: "\\{\\{ new_target_objects \\}\\}"
+                    value: temp_value
+                    executor: ansible
+                executor: ansible
+                arguments:
+                  - allocation_pool_start
+                  - allocation_pool_end
+                  - "{self[buffer][address]}" # please don't use self[value] in arguments
     capabilities:
       host.properties.num_cpus:
         parameter: openstack.nodes.Server.requirements.flavor.node_filter.properties
@@ -221,7 +293,7 @@ tosca.nodes.Compute:
               value: default_tmp
       endpoint:
         - parameter: "{self[extra][ansible][{self[keyname]}_security_group_rule][with_sequence]}"
-          value: "start=0 end=\\{\\{ [protocol | length, port | length] | max - 1 \\}\\} format=%d"
+          value: "start=0 end=\\{\\{ [protocol | length, port | length, initiator | length] | max - 1 \\}\\} format=%d"
         - parameter: openstack.nodes.SecurityGroup.properties.name
           value: "{self[name]}_security_group"
         - parameter: openstack.nodes.Server.requirements.security_groups
@@ -244,6 +316,8 @@ tosca.nodes.Compute:
                 value: "\\{\\{ port[item | int] | default(omit) \\}\\}"
               - parameter: openstack.nodes.SecurityGroupRule.properties.port_range_max
                 value: "\\{\\{ port[item | int] | default(omit) \\}\\}"
+              - parameter: openstack.nodes.SecurityGroupRule.properties.direction
+                value: "\\{\\{ initiator[item | int] | default(omit) \\}\\}"
             port:
               - parameter: "{self[extra][ansible][{self[keyname]}_security_group_rule][vars][port]}"
                 value:
@@ -261,14 +335,16 @@ tosca.nodes.Compute:
               error: true
               reason: Not supported by OpenStack
             initiator.target:
-              parameter: openstack.nodes.SecurityGroupRule.properties.direction
-              value: ingress
+              - parameter: "{self[extra][ansible][{self[keyname]}_security_group_rule][vars][initiator]}"
+                value:
+                  - ingress
             initiator.source:
-              parameter: openstack.nodes.SecurityGroupRule.properties.direction
-              value: egress
+              - parameter: "{self[extra][ansible][{self[keyname]}_security_group_rule][vars][initiator]}"
+                value:
+                  - egress
             initiator.peer:
-              parameter: openstack.nodes.SecurityGroupRule.properties.direction
-              value: peer
+              error: true
+              reason: Not supported by OpenStack
             ports.*.protocol:
               - parameter: "{self[extra][ansible][{self[keyname]}_security_group_rule][vars][protocol]}"
                 value:
@@ -277,13 +353,30 @@ tosca.nodes.Compute:
               - parameter: "{self[extra][ansible][{self[keyname]}_security_group_rule][vars][port]}"
                 value:
                   - "{self[value]}"
+              - parameter: "{self[extra][ansible][{self[keyname]}_security_group_rule][vars][initiator]}"
+                value:
+                  - egress
             ports.*.target:
               - parameter: "{self[extra][ansible][{self[keyname]}_security_group_rule][vars][port]}"
                 value:
                   - "{self[value]}"
-      os.properties.architecture: "{self[buffer][os][architecture]}"
-      os.properties.type:
-        - "{self[buffer][os][type]}"
+              - parameter: "{self[extra][ansible][{self[keyname]}_security_group_rule][vars][initiator]}"
+                value:
+                  - ingress
+      os:
+        - properties:
+            architecture: "{self[buffer][os][architecture]}"
+            type:
+              - parameter: "{self[buffer][os][type]}"
+                value: '{self[value]}'
+              - parameter: '{self[buffer][add_host][ansible_user]}'
+                value: '{self[value]}'
+            distribution:
+              - parameter: "{self[buffer][os][distribution]}"
+                value: '{self[value]}'
+              - parameter: '{self[buffer][add_host][ansible_user]}'
+                value: '{self[value]}'
+            version: "{self[buffer][os][version]}"
         - parameter: openstack.nodes.Server.requirements.image.node_filter.properties
           value:
             - parameter: name
@@ -296,16 +389,28 @@ tosca.nodes.Compute:
                   - - name
                     - properties
                   - "{self[buffer][os]}"
-        - parameter: '{self[buffer][add_host][ansible_user]}'
-          value: '{self[value]}'
-      os.properties.distribution: "{self[buffer][os][distribution]}"
-      os.properties.version: "{self[buffer][os][version]}"
       scalable.properties:
+        min_instances:
+          - parameter: "{self[extra][ansible][{self[keyname]}_server][with_sequence]}"
+            value: "start=1 end={self[value]} format=%d"
+          - parameter: "{self[extra][ansible][{self[name]}_floating_ip][with_sequence]}"
+            value: "start=1 end={self[value]} format=%d"
+          - parameter: openstack.nodes.Server.properties.name
+            value: "{self[name]}_\\{\\{ item \\}\\}"
         default_instances:
           - parameter: "{self[extra][ansible][{self[keyname]}_server][with_sequence]}"
-            value: "start=1 end={self[value]} format={self[name]}-%d"
+            value: "start=1 end={self[value]} format=%d"
+          - parameter: "{self[extra][ansible][{self[name]}_floating_ip][with_sequence]}"
+            value: "start=1 end={self[value]} format=%d"
           - parameter: openstack.nodes.Server.properties.name
-            value: "\\{\\{ item \\}\\}"
+            value: "{self[name]}_\\{\\{ item \\}\\}"
+        max_instances:
+          - parameter: "{self[extra][ansible][{self[keyname]}_server][with_sequence]}"
+            value: "start=1 end={self[value]} format=%d"
+          - parameter: "{self[extra][ansible][{self[name]}_floating_ip][with_sequence]}"
+            value: "start=1 end={self[value]} format=%d"
+          - parameter: openstack.nodes.Server.properties.name
+            value: "{self[name]}_\\{\\{ item \\}\\}"
     requirements.local_storage:
       error: true
       reason: Bad description in TOSCA Profile YAML v1.0

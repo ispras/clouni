@@ -1,99 +1,403 @@
 tosca.nodes.Compute:
+  - parameter: amazon.nodes.Key.properties.key_material
+    value: "\\{\\{ lookup('file', '{self[public_key_path]}') \\}\\}"
+  - parameter: amazon.nodes.Key.properties.name
+    value: '{self[keyname]}_key'
+  - parameter: amazon.nodes.Instance.requirements
+    value:
+      parameter: key_name
+      value:
+        node: "{self[keyname]}_key"
   - parameter: amazon.nodes.Instance.properties.name
     value: "{self[name]}"
+  - parameter: "{self[extra][ansible][{self[keyname]}_instance][with_sequence]}"
+    value: "start=1 end=1 format=%d"
   - properties:
       meta:
         parameter: amazon.nodes.Instance.properties.tags
         value:
           metadata: "{self[value]}"
       private_address:
-        parameter: amazon.nodes.Instance.properties.network
-        value:
-            assign_public_ip: true
-            private_ip_address: "{self[value]}"
+        - parameter: amazon.nodes.Instance.properties.network
+          value:
+              private_ip_address: "{self[value]}" # not works!! need to change to format like in openstack mapping,
+                                                  # but ports cant be created because of existing bug
+                                                  # with region undefined - probably in ec2_eni module
       public_address:
-        error: true
-        reason: Unable to specify {self[parameter]} in AWS
-      networks:
-        error: true
-        reason: Not implemented yet
-      ports:
-        error: true
-        reason: Not implemented yet
-    capabilities:
-      host.properties:
-        parameter: amazon.nodes.Instance.properties.instance_type
-        value:
-          value: apiname
-          facts: ec2_instance_info # не факт, надо поразбираться, но ec2_instance_type_facts точно не работает
-          executor: ansible
-          condition: contains
-          arguments:
-            - "{self[value]}"
-            - - vcpus
-              - memory
-              - storage
-      endpoint.properties.ip_address:
-        - parameter: "{self[buffer][security_group_rule][cidr_ip]}"
+        - parameter: amazon.nodes.Instance.properties.network
+          value:
+              assign_public_ip: true
+        - parameter: amazon.nodes.Instance.interfaces.Standard.create
+          value:
+            implementation: add_host.yaml
+            inputs:
+              ansible_user: "{self[buffer][add_host][ansible_user]}"
+              host_ip: '\\{\\{ host_ip | default([]) + [[ "{self[keyname]}_public_address_" + item, {self[keyname]}_instance.results[item | int - 1].instances[0].public_ip_address ]] \\}\\}'
+              group: "{self[name]}_instance_public_address"
+      networks.*.network_name:
+        - parameter: "{self[buffer][network_name]}"
           value: "{self[value]}"
+        - parameter: amazon.nodes.Instance.requirements.vpc_subnet_id.node_filter.properties
+          value:
+            - parameter: id
+              value:
+                  value: id
+                  facts: ec2_vpc_subnet_info.subnets
+                  executor: ansible
+                  condition: contains
+                  arguments:
+                  - - tags
+                  - "{self[buffer][network_name]}"
+      networks.*.network_id:
+        parameter: amazon.nodes.Instance.properties.vpc_subnet_id
+        value: '{self[value]}'
+      networks.*.addresses:
+        - parameter: "{self[buffer][address]}"
+          value: "{self[value]}"
+        - parameter: amazon.nodes.Instance.requirements.vpc_subnet_id.node_filter.properties
+          value:
+            - parameter: id
+              value: # ec2_vpc_subnet_info.subnets
+                  value: id
+                  condition: ip_contains
+                  facts:
+                    - source: ec2_vpc_subnet_info
+                      executor: ansible
+                      value: target_objects
+                      parameters: {}
+                    - source: set_fact
+                      executor: ansible
+                      parameters:
+                        target_objects: "\\{\\{ target_objects['subnets'] \\}\\}"
+                      value: temp_value
+                    - source: set_fact
+                      executor: ansible
+                      parameters:
+                        new_target_objects: "\\{\\{ [] \\}\\}"
+                      value: tmp_value
+                    - source: set_fact
+                      parameters:
+                        new_target_objects: "\\{\\{ new_target_objects + [item | combine(\\{ 'allocation_pool_start': item['cidr_block'] | ipaddr('net') | ipaddr(1) | ipaddr('address') | default([]), 'allocation_pool_end': item['cidr_block'] | ipaddr('net') | ipaddr(-1) | ipaddr('address') | default([]) \\})] \\}\\}"
+                      extra:
+                        with_items: "\\{\\{ target_objects \\}\\}"
+                      value: temp_value
+                      executor: ansible
+                    - source: set_fact
+                      parameters:
+                        target_objects: "\\{\\{ new_target_objects \\}\\}"
+                      value: temp_value
+                      executor: ansible
+                  executor: ansible
+                  arguments:
+                    - allocation_pool_start
+                    - allocation_pool_end
+                    - "{self[buffer][address]}" # please don't use self[value] in arguments
+      ports.*.port_name:
+        error: true
+        reason: Amazon doesn't support parameter {self[parameter]} in module for ansible 2.9
+      ports.*.port_id:
+        parameter: amazon.nodes.Instance.properties.network.interfaces
+        value:
+          - id: '{self[value]}' # TODO: fix: not works but fully correct https://docs.ansible.com/ansible/2.9/modules/ec2_instance_module.html
+      ports.*.network_id:
+        parameter: amazon.nodes.Instance.properties.vpc_subnet_id
+        value: '{self[value]}'
+      ports.*.mac_address:
+        - parameter: "{self[buffer][mac_address]}"
+          value: "{self[value]}"
+        - parameter: amazon.nodes.Instance.properties.network.interfaces
+          value:
+            - parameter: id
+              value:
+                  value: id
+                  facts: ec2_eni_info.network_interfaces
+                  executor: ansible
+                  condition: equals
+                  arguments:
+                  - mac_address
+                  - "{self[buffer][mac_address]}"
+      ports.*.addresses:
+        - parameter: "{self[buffer][address]}"
+          value: "{self[value]}"
+        - parameter: amazon.nodes.Instance.requirements.vpc_subnet_id.node_filter.properties
+          value:
+            - parameter: id
+              value: # ec2_vpc_subnet_info.subnets
+                  value: id
+                  condition: ip_contains
+                  facts:
+                    - source: ec2_vpc_subnet_info
+                      executor: ansible
+                      value: target_objects
+                      parameters: {}
+                    - source: set_fact
+                      executor: ansible
+                      parameters:
+                        target_objects: "\\{\\{ target_objects['subnets'] \\}\\}"
+                      value: temp_value
+                    - source: set_fact
+                      executor: ansible
+                      parameters:
+                        new_target_objects: "\\{\\{ [] \\}\\}"
+                      value: tmp_value
+                    - source: set_fact
+                      parameters:
+                        new_target_objects: "\\{\\{ new_target_objects + [item | combine(\\{ 'allocation_pool_start': item['cidr_block'] | ipaddr('net') | ipaddr(1) | ipaddr('address') | default([]), 'allocation_pool_end': item['cidr_block'] | ipaddr('net') | ipaddr(-1) | ipaddr('address') | default([]) \\})] \\}\\}"
+                      extra:
+                        with_items: "\\{\\{ target_objects \\}\\}"
+                      value: temp_value
+                      executor: ansible
+                    - source: set_fact
+                      parameters:
+                        target_objects: "\\{\\{ new_target_objects \\}\\}"
+                      value: temp_value
+                      executor: ansible
+                  executor: ansible
+                  arguments:
+                    - allocation_pool_start
+                    - allocation_pool_end
+                    - "{self[buffer][address]}" # please don't use self[value] in arguments
+    capabilities:
+      host.properties.num_cpus:
+        parameter: amazon.nodes.Instance.requirements.instance_type.node_filter.properties
+        value:
+          - parameter: vcpus
+            value: "{self[value]}"
+      host.properties.cpu_frequency:
+        error: true
+        reason: Amazon doesn't support parameter {self[parameter]}
+      host.properties.disk_size:
+        parameter: amazon.nodes.Instance.requirements.instance_type.node_filter.properties
+        value:
+          - parameter: storage
+            value:
+              source: transform_units
+              executor: python
+              parameters:
+                source_value: "{self[value]}"
+                target_unit: GiB
+                is_only_numb: true
+              value: default_tmp
+      host.properties.mem_size:
+        parameter: amazon.nodes.Instance.requirements.instance_type.node_filter.properties
+        value:
+          - parameter: memory
+            value:
+              source: transform_units
+              executor: python
+              parameters:
+                source_value: "{self[value]}"
+                target_unit: GiB
+                is_only_numb: true
+              value: default_tmp
+      endpoint:
         - parameter: amazon.nodes.Group.properties.name
+          value: "{self[name]}_group"
+        - parameter: amazon.nodes.Group.properties.description
           value: "{self[name]}_group"
         - parameter: amazon.nodes.Instance.requirements.security_groups
           value: "{self[name]}_group"
-      endpoint.properties.protocol:
-        parameter: "{self[buffer][security_group_rule][proto]}"
-        value: "{self[value]}"
-      endpoint.properties.port:
-        parameter: "{self[buffer][security_group_rule][ports]}"
-        value:
-          - "{self[value]}"
-      endpoint.properties.secure:
-        error: true
-        reason: Not supported in AWS
-      endpoint.properties.url_path:
-        error: true
-        reason: Not supported in AWS
-      endpoint.properties.port_name:
-        error: true
-        reason: Not supported in AWS
-      endpoint.properties.network_name:
-        facts: ec2_vpc_net_info
-        executor: ansible
-        condition: equals
-      endpoint.properties.initiator.target:
-        parameter: amazon.nodes.Group.properties.rules
-        value:
-          - "{self[buffer][security_group_rule]}"
-      endpoint.properties.initiator.source:
-        parameter: amazon.nodes.Group.properties.rules_egress
-        value:
-          - "{self[buffer][security_group_rule]}"
-      endpoint.properties.initiator.peer:
-        - parameter: amazon.nodes.Group.properties.rules
-          value:
-            - "{self[buffer][security_group_rule]}"
-        - parameter: amazon.nodes.Group.properties.rules_egress
-          value:
-            - "{self[buffer][security_group_rule]}"
-      endpoint.properties.ports:
-        error: true
-        reason: Not implemented yet
-      os.properties:
-        parameter: amazon.nodes.Instance.requirements.image_id.node_filter.properties
-        value:
-          - parameter: image_id
-            value:
-              value: image_id
-              facts: ec2_ami_info
+        - properties:
+            ip_address:
+              - parameter: "{self[buffer][security_group_rule][cidr_ip]}"
+                value: "{self[value]}"
+              - parameter: "{self[buffer][group_egress][cidr_ip]}"
+                value: "{self[value]}"
+              - parameter: "{self[buffer][group][cidr_ip]}"
+                value: "{self[value]}"
+              - parameter: amazon.nodes.Group.properties.rules
+                value:
+                - "{self[buffer][group]}"
+              - parameter: amazon.nodes.Group.properties.rules_egress
+                value:
+                - "{self[buffer][group_egress]}"
+            protocol:
+              parameter: "{self[buffer][security_group_rule][proto]}"
+              value: "{self[value]}"
+            port:
+              - parameter: "{self[buffer][security_group_rule][ports]}"
+                value:
+                  - "{self[value]}"
+            secure:
+              error: true
+              reason: Not supported in AWS
+            url_path:
+              error: true
+              reason: Not supported in AWS
+            port_name:
+              error: true
+              reason: Not supported in AWS
+            network_name:
+              facts: ec2_vpc_net_info # not tested
               executor: ansible
-              condition: contains
-              arguments:
-                - - architecture
-                  - name
-                - "{self[value]}"
-      scalable:
-        error: true
-        reason: Not described in TOSCA Profile YAML v1.0
+              condition: equals
+            initiator.target:
+              - parameter: amazon.nodes.Group.properties.rules
+                value:
+                  - "{self[buffer][security_group_rule]}"
+            initiator.source:
+              - parameter: amazon.nodes.Group.properties.rules_egress
+                value:
+                  - "{self[buffer][security_group_rule]}"
+            initiator.peer:
+              - parameter: amazon.nodes.Group.properties.rules
+                value:
+                  - "{self[buffer][security_group_rule]}"
+              - parameter: amazon.nodes.Group.properties.rules_egress
+                value:
+                  - "{self[buffer][security_group_rule]}"
+            ports.*:
+              protocol: # TODO: fix BUG protocol not changes in rules - always use last
+                - parameter: "{self[buffer][group_egress][proto]}"
+                  value: "{self[value]}"
+                - parameter: "{self[buffer][group][proto]}"
+                  value: "{self[value]}"
+              source:
+                - parameter: "{self[buffer][group_egress][ports]}"
+                  value:
+                    - - "{self[value]}"
+              target:
+                - parameter: "{self[buffer][group][ports]}"
+                  value:
+                    - - "{self[value]}"
+      os:
+        - properties:
+            architecture: "{self[buffer][os][architecture]}"
+            type:
+              - parameter: "{self[buffer][os][type]}"
+                value: '{self[value]}'
+              - parameter: '{self[buffer][add_host][ansible_user]}'
+                value: '{self[value]}'
+            distribution:
+              - parameter: "{self[buffer][os][distribution]}"
+                value: '{self[value]}'
+              - parameter: '{self[buffer][add_host][ansible_user]}'
+                value: '{self[value]}'
+            version: "{self[buffer][os][version]}"
+        - parameter: amazon.nodes.Instance.requirements.image_id.node_filter.properties
+          value:
+            - parameter: image_id
+              value:
+                value: image_id
+                facts: ec2_ami_info.images
+                executor: ansible
+                condition: contains
+                arguments:
+                  - - name
+                    - description
+                    - architecture
+                  - "{self[buffer][os]}"
+      scalable.properties:
+        min_instances:
+          - parameter: "{self[extra][ansible][{self[keyname]}_instance][with_sequence]}"
+            value: "start=1 end={self[value]} format=%d"
+          - parameter: amazon.nodes.Instance.properties.name
+            value: "{self[name]}_\\{\\{ item \\}\\}"
+        default_instances:
+          - parameter: "{self[extra][ansible][{self[keyname]}_instance][with_sequence]}"
+            value: "start=1 end={self[value]} format=%d"
+          - parameter: amazon.nodes.Instance.properties.name
+            value: "{self[name]}_\\{\\{ item \\}\\}"
+        max_instances:
+          - parameter: "{self[extra][ansible][{self[keyname]}_instance][with_sequence]}"
+            value: "start=1 end={self[value]} format=%d"
+          - parameter: amazon.nodes.Instance.properties.name
+            value: "{self[name]}_\\{\\{ item \\}\\}"
     requirements.local_storage:
       error: true
       reason: Bad description in TOSCA Profile YAML v1.0
+    interfaces: amazon.nodes.Instance.interfaces
+
+tosca.nodes.SoftwareComponent:
+  - requirements:
+    - host.node:
+        parameter: tosca.nodes.SoftwareComponent.requirements.host.node
+        value: "{self[value]}_instance"
+    - host.relationship:
+        parameter: tosca.nodes.SoftwareComponent.requirements.host.relationship
+        value: "{self[value]}_hosted_on"
+  - properties: tosca.nodes.SoftwareComponent.properties
+  - interfaces: tosca.nodes.SoftwareComponent.interfaces
+
+tosca.nodes.network.Network: # TODO: create get_attribute function -> add vpc_id to attributes
+  - interfaces: amazon.nodes.VpcNet.interfaces
+  - properties:
+      network_name:
+        - parameter: amazon.nodes.VpcNet.properties.name
+          value: "{self[value]}"
+        - parameter: amazon.nodes.VpcSubnet.properties.tags
+          value:
+            Name: "{self[value]}"
+      network_id:
+        parameter: amazon.nodes.VpcNet.properties.vpc_id
+        value: "{self[value]}"
+      cidr:
+        - parameter: amazon.nodes.VpcNet.properties.cidr_block
+          value: "{self[value]}"
+        - parameter: amazon.nodes.VpcSubnet.properties.cidr
+          value: "{self[value]}"
+        - parameter: amazon.nodes.VpcSubnet.requirements.vpc_id.node
+          value: "{self[name]}_vpc_net"
+
+tosca.nodes.network.Port: # TODO: create get_attribute function -> add vpc_subnet_id to attributes
+  - interfaces: amazon.nodes.Eni.interfaces
+  - properties:
+      ip_address: # can't create ports because of existing bug with region undefined - probably in ec2_eni module
+        - parameter: amazon.nodes.Eni.properties.private_ip_address
+          value: "{self[value]}"
+  - requirements:
+    - link.node:
+        parameter: amazon.nodes.Eni.requirements.subnet_id.node
+        value: "{self[value]}_vpc_subnet"
+    - link.relationship:
+        parameter: amazon.nodes.Eni.requirements.subnet_id.relationship
+        value: "{self[value]}_links_to"
+
+tosca.relationships.DependsOn:
+  - requirements: amazon.relationships.DependsOn.requirements
+  - attributes: amazon.relationships.DependsOn.attributes
+  - properties: amazon.relationships.DependsOn.properties
+  - capabilities: amazon.relationships.DependsOn.capabilities
+  - interfaces: amazon.relationships.DependsOn.interfaces
+
+tosca.relationships.HostedOn:
+  - requirements: amazon.relationships.HostedOn.requirements
+  - attributes: amazon.relationships.HostedOn.attributes
+  - properties: amazon.relationships.HostedOn.properties
+  - capabilities: amazon.relationships.HostedOn.capabilities
+  - interfaces: amazon.relationships.HostedOn.interfaces
+
+tosca.relationships.ConnectsTo:
+  - requirements: amazon.relationships.ConnectsTo.requirements
+  - attributes: amazon.relationships.ConnectsTo.attributes
+  - properties: amazon.relationships.ConnectsTo.properties
+  - capabilities: amazon.relationships.ConnectsTo.capabilities
+  - interfaces: amazon.relationships.ConnectsTo.interfaces
+
+tosca.relationships.AttachesTo:
+  - requirements: amazon.relationships.AttachesTo.requirements
+  - attributes: amazon.relationships.AttachesTo.attributes
+  - properties: amazon.relationships.AttachesTo.properties
+  - capabilities: amazon.relationships.AttachesTo.capabilities
+  - interfaces: amazon.relationships.AttachesTo.interfaces
+
+tosca.relationships.RoutesTo:
+  - requirements: amazon.relationships.RoutesTo.requirements
+  - attributes: amazon.relationships.RoutesTo.attributes
+  - properties: amazon.relationships.RoutesTo.properties
+  - capabilities: amazon.relationships.RoutesTo.capabilities
+  - interfaces: amazon.relationships.RoutesTo.interfaces
+
+tosca.relationships.network.LinksTo:
+  - requirements: amazon.relationships.network.LinksTo.requirements
+  - attributes: amazon.relationships.network.LinksTo.attributes
+  - properties: amazon.relationships.network.LinksTo.properties
+  - capabilities: amazon.relationships.network.LinksTo.capabilities
+  - interfaces: amazon.relationships.network.LinksTo.interfaces
+
+tosca.relationships.network.BindsTo:
+  - requirements: amazon.relationships.network.BindsTo.requirements
+  - attributes: amazon.relationships.network.BindsTo.attributes
+  - properties: amazon.relationships.network.BindsTo.properties
+  - capabilities: amazon.relationships.network.BindsTo.capabilities
+  - interfaces: amazon.relationships.network.BindsTo.interfaces

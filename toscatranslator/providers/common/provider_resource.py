@@ -91,7 +91,7 @@ class ProviderResource(object):
                             sys.exit(1)
                         if host_ip_parameter not in ('public_address', 'private_address'):
                             host_ip_parameter = 'private_address'
-                        self.host = req.value + '_' + host_ip_parameter
+                        self.host = req.data['node'] + '_' + host_ip_parameter
 
             self.node_filter_artifacts = []
             for key, req in self.requirements.items():
@@ -109,6 +109,18 @@ class ProviderResource(object):
                 node_filter_source_postfix = node_filter_config.get('node_filter_source_postfix', '')
                 node_filter_exceptions = node_filter_config.get('node_filter_exceptions', '')
                 node_filter_inner_variable = node_filter_config.get('node_filter_inner_variable')
+                node_filter_inner_value = node_filter_config.get('node_filter_inner_value')
+                if node_filter_inner_value:
+                    if not isinstance(node_filter_inner_value, dict):
+                        logging.error("Provider configuration parameter "
+                                      "\'ansible.node_filter: node_filter_inner_value\' is missing "
+                                      "or has unsupported value \'%s\'" % node_filter_inner_value)
+                        sys.exit(1)
+                    else:
+                        for elem in node_filter_inner_value:
+                            if elem in self.configuration_args:
+                                if self.configuration_args[elem].get(VALUE):
+                                    self.configuration_args[elem][VALUE] = node_filter_inner_value[elem]
                 for arg_key, arg in self.configuration_args.items():
                     if isinstance(arg, dict):
                         node_filter_key = arg.get(SOURCE, {}).get(NODE_FILTER)
@@ -117,8 +129,9 @@ class ProviderResource(object):
 
                         if node_filter_key and node_filter_value and node_filter_params:
                             node_filter_source = node_filter_source_prefix + node_filter_key + node_filter_source_postfix
-                            if node_filter_exceptions.get(node_filter_key):
-                                node_filter_source = node_filter_exceptions[node_filter_key]
+                            if node_filter_exceptions:
+                                if node_filter_exceptions.get(node_filter_key):
+                                    node_filter_source = node_filter_exceptions[node_filter_key]
 
                             NODE_FILTER_FACTS = 'node_filter_facts'
                             NODE_FILTER_FACTS_REGISTER = NODE_FILTER_FACTS + '_raw'
@@ -191,7 +204,7 @@ class ProviderResource(object):
                                     EXECUTOR: configuration_tool
                                 }
                             ]
-                            arg = str(execute(tmp_ansible_tasks, self.is_delete, self.cluster_name, node_filter_value))
+                            arg = str(execute(tmp_ansible_tasks, self.is_delete, self.cluster_name, self.provider, node_filter_value))
                     self.configuration_args[arg_key] = arg
 
     @property
