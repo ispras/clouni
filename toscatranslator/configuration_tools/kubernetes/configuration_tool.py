@@ -12,10 +12,14 @@ TYPE = 'type'
 class KubernetesConfigurationTool(ConfigurationTool):
     TOOL_NAME = KUBERNETES
 
-    def to_dsl(self, provider, nodes_relationships_queue, reversed_nodes_relationships_queue, cluster_name, is_delete, artifacts=None,
+    def __init__(self, provider=None):
+        super(KubernetesConfigurationTool, self).__init__()
+        self.provider = provider
+
+    def to_dsl(self, nodes_relationships_queue, reversed_nodes_relationships_queue, cluster_name, is_delete, artifacts=None,
                target_directory=None, inputs=None, outputs=None, extra=None, debug=False):
         if not is_delete:
-            return self.to_dsl_for_create(provider, nodes_relationships_queue, artifacts, target_directory,
+            return self.to_dsl_for_create(self.provider, nodes_relationships_queue, artifacts, target_directory,
                                           cluster_name, extra)
 
     def to_dsl_for_create(self, provider, nodes_queue, artifacts, target_directory, cluster_name, extra=None):
