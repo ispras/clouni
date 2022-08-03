@@ -816,6 +816,7 @@ def restructure_mapping_facts(elements_map, self, is_delete, cluster_name, extra
             if not get_configuration_tool_class(executor):
                 logging.critical("Unsupported executor name \'%s\'" % json.dumps(executor))
                 sys.exit(1)
+            provider = target_parameter.split(SEPARATOR)[0]
             new_value = get_source_structure_from_facts(condition, fact_name, value, arguments, executor, self, is_delete, cluster_name, provider)
             return new_value, extra_elements_map
 
