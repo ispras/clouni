@@ -14,7 +14,7 @@ NETWORK_MODULE_NAME = 'os_network'
 SUBNET_MODULE_NAME = 'os_subnet'
 
 
-class TestAnsibleOpenStackOutput (unittest.TestCase, TestAnsibleProvider):
+class TestAnsibleOpenStackOutput(unittest.TestCase, TestAnsibleProvider):
     PROVIDER = 'openstack'
 
     def test_validation(self):
@@ -27,7 +27,8 @@ class TestAnsibleOpenStackOutput (unittest.TestCase, TestAnsibleProvider):
 
     def test_translating_to_ansible_delete(self):
         file_path = os.path.join('examples', 'tosca-server-example-openstack.yaml')
-        shell.main(['--template-file', file_path, '--cluster-name', 'test', '--delete','false','--provider', self.PROVIDER])
+        shell.main(
+            ['--template-file', file_path, '--cluster-name', 'test', '--delete', 'false', '--provider', self.PROVIDER])
 
     def test_full_translating(self):
         file_path = os.path.join('examples', 'tosca-server-example.yaml')
@@ -84,6 +85,15 @@ class TestAnsibleOpenStackOutput (unittest.TestCase, TestAnsibleProvider):
 
         file_diff_path = os.path.join('examples', 'tosca-network-and-port-example-ansible-async-openstack.yaml')
         self.diff_files(file_output_path, file_diff_path)
+
+    def test_volume_validation(self):
+        file_path = os.path.join('examples', 'tosca-volume-example.yaml')
+        file_output = os.path.join('examples', 'tosca-volume-output.yaml')
+        shell.main(
+            ['--template-file', file_path, '--cluster-name', 'test', '--provider', self.PROVIDER, '--output-file',
+             file_output])
+        file_diff_path = os.path.join('examples', 'tosca-volume-correct.yaml')
+        self.diff_files(file_output, file_diff_path)
 
     def test_network_with_compute(self):
         file_path = os.path.join('examples', 'tosca-network-and-server-example.yaml')
@@ -184,7 +194,7 @@ class TestAnsibleOpenStackOutput (unittest.TestCase, TestAnsibleProvider):
         self.assertEqual(server['name'], self.NODE_NAME)
 
     def test_async_meta(self):
-        extra={
+        extra = {
             'global': {
                 'async': True,
                 'retries': 3,
@@ -197,7 +207,7 @@ class TestAnsibleOpenStackOutput (unittest.TestCase, TestAnsibleProvider):
     def test_meta(self, extra=None):
         super(TestAnsibleOpenStackOutput, self).test_meta(extra=extra)
 
-    def check_meta (self, tasks, testing_value=None, extra=None):
+    def check_meta(self, tasks, testing_value=None, extra=None):
         server_name = None
         for task in tasks:
             if task.get(SERVER_MODULE_NAME):
@@ -324,10 +334,10 @@ class TestAnsibleOpenStackOutput (unittest.TestCase, TestAnsibleProvider):
 
     def test_delete_full_modules(self):
         playbook = self.get_ansible_delete_output_from_file(copy.deepcopy(self.DEFAULT_TEMPLATE),
-                                                  template_filename='examples/tosca-server-example-scalable.yaml')
+                                                            template_filename='examples/tosca-server-example-scalable.yaml')
         self.assertIsNotNone(playbook[0]['tasks'][0]['include_vars'])
-        self.assertIsNotNone(playbook[0]['tasks'][len(playbook[0]['tasks'])-1]['file'])
-        module_names= ['os_floating_ip','os_server','os_port','os_security_group',]
+        self.assertIsNotNone(playbook[0]['tasks'][len(playbook[0]['tasks']) - 1]['file'])
+        module_names = ['os_floating_ip', 'os_server', 'os_port', 'os_security_group', ]
         for task in playbook[0]['tasks']:
             if task.get('name') is not None:
                 modules = [task.get(name)['state'] for name in module_names if task.get(name) is not None]
@@ -343,21 +353,22 @@ class TestAnsibleOpenStackOutput (unittest.TestCase, TestAnsibleProvider):
             }
         }
         playbook = self.get_ansible_delete_output_from_file(copy.deepcopy(self.DEFAULT_TEMPLATE),
-                                                  template_filename='examples/tosca-server-example-scalable.yaml', extra=extra)
+                                                            template_filename='examples/tosca-server-example-scalable.yaml',
+                                                            extra=extra)
         self.assertIsNotNone(playbook[0]['tasks'][0]['include_vars'])
-        self.assertIsNotNone(playbook[0]['tasks'][len(playbook[0]['tasks'])-1]['file'])
-        module_names = ['os_floating_ip','os_server','os_port','os_security_group']
+        self.assertIsNotNone(playbook[0]['tasks'][len(playbook[0]['tasks']) - 1]['file'])
+        module_names = ['os_floating_ip', 'os_server', 'os_port', 'os_security_group']
         delete_task_counter = 0
         async_task_counter = 0
         for task in playbook[0]['tasks']:
             if task.get('name') is not None:
                 modules = [task.get(name)['state'] for name in module_names if task.get(name) is not None]
                 if modules:
-                    delete_task_counter+=1
+                    delete_task_counter += 1
                     self.assertEqual(modules[0], 'absent')
                 else:
-                    async_task_counter+=1
-        self.assertEqual(async_task_counter, delete_task_counter*2)
+                    async_task_counter += 1
+        self.assertEqual(async_task_counter, delete_task_counter * 2)
 
     def test_os_capabilities(self):
         super(TestAnsibleOpenStackOutput, self).test_os_capabilities()
@@ -415,27 +426,27 @@ class TestAnsibleOpenStackOutput (unittest.TestCase, TestAnsibleProvider):
             if tasks[i].get('os_floating_ip', None) != None:
                 fip_var = tasks[i]['register']
 
-                self.assertIsNotNone(tasks[i+1].get('set_fact', None))
-                self.assertEqual(tasks[i+1]['set_fact'].get('host_ip', None),
-                                 '{{ '+ fip_var + '.floating_ip.floating_ip_address }}')
+                self.assertIsNotNone(tasks[i + 1].get('set_fact', None))
+                self.assertEqual(tasks[i + 1]['set_fact'].get('host_ip', None),
+                                 '{{ ' + fip_var + '.floating_ip.floating_ip_address }}')
 
-                self.assertIsNotNone(tasks[i+2].get('add_host', None))
-                self.assertEqual(tasks[i+2]['add_host'].get('hostname', None),
+                self.assertIsNotNone(tasks[i + 2].get('add_host', None))
+                self.assertEqual(tasks[i + 2]['add_host'].get('hostname', None),
                                  '{{ host_ip }}')
-                self.assertEqual(tasks[i+2]['add_host'].get('groups', None),
+                self.assertEqual(tasks[i + 2]['add_host'].get('groups', None),
                                  self.NODE_NAME)
 
-                self.assertIsNotNone(tasks[i+3].get('shell', None))
-                self.assertEqual(tasks[i+3]['shell'],
+                self.assertIsNotNone(tasks[i + 3].get('shell', None))
+                self.assertEqual(tasks[i + 3]['shell'],
                                  'ssh-keyscan {{ host_ip }},`dig +short {{ host_ip }}`')
-                self.assertIsNotNone(tasks[i+3].get('register', None))
-                self.assertEqual(tasks[i+3]['register'],
+                self.assertIsNotNone(tasks[i + 3].get('register', None))
+                self.assertEqual(tasks[i + 3]['register'],
                                  'host_key')
 
-                self.assertIsNotNone(tasks[i+4].get('known_hosts', None))
-                self.assertEqual(tasks[i+4]['known_hosts'].get('name', None),
+                self.assertIsNotNone(tasks[i + 4].get('known_hosts', None))
+                self.assertEqual(tasks[i + 4]['known_hosts'].get('name', None),
                                  '{{ host_ip }}')
-                self.assertEqual(tasks[i+4]['known_hosts'].get('key', None),
+                self.assertEqual(tasks[i + 4]['known_hosts'].get('key', None),
                                  '{{ host_key.stdout }}')
                 checked = True
         self.assertTrue(checked)
@@ -491,7 +502,3 @@ class TestAnsibleOpenStackOutput (unittest.TestCase, TestAnsibleProvider):
                 checked = True
                 self.assertEqual(task['set_fact']['server_address'], '{{ %s.floating_ip_address }}' % register_var)
         self.assertTrue(checked)
-
-    def test_volume_validation(self):
-        file_path = os.path.join('samples', 'sample.yaml')
-        shell.main(['--template-file', file_path, '--cluster-name', 'test', '--provider', self.PROVIDER]) # --validate-only

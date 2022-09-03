@@ -19,9 +19,13 @@ ansible-hosts
 # Testing examples
 tosca-server-example-output*
 tosca-network-and-port-example-output*
+tosca-volume-output*
+
+# Clouni output
+artifacts/contains.yaml
+artifacts/equals.yaml
 
 venv
 my_definitions
 my_examples
 my_templates
-
