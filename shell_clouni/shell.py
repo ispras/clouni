@@ -15,21 +15,22 @@ class TranslatorShell(object):
         self.template_file = args.template_file
         self.validate_only = args.validate_only
         self.is_delete = args.delete
-        self.provider = args.provider
         self.output_file = args.output_file
+        self.provider = args.provider
         self.configuration_tool = args.configuration_tool
         self.cluster_name = args.cluster_name
         self.extra = {}
+        self.host_ip_parameter = args.host_parameter
+        self.public_key_path = args.public_key_path
         self.log_level = args.log_level
+        self.debug = args.debug
 
         for i in args.extra:
             i_splitted = [j.strip() for j in i.split('=', 1)]
             if len(i_splitted) < 2:
                 raise Exception('Failed parsing parameter \'--extra\', required \'key=value\' format')
             self.extra.update({i_splitted[0]: i_splitted[1]})
-        if args.async and not self.extra.get('async'):
-            self.extra['async'] = args.async
-        if args.debug:
+        if self.debug:
             self.log_level = 'debug'
 
         for k, v in self.extra.items():
@@ -41,9 +42,9 @@ class TranslatorShell(object):
                         self.extra[k] = float(v)
 
         self.working_dir = os.getcwd()
-
-        output = translate(self.template_file, self.validate_only, self.provider, self.configuration_tool, self.cluster_name, self.is_delete,
-                           extra={'global': self.extra}, log_level=self.log_level)
+        output = translate(self.template_file, self.validate_only, self.provider, self.configuration_tool,
+                           self.cluster_name, public_key_path=self.public_key_path, host_ip_parameter=self.host_ip_parameter, is_delete=self.is_delete,
+                           extra={'global': self.extra}, log_level=self.log_level, debug=self.debug)
         self.output_print(output)
 
     def get_parser(self):
@@ -75,10 +76,6 @@ class TranslatorShell(object):
                             default="ansible",
                             help="Configuration tool which DSL the template would be translated to. "
                                  "Default value = \"ansible\"")
-        parser.add_argument('--async',
-                            action='store_true',
-                            default=False,
-                            help='Provider nodes should be created asynchronously')
         parser.add_argument('--extra',
                             default=[],
                             metavar="KEY=VALUE",
@@ -92,15 +89,20 @@ class TranslatorShell(object):
                             default='info',
                             choices=['debug', 'info', 'warning', 'error', 'critical'],
                             help='Set log level for tool')
+        parser.add_argument('--host-parameter',
+                            default='public_address',
+                            help="Specify Compute property to be used as host IP for software components that hosted on the Compute. Valid values: public_address and private_address")
+        parser.add_argument('--public-key-path',
+                            default='~/.ssh/id_rsa.pub',
+                            help="Set path to public key for configuration software on cloud servers")
         return parser
 
     def output_print(self, output_msg):
         if self.output_file:
             with open(self.output_file, 'w') as file_obj:
                 file_obj.write(output_msg)
-        else:
+        if self.debug:
             print(output_msg)
-
 
 def main(args=None):
     if args is None:

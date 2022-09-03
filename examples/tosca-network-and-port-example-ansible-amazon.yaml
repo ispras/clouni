@@ -1,0 +1,148 @@
+---
+- name: 'Create Amazon aws component amazon cluster: my_network_vpc_net:create'
+  hosts: localhost
+  tasks:
+  - file:
+      path: id_vars_example.yaml
+      state: absent
+  - file:
+      path: id_vars_example.yaml
+      state: touch
+  - include_vars: id_vars_example.yaml
+  - name: Create Amazon aws component vpc net
+    ec2_vpc_net:
+      cidr_block: 192.168.56.0/24
+      name: test_network
+    register: my_network_vpc_net
+  - set_fact:
+      my_network_vpc_net_list: '{{ my_network_vpc_net_list | default([]) }} + [ "{{
+        item.id }}" ]'
+    loop: '{{ my_network_vpc_net.results | flatten(levels=1)  }}'
+    when: item.id  is defined
+  - set_fact:
+      my_network_vpc_net_list: '{{ my_network_vpc_net_list | default([]) }} + [ "{{
+        item.vpc_net_ids[0] }}" ]'
+    loop: '{{ my_network_vpc_net.results | flatten(levels=1)  }}'
+    when: item.vpc_net_ids is defined
+  - set_fact:
+      my_network_vpc_net_list:
+        my_network_vpc_net_ids: '{{ my_network_vpc_net_list }}'
+    when: my_network_vpc_net_list is defined
+  - lineinfile:
+      path: /id_vars_example.yaml
+      line: 'my_network_vpc_net_delete: {{ my_network_vpc_net.id }}'
+    when: my_network_vpc_net.id is defined
+  - lineinfile:
+      path: id_vars_example.yaml
+      line: 'my_network_vpc_net_delete: {{ my_network_vpc_net.vpc_net_id }}'
+    when: my_network_vpc_net.vpc_net_id is defined
+  - lineinfile:
+      path: id_vars_example.yaml
+      line: 'my_network_vpc_net_delete: {{ my_network_vpc_net.vpc.id }}'
+    when: my_network_vpc_net.vpc.id is defined
+  - lineinfile:
+      path: id_vars_example.yaml
+      line: 'my_network_vpc_net_delete: {{ my_network_vpc_net.net.id }}'
+    when: my_network_vpc_net.net.id is defined
+  - lineinfile:
+      path: id_vars_example.yaml
+      line: '{{ my_network_vpc_net_list | to_nice_yaml }}'
+    when: my_network_vpc_net_list is defined
+  - fail:
+      msg: Variable my_network_vpc_net is undefined! So it will not be deleted
+    when: my_network_vpc_net_list is undefined and my_network_vpc_net.id is undefined
+    ignore_errors: true
+- name: 'Create Amazon aws component amazon cluster: my_network_vpc_subnet:create'
+  hosts: localhost
+  tasks:
+  - include_vars: id_vars_example.yaml
+  - name: Create Amazon aws component vpc subnet
+    ec2_vpc_subnet:
+      cidr: 192.168.56.0/24
+      tags:
+        Name: test_network
+      vpc_id: '{{ my_network_vpc_net_delete }}'
+    register: my_network_vpc_subnet
+  - set_fact:
+      my_network_vpc_subnet_list: '{{ my_network_vpc_subnet_list | default([]) }}
+        + [ "{{ item.id }}" ]'
+    loop: '{{ my_network_vpc_subnet.results | flatten(levels=1)  }}'
+    when: item.id  is defined
+  - set_fact:
+      my_network_vpc_subnet_list: '{{ my_network_vpc_subnet_list | default([]) }}
+        + [ "{{ item.vpc_subnet_ids[0] }}" ]'
+    loop: '{{ my_network_vpc_subnet.results | flatten(levels=1)  }}'
+    when: item.vpc_subnet_ids is defined
+  - set_fact:
+      my_network_vpc_subnet_list:
+        my_network_vpc_subnet_ids: '{{ my_network_vpc_subnet_list }}'
+    when: my_network_vpc_subnet_list is defined
+  - lineinfile:
+      path: id_vars_example.yaml
+      line: 'my_network_vpc_subnet_delete: {{ my_network_vpc_subnet.id }}'
+    when: my_network_vpc_subnet.id is defined
+  - lineinfile:
+      path: id_vars_example.yaml
+      line: 'my_network_vpc_subnet_delete: {{ my_network_vpc_subnet.vpc_subnet_id
+        }}'
+    when: my_network_vpc_subnet.vpc_subnet_id is defined
+  - lineinfile:
+      path: id_vars_example.yaml
+      line: 'my_network_vpc_subnet_delete: {{ my_network_vpc_subnet.vpc.id }}'
+    when: my_network_vpc_subnet.vpc.id is defined
+  - lineinfile:
+      path: id_vars_example.yaml
+      line: 'my_network_vpc_subnet_delete: {{ my_network_vpc_subnet.subnet.id }}'
+    when: my_network_vpc_subnet.subnet.id is defined
+  - lineinfile:
+      path: id_vars_example.yaml
+      line: '{{ my_network_vpc_subnet_list | to_nice_yaml }}'
+    when: my_network_vpc_subnet_list is defined
+  - fail:
+      msg: Variable my_network_vpc_subnet is undefined! So it will not be deleted
+    when: my_network_vpc_subnet_list is undefined and my_network_vpc_subnet.id is
+      undefined
+    ignore_errors: true
+- name: 'Create Amazon aws component amazon cluster: my_port_eni:create'
+  hosts: localhost
+  tasks:
+  - include_vars: id_vars_example.yaml
+  - name: Create Amazon aws component eni
+    ec2_eni:
+      private_ip_address: 192.168.56.100
+      subnet_id: '{{ my_network_vpc_subnet_delete }}'
+    register: my_port_eni
+  - set_fact:
+      my_port_eni_list: '{{ my_port_eni_list | default([]) }} + [ "{{ item.id }}"
+        ]'
+    loop: '{{ my_port_eni.results | flatten(levels=1)  }}'
+    when: item.id  is defined
+  - set_fact:
+      my_port_eni_list: '{{ my_port_eni_list | default([]) }} + [ "{{ item.eni_ids[0]
+        }}" ]'
+    loop: '{{ my_port_eni.results | flatten(levels=1)  }}'
+    when: item.eni_ids is defined
+  - set_fact:
+      my_port_eni_list:
+        my_port_eni_ids: '{{ my_port_eni_list }}'
+    when: my_port_eni_list is defined
+  - lineinfile:
+      path: id_vars_example.yaml
+      line: 'my_port_eni_delete: {{ my_port_eni.id }}'
+    when: my_port_eni.id is defined
+  - lineinfile:
+      path: id_vars_example.yaml
+      line: 'my_port_eni_delete: {{ my_port_eni.eni_id }}'
+    when: my_port_eni.eni_id is defined
+  - lineinfile:
+      path: id_vars_example.yaml
+      line: 'my_port_eni_delete: {{ my_port_eni.eni.id }}'
+    when: my_port_eni.eni.id is defined
+  - lineinfile:
+      path: id_vars_example.yaml
+      line: '{{ my_port_eni_list | to_nice_yaml }}'
+    when: my_port_eni_list is defined
+  - fail:
+      msg: Variable my_port_eni is undefined! So it will not be deleted
+    when: my_port_eni_list is undefined and my_port_eni.id is undefined
+    ignore_errors: true

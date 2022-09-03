@@ -21,12 +21,6 @@ topology_template:
             version: 16.04
       requirements:
         - local_storage:
-            node: disk_c
-            relationship:
-              type: tosca.nodes.AttachesTo
-              properties:
-                location: /mnt/c
-        - local_storage:
             capability:
               type: tosca.capabilities.Attachment
             node: disk_d

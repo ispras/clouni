@@ -1,0 +1,47 @@
+- file:
+    path: '{{ playbook_dir }}/hosts.ini'
+    state: touch
+    mode: 0666
+    modification_time: preserve
+    access_time: preserve
+- lineinfile:
+    path: '{{ playbook_dir }}/hosts.ini'
+    line: '[{{ group }}]'
+- lineinfile:
+    path: '{{ playbook_dir }}/hosts.ini'
+    line: '{{ item[0] }} ansible_host={{ item[1] }} ansible_user={{ ansible_user }} ansible_pass={{ ansible_sudo_pass }}'
+  when: ansible_sudo_pass is defined and host_ip is defined and item[1] != ''
+  with_list: "{{ host_ip }}"
+- lineinfile:
+    path: '{{ playbook_dir }}/hosts.ini'
+    line: '{{ item[0] }} ansible_host={{ item[1] }} ansible_user={{ ansible_user }}'
+  when: ansible_sudo_pass is undefined and host_ip is defined and item[1] != ''
+  with_list: "{{ host_ip }}"
+- shell: |
+    check_ssh() {
+        while [ 1 = 1 ]; do
+                ssh-keyscan {{ item[1] }},`dig +short {{ item[1] }}`
+                rc=$?
+                case $rc in
+                    0)        return $rc;;
+                esac
+                echo "ssh not working. Sleeping..."
+                sleep 5
+            done
+    }
+    check_ssh
+  when: host_ip is defined and item[1] != ''
+  with_list: "{{ host_ip }}"
+- shell: ssh-keyscan {{ item[1] }},`dig +short {{ item[1] }}`
+  register: host_key
+  ignore_errors: true
+  when: host_ip is defined and item[1] != ''
+  with_list: "{{ host_ip }}"
+- debug:
+    msg: "{{ host_key }}"
+- known_hosts:
+    path: ~/.ssh/known_hosts
+    name: '{{ item.item[1] }}'
+    key: '{{ item.stdout }}'
+  when: host_key is defined and host_ip is defined and item.item[1] != '' and item.rc == 0
+  with_items: "{{ host_key.results }}"

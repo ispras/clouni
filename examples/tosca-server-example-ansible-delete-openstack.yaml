@@ -1,80 +1,125 @@
-- name: Delete openstack cluster
+---
+- name: 'Delete OpenStack component openstack cluster: tosca_server_example_floating_ip:delete'
   hosts: localhost
   tasks:
-  - include_vars: '{{ playbook_dir }}/id_vars_test.yaml'
+  - include_vars: id_vars_example.yaml
   - name: Delete OpenStack component floating ip
     os_floating_ip:
-      name: '{{ server_kube_master_floating_ip_delete }}'
+      name: '{{ tosca_server_example_floating_ip_delete }}'
       state: absent
-    when: server_kube_master_floating_ip_delete is defined
-    register: server_kube_master_floating_ip_var
-  - set_fact: server_kube_master_floating_ip='{{ server_kube_master_floating_ip_var
+    when: tosca_server_example_floating_ip_delete is defined
+    register: tosca_server_example_floating_ip_var
+  - set_fact: tosca_server_example_floating_ip='{{ tosca_server_example_floating_ip_var
       }}'
-    when: server_kube_master_floating_ip_var.changed
+    when: tosca_server_example_floating_ip_var.changed
   - name: Delete OpenStack component floating ip
     os_floating_ip:
       name: '{{ item }}'
       state: absent
-    when: server_kube_master_floating_ip_ids is defined
-    loop: '{{ server_kube_master_floating_ip_ids | flatten(levels=1) }}'
-    register: server_kube_master_floating_ip_var
-  - set_fact: server_kube_master_floating_ip='{{ server_kube_master_floating_ip_var
+    when: tosca_server_example_floating_ip_ids is defined
+    loop: '{{ tosca_server_example_floating_ip_ids | flatten(levels=1) }}'
+    register: tosca_server_example_floating_ip_var
+  - set_fact: tosca_server_example_floating_ip='{{ tosca_server_example_floating_ip_var
       }}'
-    when: server_kube_master_floating_ip_var.changed
+    when: tosca_server_example_floating_ip_var.changed
+  - name: Delete OpenStack component floating ip
+    os_floating_ip: '{{ item }}'
+    loop: '{{ tosca_server_example_floating_ip_dicts }}'
+    when: tosca_server_example_floating_ip_dicts is defined
+    register: tosca_server_example_floating_ip_var
+  - set_fact: tosca_server_example_floating_ip='{{ tosca_server_example_floating_ip_var
+      }}'
+    when: tosca_server_example_floating_ip_var.changed
+- name: 'Delete OpenStack component openstack cluster: tosca_server_example_server:delete'
+  hosts: localhost
+  tasks:
+  - include_vars: id_vars_example.yaml
   - name: Delete OpenStack component server
     os_server:
-      name: '{{ server_kube_master_server_delete }}'
+      name: '{{ tosca_server_example_server_delete }}'
       state: absent
-    when: server_kube_master_server_delete is defined
-    register: server_kube_master_server_var
-  - set_fact: server_kube_master_server='{{ server_kube_master_server_var }}'
-    when: server_kube_master_server_var.changed
+    when: tosca_server_example_server_delete is defined
+    register: tosca_server_example_server_var
+  - set_fact: tosca_server_example_server='{{ tosca_server_example_server_var }}'
+    when: tosca_server_example_server_var.changed
   - name: Delete OpenStack component server
     os_server:
       name: '{{ item }}'
       state: absent
-    when: server_kube_master_server_ids is defined
-    loop: '{{ server_kube_master_server_ids | flatten(levels=1) }}'
-    register: server_kube_master_server_var
-  - set_fact: server_kube_master_server='{{ server_kube_master_server_var }}'
-    when: server_kube_master_server_var.changed
-  - name: Delete OpenStack component port
-    os_port:
-      name: '{{ server_kube_master_port_delete }}'
+    when: tosca_server_example_server_ids is defined
+    loop: '{{ tosca_server_example_server_ids | flatten(levels=1) }}'
+    register: tosca_server_example_server_var
+  - set_fact: tosca_server_example_server='{{ tosca_server_example_server_var }}'
+    when: tosca_server_example_server_var.changed
+  - name: Delete OpenStack component server
+    os_server: '{{ item }}'
+    loop: '{{ tosca_server_example_server_dicts }}'
+    when: tosca_server_example_server_dicts is defined
+    register: tosca_server_example_server_var
+  - set_fact: tosca_server_example_server='{{ tosca_server_example_server_var }}'
+    when: tosca_server_example_server_var.changed
+- name: 'Delete OpenStack component openstack cluster: tosca_server_example_keypair:delete'
+  hosts: localhost
+  tasks:
+  - include_vars: id_vars_example.yaml
+  - name: Delete OpenStack component keypair
+    os_keypair:
+      name: '{{ tosca_server_example_keypair_delete }}'
       state: absent
-    when: server_kube_master_port_delete is defined
-    register: server_kube_master_port_var
-  - set_fact: server_kube_master_port='{{ server_kube_master_port_var }}'
-    when: server_kube_master_port_var.changed
-  - name: Delete OpenStack component port
-    os_port:
+    when: tosca_server_example_keypair_delete is defined
+    register: tosca_server_example_keypair_var
+  - set_fact: tosca_server_example_keypair='{{ tosca_server_example_keypair_var }}'
+    when: tosca_server_example_keypair_var.changed
+  - name: Delete OpenStack component keypair
+    os_keypair:
       name: '{{ item }}'
       state: absent
-    when: server_kube_master_port_ids is defined
-    loop: '{{ server_kube_master_port_ids | flatten(levels=1) }}'
-    register: server_kube_master_port_var
-  - set_fact: server_kube_master_port='{{ server_kube_master_port_var }}'
-    when: server_kube_master_port_var.changed
+    when: tosca_server_example_keypair_ids is defined
+    loop: '{{ tosca_server_example_keypair_ids | flatten(levels=1) }}'
+    register: tosca_server_example_keypair_var
+  - set_fact: tosca_server_example_keypair='{{ tosca_server_example_keypair_var }}'
+    when: tosca_server_example_keypair_var.changed
+  - name: Delete OpenStack component keypair
+    os_keypair: '{{ item }}'
+    loop: '{{ tosca_server_example_keypair_dicts }}'
+    when: tosca_server_example_keypair_dicts is defined
+    register: tosca_server_example_keypair_var
+  - set_fact: tosca_server_example_keypair='{{ tosca_server_example_keypair_var }}'
+    when: tosca_server_example_keypair_var.changed
+- name: 'Delete OpenStack component openstack cluster: tosca_server_example_security_group:delete'
+  hosts: localhost
+  tasks:
+  - include_vars: id_vars_example.yaml
   - name: Delete OpenStack component security group
     os_security_group:
-      name: '{{ server_kube_master_security_group_delete }}'
+      name: '{{ tosca_server_example_security_group_delete }}'
       state: absent
-    when: server_kube_master_security_group_delete is defined
-    register: server_kube_master_security_group_var
-  - set_fact: server_kube_master_security_group='{{ server_kube_master_security_group_var
+    when: tosca_server_example_security_group_delete is defined
+    register: tosca_server_example_security_group_var
+  - set_fact: tosca_server_example_security_group='{{ tosca_server_example_security_group_var
       }}'
-    when: server_kube_master_security_group_var.changed
+    when: tosca_server_example_security_group_var.changed
   - name: Delete OpenStack component security group
     os_security_group:
       name: '{{ item }}'
       state: absent
-    when: server_kube_master_security_group_ids is defined
-    loop: '{{ server_kube_master_security_group_ids | flatten(levels=1) }}'
-    register: server_kube_master_security_group_var
-  - set_fact: server_kube_master_security_group='{{ server_kube_master_security_group_var
+    when: tosca_server_example_security_group_ids is defined
+    loop: '{{ tosca_server_example_security_group_ids | flatten(levels=1) }}'
+    register: tosca_server_example_security_group_var
+  - set_fact: tosca_server_example_security_group='{{ tosca_server_example_security_group_var
       }}'
-    when: server_kube_master_security_group_var.changed
+    when: tosca_server_example_security_group_var.changed
+  - name: Delete OpenStack component security group
+    os_security_group: '{{ item }}'
+    loop: '{{ tosca_server_example_security_group_dicts }}'
+    when: tosca_server_example_security_group_dicts is defined
+    register: tosca_server_example_security_group_var
+  - set_fact: tosca_server_example_security_group='{{ tosca_server_example_security_group_var
+      }}'
+    when: tosca_server_example_security_group_var.changed
+- name: Renew id_vars_example.yaml
+  hosts: localhost
+  tasks:
   - file:
-      path: '{{ playbook_dir }}/id_vars_test.yaml'
+      path: id_vars_example.yaml
       state: absent
-

@@ -1,0 +1,6 @@
+- debug:
+    msg: "SUCCESSFULL"
+  when: test is defined
+- fail:
+    msg: "Input is undefined"
+  when: test is undefined

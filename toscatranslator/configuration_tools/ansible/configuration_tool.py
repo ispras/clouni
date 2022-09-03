@@ -1,21 +1,33 @@
+import time
+from multiprocessing import Queue
+from random import seed, randint
+
+from graphlib import TopologicalSorter
+
 from toscatranslator.common import utils
 from toscatranslator.common.tosca_reserved_keys import PARAMETERS, VALUE, EXTRA, SOURCE, INPUTS, NODE_FILTER, NAME, \
-    NODES, GET_OPERATION_OUTPUT, IMPLEMENTATION, ANSIBLE, GET_INPUT
+    NODES, GET_OPERATION_OUTPUT, IMPLEMENTATION, ANSIBLE, GET_INPUT, RELATIONSHIPS
 
 from toscatranslator.providers.common.provider_configuration import ProviderConfiguration
 from toscatranslator.configuration_tools.common.configuration_tool import ConfigurationTool, \
     OUTPUT_IDS, OUTPUT_ID_RANGE_START, OUTPUT_ID_RANGE_END
 
+from toscatranslator.configuration_tools.ansible.runner import run_ansible, parallel_run_ansible, prepare_for_run
+from multiprocessing.connection import Listener
+
 import copy, sys, yaml, os, itertools, six, logging
-from shutil import copyfile
+from shutil import copyfile, rmtree
+
+SEPARATOR = '.'
+
+ARTIFACT_RANGE_START = 1000
+ARTIFACT_RANGE_END = 9999
 
 ANSIBLE_RESERVED_KEYS = \
     (REGISTER, PATH, FILE, STATE, LINEINFILE, SET_FACT, IS_DEFINED, IS_UNDEFINED, IMPORT_TASKS_MODULE) = \
-    ('register', 'path', 'file', 'state', 'lineinfile', 'set_fact', ' is defined', 'is_undefined', 'include')
+    ('register', 'path', 'file', 'state', 'lineinfile', 'set_fact', ' is defined', ' is undefined', 'include')
 
-REQUIRED_CONFIG_PARAMS = (ASYNC_DEFAULT_TIME, ASYNC_DEFAULT_RETRIES, ASYNC_DEFAULT_DELAY, INITIAL_ARTIFACTS_DIRECTORY,
-                       DEFAULT_HOST) = ("async_default_time", "async_default_retries", "async_default_delay",
-                                        "initial_artifacts_directory", "default_host")
+REQUIRED_CONFIG_PARAMS = (INITIAL_ARTIFACTS_DIRECTORY, DEFAULT_HOST) = ("initial_artifacts_directory", "default_host")
 
 
 class AnsibleConfigurationTool(ConfigurationTool):
@@ -24,9 +36,10 @@ class AnsibleConfigurationTool(ConfigurationTool):
     Must be tested by TestAnsibleOpenstack.test_translating_to_ansible
     """
 
-    def __init__(self):
+    def __init__(self, provider=None):
         super(AnsibleConfigurationTool, self).__init__()
 
+        self.provider = provider
         main_config = self.tool_config.get_section('main')
         for param in REQUIRED_CONFIG_PARAMS:
             if not param in main_config.keys():
@@ -36,9 +49,8 @@ class AnsibleConfigurationTool(ConfigurationTool):
         for param in REQUIRED_CONFIG_PARAMS:
             setattr(self, param, main_config[param])
 
-    def to_dsl(self, provider, nodes_relationships_queue, cluster_name, is_delete, artifacts=None,
-               target_directory=None, inputs=None, outputs=None, extra=None):
-
+    def to_dsl(self, operations_graph, reversed_operations_graph, cluster_name, is_delete,
+               artifacts=None, target_directory=None, inputs=None, outputs=None, extra=None, debug=False):
         if artifacts is None:
             artifacts = []
         if target_directory is None:
@@ -48,128 +60,193 @@ class AnsibleConfigurationTool(ConfigurationTool):
         for art in artifacts:
             self.artifacts[art[NAME]] = art
 
-        provider_config = ProviderConfiguration(provider)
+        provider_config = ProviderConfiguration(self.provider)
         ansible_config = provider_config.get_section(ANSIBLE)
         node_filter_config = provider_config.get_subsection(ANSIBLE, NODE_FILTER)
-        provider_async_default_delay = ansible_config.get(ASYNC_DEFAULT_DELAY) or \
-                                       self.async_default_delay
-        provider_async_default_retries = ansible_config.get(ASYNC_DEFAULT_RETRIES) or \
-                                         self.async_default_retries
-        provider_async_default_time = ansible_config.get(ASYNC_DEFAULT_TIME) or self.async_default_time
-        extra_async = self.get_extra_async(extra, provider_async_default_time)
 
-        prev_dep_order = 0
-        ids_file_path = self.rap_ansible_variable("playbook_dir") + '/id_vars_' + cluster_name + self.get_artifact_extension()
+        ids_file_path = os.getcwd() + '/id_vars_' + cluster_name + self.get_artifact_extension()
+
         self.init_global_variables(inputs)
-        elements_queue, software_queue = self.init_queue(nodes_relationships_queue)
-        ansible_task_list = self.get_ansible_tasks_for_inputs(inputs)
 
-        if not is_delete:
-            for v in self.global_operations_queue:
-                ansible_task_list.extend(self.get_ansible_tasks_from_operation(v, target_directory))
-
-            ansible_task_list.append({FILE: {
-                PATH: ids_file_path,
-                STATE: 'absent'}})
-            ansible_task_list.append({FILE: {
-                PATH: ids_file_path,
-                STATE: 'touch'}})
-        else:
-            elements_queue.reverse()
-            ansible_task_list.append({'include_vars': ids_file_path})
-
-        check_async_tasks = []
-
-        for v in elements_queue:
-            extra_tasks_for_delete = self.get_extra_tasks_for_delete(v.name.replace('-', '_'), ids_file_path)
-            description_prefix, module_prefix = self.get_module_prefixes(is_delete, ansible_config)
-            description_by_type = self.ansible_description_by_type(v.type_name, description_prefix)
-            module_by_type = self.ansible_module_by_type(v.type_name, module_prefix)
-            ansible_tasks = self.get_ansible_tasks_from_interface(v, target_directory, is_delete,
-                                                            additional_args=extra)
-            if len(ansible_tasks) == 0:
-                if not is_delete:
-                    ansible_tasks = self.get_ansible_tasks_for_create(v, target_directory, node_filter_config,
-                                                                      description_by_type, module_by_type,
-                                                                      additional_args=extra)
-                else:
-                    ansible_tasks = self.get_ansible_tasks_for_delete(v, description_by_type, module_by_type,
-                                                                      additional_args=extra)
-            tasks_for_async = self.get_ansible_tasks_for_async(v, description_prefix, provider_async_default_retries,
-                                                               provider_async_default_delay)
-            if not is_delete or is_delete and not any(item == module_by_type for item in
-                                     ansible_config.get('modules_skipping_delete', [])):
-                if extra_async != False:
-                    if prev_dep_order != v.dependency_order:
-                        ansible_task_list.extend(check_async_tasks)
-                        check_async_tasks = []
-                        prev_dep_order = v.dependency_order
-                    check_async_tasks.extend(tasks_for_async)
-                ansible_task_list.extend(ansible_tasks)
-
-            if not is_delete:
-                if extra_async != False:
-                    check_async_tasks.extend(extra_tasks_for_delete)
-                else:
-                    ansible_task_list.extend(extra_tasks_for_delete)
-
-        if extra_async != False:
-            ansible_task_list.extend(check_async_tasks)
+        operations_graph = self.init_graph(operations_graph)
+        # the graph of operations at the moment is a dictionary of copies of ProviderTemplatre objects,
+        # of the form Node/Relationship: {the set of opers of Nodes/Relationships on which it depends}
+        elements = TopologicalSorter(operations_graph)
+        # use TopologicalSorter for creating graph
 
         if is_delete:
-            ansible_task_list.append({FILE: {
-                PATH: ids_file_path,
-                STATE: 'absent'}})
+            reversed_operations_graph = self.init_graph(reversed_operations_graph)
+            elements = TopologicalSorter(reversed_operations_graph)
 
-        ansible_playbook = [dict(
-            name=description_prefix + ' ' + provider + ' cluster',
-            hosts=self.default_host,
-            tasks=ansible_task_list
-        )]
+        elements.prepare()
+        # first operations from on top of the graph in state 'ready'
 
-        for v in software_queue:
-            ansible_tasks = self.get_ansible_tasks_from_interface(v, target_directory, is_delete,
-                                                                  additional_args=extra)
-            software_playbook = dict(
-                name=description_prefix + ' ' + v.name + ' ' + ' software component',
-                hosts=v.host,
-                tasks=ansible_tasks
+        ansible_playbook = []
+        if not debug:
+            self.prepare_for_run()
+        # function for initializing tmp clouni directory
+        q = Queue()
+        # queue for node names + operations
+        active = []
+        # list of parallel active operations
+        first = True
+
+        while elements.is_active():
+            node_name = None
+            # try to get new finished operation from queue and find it in list of active
+            # if get - mark done this operation (but before it find in graph)
+            # if ready operations exists - get it and execute, remove from active
+            try:
+                node_name = q.get_nowait()
+            except:
+                time.sleep(1)
+            if node_name is not None:
+                for node in active:
+                    if node.name == node_name.split(SEPARATOR)[0] and node.operation == node_name.split(SEPARATOR)[1]:
+                        active.remove(node)
+                        elements.done(node)
+            for v in elements.get_ready():
+                # in delete mode we skip all operations exept delete and create operation transforms to delete
+                if is_delete:
+                    if v.operation == 'create':
+                        v.operation = 'delete'
+                    else:
+                        elements.done(v)
+                        continue
+                logging.debug("Creating ansible play from operation: %s" % v.name + ':' + v.operation)
+                extra_tasks_for_delete = self.get_extra_tasks_for_delete(v.type, v.name.replace('-', '_'),
+                                                                         ids_file_path)
+                description_prefix, module_prefix = self.get_module_prefixes(is_delete, ansible_config)
+                description_by_type = self.ansible_description_by_type(v.type_name, description_prefix)
+                module_by_type = self.ansible_module_by_type(v.type_name, module_prefix)
+                ansible_play_for_elem = dict(
+                    name=description_prefix + ' ' + self.provider + ' cluster: ' + v.name + ':' + v.operation,
+                    hosts=self.default_host,
+                    tasks=[]
+                )
+                # reload id_vars file
+                if not is_delete and first:
+                    first = False
+                    ansible_play_for_elem['tasks'].append(copy.deepcopy({FILE: {
+                        PATH: ids_file_path,
+                        STATE: 'absent'}}))
+                    ansible_play_for_elem['tasks'].append(copy.deepcopy({FILE: {
+                        PATH: ids_file_path,
+                        STATE: 'touch'}}))
+                # create playbook for every operation
+                if v.operation == 'delete':
+                    if not v.is_software_component:
+                        ansible_tasks = [copy.deepcopy({'include_vars': ids_file_path})]
+                        ansible_tasks.extend(self.get_ansible_tasks_for_delete(v, description_by_type, module_by_type,
+                                                                          additional_args=extra))
+                        ansible_tasks.extend(
+                            self.get_ansible_tasks_from_interface(v, target_directory, is_delete, v.operation,
+                                                                  cluster_name,
+                                                                  additional_args=extra))
+                        if not any(item == module_by_type for item in
+                                   ansible_config.get('modules_skipping_delete', [])):
+                            ansible_play_for_elem['tasks'].extend(copy.deepcopy(ansible_tasks))
+                elif v.operation == 'create':
+                    if not v.is_software_component:
+                        ansible_play_for_elem['tasks'].append(copy.deepcopy({'include_vars': ids_file_path}))
+                        ansible_play_for_elem['tasks'].extend(copy.deepcopy(self.get_ansible_tasks_for_inputs(inputs)))
+                        ansible_tasks = self.get_ansible_tasks_for_create(v, target_directory, node_filter_config,
+                                                                          description_by_type, module_by_type,
+                                                                          additional_args=extra)
+                        ansible_tasks.extend(
+                            self.get_ansible_tasks_from_interface(v, target_directory, is_delete, v.operation,
+                                                                  cluster_name,
+                                                                  additional_args=extra))
+
+                        ansible_play_for_elem['tasks'].extend(copy.deepcopy(ansible_tasks))
+                        ansible_play_for_elem['tasks'].extend(copy.deepcopy(extra_tasks_for_delete))
+
+                    else:
+                        ansible_play_for_elem['hosts'] = v.host
+                        ansible_play_for_elem['tasks'].extend(copy.deepcopy(
+                            self.get_ansible_tasks_from_interface(v, target_directory, is_delete, v.operation,
+                                                                  cluster_name,
+                                                                  additional_args=extra)))
+                else:
+                    (_, element_type, _) = utils.tosca_type_parse(v.type)
+                    if element_type == NODES:
+                        if v.is_software_component:
+                            ansible_play_for_elem['hosts'] = v.host
+                    # operations for relationships executes on target/source host depends on operation
+                    elif element_type == RELATIONSHIPS:
+                        if v.operation == 'pre_configure_target' or v.operation == 'post_configure_target' or v.operation == 'add_source':
+                            for elem in operations_graph:
+                                if elem.name == v.target:
+                                    if elem.is_software_component:
+                                        ansible_play_for_elem['hosts'] = elem.host
+                                    break
+                        elif v.operation == 'pre_configure_source' or v.operation == 'post_configure_source':
+                            for elem in operations_graph:
+                                if elem.name == v.source:
+                                    if elem.is_software_component:
+                                        ansible_play_for_elem['hosts'] = elem.host
+                                    break
+                        else:
+                            logging.error("Unsupported operation for relationship in operation graph")
+                            sys.exit(1)
+                    else:
+                        logging.error("Unsupported element type in operation graph")
+                        sys.exit(1)
+                    ansible_play_for_elem['tasks'].extend(copy.deepcopy(
+                        self.get_ansible_tasks_from_interface(v, target_directory, is_delete, v.operation, cluster_name,
+                                                              additional_args=extra)))
+                if len(ansible_play_for_elem['tasks']) > 0:
+                    ansible_playbook.append(ansible_play_for_elem)
+                # run playbooks
+                if not debug:
+                    if len(ansible_play_for_elem['tasks']) > 0:
+                        self.parallel_run([ansible_play_for_elem], v.name, v.operation, q, cluster_name)
+                    else:
+                        elements.done(v)
+                    # add element to active list
+                    active.append(v)
+                else:
+                    elements.done(v)
+        if is_delete:
+            last_play = dict(
+                name='Renew id_vars_example.yaml',
+                hosts=self.default_host,
+                tasks=[]
             )
-            ansible_playbook.append(software_playbook)
-
+            last_play['tasks'].append(copy.deepcopy({FILE: {
+                PATH: ids_file_path,
+                STATE: 'absent'}}))
+            if not debug:
+                self.parallel_run([last_play], None, None, q, cluster_name)
+                done = q.get()
+                if done != 'Done':
+                    logging.error("Something wrong with multiprocessing queue")
+                    sys.exit(1)
+            ansible_playbook.append(last_play)
+        # delete dir with cluster_name in tmp clouni dir
+        if not debug:
+            rmtree(os.path.join(utils.get_tmp_clouni_dir(), cluster_name))
         return yaml.dump(ansible_playbook, default_flow_style=False, sort_keys=False)
 
-    def get_extra_async(self, extra, async_default_time):
-        """
-        Check if deploy asynchronously
-        :param extra: extra passed by user
-        :param async_default_time: parameter from config
-        :return: False or integer which equals async default time
-        """
-        if not extra:
-            extra = dict()
-        extra_async = extra.get('global', {}).get('async', False)
-        if extra_async == True:
-            extra_async = int(async_default_time)
-        return extra_async
+    def init_graph(self, operations_graph):
+        ts = TopologicalSorter(operations_graph)
+        elements_queue = [*ts.static_order()]
 
-    def init_queue(self, nodes_relationships_queue):
-        elements_queue = []
-        software_queue = []
-        for v in nodes_relationships_queue:
+        for v in elements_queue:
             self.gather_global_operations(v)
         for op_name, op in self.global_operations_info.items():
             self.global_operations_info[op_name] = self.replace_all_get_functions(op)
-        for v in nodes_relationships_queue:
+        for v in elements_queue:
             (_, element_type, _) = utils.tosca_type_parse(v.type)
-            if element_type == NODES:
+            if element_type == NODES or element_type == RELATIONSHIPS:
                 new_conf_args = self.replace_all_get_functions(v.configuration_args)
                 v.configuration_args = new_conf_args
-                if v.is_software_component:
-                    software_queue.append(v)
-                else:
-                    elements_queue.append(v)
-        return elements_queue, software_queue
+            else:
+                del operations_graph[v]
+                for key in operations_graph:
+                    if v in operations_graph[key]:
+                        operations_graph[key].remove(v)
+        return operations_graph
 
     def replace_all_get_functions(self, data):
         if isinstance(data, dict):
@@ -178,7 +255,7 @@ class AnsibleConfigurationTool(ConfigurationTool):
                 output_id = self.global_operations_info[full_op_name][OUTPUT_IDS][data[GET_OPERATION_OUTPUT][-1]]
                 return self.rap_ansible_variable(output_id)
             if len(data) == 1 and data.get(GET_INPUT, None) is not None:
-                output_id = self.global_variables['input_'+data[GET_INPUT]]
+                output_id = self.global_variables['input_' + data[GET_INPUT]]
                 return self.rap_ansible_variable(output_id)
 
             r = {}
@@ -217,88 +294,11 @@ class AnsibleConfigurationTool(ConfigurationTool):
                                                      additional_args_element)
 
         ansible_tasks = []
-        if not node_filter_config:
-            node_filter_config = {}
-        node_filter_source_prefix = node_filter_config.get('node_filter_source_prefix', '')
-        node_filter_source_postfix = node_filter_config.get('node_filter_source_postfix', '')
-        node_filter_exceptions = node_filter_config.get('node_filter_exceptions', '')
-        node_filter_inner_variable = node_filter_config.get('node_filter_inner_variable')
 
         configuration_args = {}
         for arg_key, arg in element_object.configuration_args.items():
-            if isinstance(arg, dict):
-                node_filter_key = arg.get(SOURCE, {}).get(NODE_FILTER)
-                node_filter_value = arg.get(VALUE)
-                node_filter_params = arg.get(PARAMETERS)
-
-                if node_filter_key and node_filter_value and node_filter_params:
-                    node_filter_source = node_filter_source_prefix + node_filter_key + node_filter_source_postfix
-                    if node_filter_exceptions.get(node_filter_key):
-                        node_filter_source = node_filter_exceptions[node_filter_key]
-
-                    node_filter_value_with_id = node_filter_value + '_' + str(
-                        utils.get_random_int(OUTPUT_ID_RANGE_START, OUTPUT_ID_RANGE_END))
-
-                    NODE_FILTER_FACTS = 'node_filter_facts'
-                    NODE_FILTER_FACTS_REGISTER = NODE_FILTER_FACTS + '_raw'
-                    NODE_FILTER_FACTS_VALUE = NODE_FILTER_FACTS_REGISTER
-                    if node_filter_inner_variable:
-                        if isinstance(node_filter_inner_variable, dict):
-                            node_filter_inner_variable = node_filter_inner_variable.get(node_filter_key, '')
-                        if isinstance(node_filter_inner_variable, six.string_types):
-                            node_filter_inner_variable = [node_filter_inner_variable]
-                        if isinstance(node_filter_inner_variable, list):
-                            for v in node_filter_inner_variable:
-                                NODE_FILTER_FACTS_VALUE += '[\"' + v + '\"]'
-                        else:
-                            logging.error("Provider configuration parameter "
-                                          "\'ansible.node_filter: node_filter_inner_variable\' is missing "
-                                          "or has unsupported value \'%s\'" % node_filter_inner_variable)
-                            sys.exit(1)
-
-                    include_path = self.copy_condition_to_the_directory('equals', target_directory)
-                    ansible_tasks_temp = [
-                        {
-                            node_filter_source: {},
-                            REGISTER: NODE_FILTER_FACTS_REGISTER
-                        },
-                        {
-                            SET_FACT: {
-                                "input_facts": self.rap_ansible_variable(NODE_FILTER_FACTS_VALUE)
-                            }
-                        },
-                        {
-                            SET_FACT: {
-                                "input_args": node_filter_params
-                            }
-                        },
-                        {
-                            IMPORT_TASKS_MODULE: include_path
-                        },
-                        {
-                            SET_FACT: {
-                                node_filter_value_with_id: self.rap_ansible_variable(
-                                    'matched_object[\"' + node_filter_value + '\"]')
-                            }
-                        }
-                    ]
-                    # self.copy_conditions_to_the_directory({'equals'}, target_directory)
-                    ansible_tasks.extend(ansible_tasks_temp)
-                    arg = self.rap_ansible_variable(node_filter_value_with_id)
             configuration_args[arg_key] = arg
 
-        post_tasks = []
-        for interface_name, interface in self.get_interfaces_from_node(element_object).items():
-            if interface_name == 'Prepare':
-                for op_name, op in interface.items():
-                    if op_name == 'preconfigure' or op_name == 'configure':
-                        op_key = '_'.join([element_object.name, interface_name.lower(), op_name])
-                        if not self.global_operations_info.get(op_key, {}).get(OUTPUT_IDS):
-                            tasks_from_op = self.get_ansible_tasks_from_operation(op_key, target_directory, True)
-                            if op_name == 'preconfigure':
-                                ansible_tasks.extend(tasks_from_op)
-                            else:
-                                post_tasks.extend(tasks_from_op)
         ansible_args = copy.copy(element_object.configuration_args)
         ansible_args[STATE] = 'present'
         task_name = element_object.name.replace('-', '_')
@@ -308,7 +308,6 @@ class AnsibleConfigurationTool(ConfigurationTool):
         ansible_task_as_dict[REGISTER] = task_name
         ansible_task_as_dict.update(additional_args)
         ansible_tasks.append(ansible_task_as_dict)
-        ansible_tasks.extend(post_tasks)
         return ansible_tasks
 
     def get_ansible_tasks_for_delete(self, element_object, description_by_type, module_by_type, additional_args=None):
@@ -327,16 +326,19 @@ class AnsibleConfigurationTool(ConfigurationTool):
             additional_args = utils.deep_update_dict(additional_args_global, additional_args_element)
 
         task_name = element_object.name.replace('-', '_')
-        ansible_task_list = [dict(), dict()]
+        ansible_task_list = [dict(), dict(), dict()]
         for task in ansible_task_list:
             task[NAME] = description_by_type
         ansible_task_list[0][module_by_type] = {
             NAME: self.rap_ansible_variable(task_name + '_delete'), 'state': 'absent'}
         ansible_task_list[1][module_by_type] = {
             NAME: self.rap_ansible_variable('item'), 'state': 'absent'}
+        ansible_task_list[2][module_by_type] = self.rap_ansible_variable('item')
+        ansible_task_list[2]['loop'] = self.rap_ansible_variable(task_name + '_dicts')
         ansible_task_list[0]['when'] = task_name + '_delete' + IS_DEFINED
         ansible_task_list[1]['when'] = task_name + '_ids is defined'
         ansible_task_list[1]['loop'] = self.rap_ansible_variable(task_name + '_ids | flatten(levels=1)')
+        ansible_task_list[2]['when'] = task_name + '_dicts' + IS_DEFINED
         for task in ansible_task_list:
             task[REGISTER] = task_name + '_var'
             task.update(additional_args)
@@ -346,7 +348,8 @@ class AnsibleConfigurationTool(ConfigurationTool):
                  'when': task_name + '_var' + '.changed'})
         return ansible_tasks
 
-    def get_ansible_tasks_from_interface(self, element_object, target_directory, is_delete, additional_args=None):
+    def get_ansible_tasks_from_interface(self, element_object, target_directory, is_delete, operation, cluster_name,
+                                         additional_args=None):
         if additional_args is None:
             additional_args = {}
         else:
@@ -356,18 +359,39 @@ class AnsibleConfigurationTool(ConfigurationTool):
                                                      additional_args_element)
         ansible_tasks = []
         scripts = []
+
+        primary = False
         for interface_name, interface in self.get_interfaces_from_node(element_object).items():
-            interface_operation = interface.get('delete', {}) if is_delete else interface.get('create', {})
-            implementations = interface_operation.get(IMPLEMENTATION)
-            if interface_name == 'Standard' and implementations is not None:
+            interface_operation = interface.get(operation, {})
+            if isinstance(interface_operation, six.string_types):
+                implementations = interface_operation
+                primary = True
+            else:
+                implementations = interface_operation.get(IMPLEMENTATION)
+            (_, element_type, _) = utils.tosca_type_parse(element_object.type)
+            if (
+                    interface_name == 'Standard' and element_type == NODES or interface_name == 'Configure' and element_type == RELATIONSHIPS) and implementations is not None:
                 if isinstance(implementations, six.string_types):
                     implementations = [implementations]
+                if isinstance(implementations, dict) and 'primary' in implementations and isinstance(
+                        implementations['primary'], six.string_types):
+                    implementations = [implementations['primary']]
+                    primary = True
                 scripts.extend(implementations)
                 for script in implementations:
-                    import_file = os.path.join(target_directory, os.path.basename(script))
-                    os.makedirs(os.path.dirname(import_file), exist_ok=True)
-                    copyfile(script, import_file)
-                    if interface_operation.get(INPUTS) is not None:
+                    target_filename = os.path.join(utils.get_tmp_clouni_dir(), cluster_name, target_directory, script)
+                    os.makedirs(os.path.dirname(target_filename), exist_ok=True)
+                    script_filename_1 = os.path.join(os.getcwd(), script)
+                    script_filename_2 = os.path.join(self.get_ansible_artifacts_directory(), script)
+                    if os.path.isfile(script_filename_1):
+                        copyfile(script_filename_1, target_filename)
+                    elif os.path.isfile(script_filename_2):
+                        copyfile(script_filename_2, target_filename)
+                    else:
+                        logging.error(
+                            "Artifact filename %s was not found in %s or %s" % (
+                            script, script_filename_1, script_filename_2))
+                    if not primary and interface_operation.get(INPUTS) is not None:
                         for input_name, input_value in interface_operation[INPUTS].items():
                             ansible_tasks.append({
                                 SET_FACT: {
@@ -375,11 +399,11 @@ class AnsibleConfigurationTool(ConfigurationTool):
                                 }
                             })
                     new_ansible_task = {
-                        IMPORT_TASKS_MODULE: import_file
+                        IMPORT_TASKS_MODULE: target_filename
                     }
-                    new_ansible_task.update(additional_args)
+                    for task in ansible_tasks:
+                        task.update(additional_args)
                     ansible_tasks.append(new_ansible_task)
-
         return ansible_tasks
 
     def ansible_description_by_type(self, provider_source_obj_type, description_prefix):
@@ -405,7 +429,7 @@ class AnsibleConfigurationTool(ConfigurationTool):
             desc = desc.lower()
         return desc, module_prefix
 
-    def get_ansible_tasks_from_operation(self, op_name, target_directory, if_required=False):
+    def get_ansible_tasks_from_operation(self, op_name, target_directory, cluster_name, if_required=False):
         tasks = []
 
         op_info = self.global_operations_info[op_name]
@@ -436,14 +460,24 @@ class AnsibleConfigurationTool(ConfigurationTool):
                     }
                 }
                 tasks.append(new_task)
-        for i in import_task_arg:
-            if self.artifacts.get(i):
-                art_data = self.artifacts[i]
+        for art in import_task_arg:
+            if self.artifacts.get(art):
+                art_data = self.artifacts[art]
                 new_tasks = self.create_artifact_data(art_data)
                 tasks.extend(new_tasks)
             else:
+                target_filename = os.path.join(utils.get_tmp_clouni_dir(), target_directory, cluster_name, art)
+                art_filename_1 = os.path.join(os.getcwd(), art)
+                art_filename_2 = os.path.join(self.get_ansible_artifacts_directory(), art)
+                if os.path.isfile(art_filename_1):
+                    copyfile(art_filename_1, target_filename)
+                elif os.path.isfile(art_filename_2):
+                    copyfile(art_filename_2, target_filename)
+                else:
+                    logging.error(
+                        "Artifact filename %s was not found in %s or %s" % (art, art_filename_1, art_filename_2))
                 new_task = {
-                    IMPORT_TASKS_MODULE: os.path.join(target_directory, i)
+                    IMPORT_TASKS_MODULE: os.path.join(target_directory, art)
                 }
                 tasks.append(new_task)
         if op_info.get(OUTPUT_IDS):
@@ -455,6 +489,9 @@ class AnsibleConfigurationTool(ConfigurationTool):
                 }
                 tasks.append(new_task)
         return tasks
+
+    def get_ansible_artifacts_directory(self):
+        return os.path.join(os.path.dirname(os.path.realpath(__file__)), self.initial_artifacts_directory)
 
     def rap_ansible_variable(self, s):
         r = "{{ " + s + " }}"
@@ -486,101 +523,100 @@ class AnsibleConfigurationTool(ConfigurationTool):
             f.write(filedata)
             logging.info("Artifact for executor %s was created: %s" % (self.TOOL_NAME, filename))
 
-    def copy_condition_to_the_directory(self, cond, target_directory):
-        os.makedirs(target_directory, exist_ok=True)
-        tool_artifacts_dir = os.path.join(os.path.dirname(os.path.realpath(__file__)), self.initial_artifacts_directory)
-        filename = os.path.join(tool_artifacts_dir, cond + self.get_artifact_extension())
-        if not os.path.isfile(filename):
-            logging.error("File containing condition \'%s\' not found in \'%s\'" % (cond, filename))
-            sys.exit(1)
-        target_filename = os.path.join(target_directory, cond + self.get_artifact_extension())
-        copyfile(filename, target_filename)
-        return target_filename
-
     def copy_conditions_to_the_directory(self, conditions_set, target_directory):
-        os.makedirs(target_directory, exist_ok=True)
-        tool_artifacts_dir = os.path.join(os.path.dirname(os.path.realpath(__file__)), self.initial_artifacts_directory)
-        for cond in conditions_set:
-            filename = os.path.join(tool_artifacts_dir, cond + self.get_artifact_extension())
-            if not os.path.isfile(filename):
-                logging.error("Error loading condition file \'%s\'" % filename)
-            else:
-                target_filename = os.path.join(target_directory, cond + self.get_artifact_extension())
-                copyfile(filename, target_filename)
-                logging.info("File \'%s\' was successfully copied to the directory \'%s\'" % (filename, target_directory))
+        return
 
-    def get_ansible_tasks_for_async(self, element_object, description_prefix, retries=None, delay=None):
-        jid = '.'.join([element_object.name, 'ansible_job_id'])
-        results_var = '.'.join([element_object.name, 'results'])
-        tasks = [
-            {
-                NAME: 'Checking ' + element_object.name + ' ' + description_prefix.lower() + 'd',
-                'async_status': 'jid=' + self.rap_ansible_variable(jid),
-                REGISTER: 'async_result_status',
-                'until': 'async_result_status.finished',
-                'retries': retries,
-                'delay': delay,
-                'when': jid + IS_DEFINED
-            },
-            {
-                NAME: 'Checking ' + element_object.name + ' ' + description_prefix.lower() + 'd',
-                'async_status': 'jid=' + self.rap_ansible_variable(results_var + '[item|int].ansible_job_id'),
-                REGISTER: 'async_result_status_list',
-                'until': 'async_result_status_list.finished or async_result_status_list.results[item].finished | default(0)',
-                'retries': retries,
-                'delay': delay,
-                # 'with_items': self.rap_ansible_variable(element_object.name + '.results | default([])'),
-                'with_sequence': 'start=0 end=' + self.rap_ansible_variable(results_var + '|length - 1'),
-                'when': results_var + IS_DEFINED
-            },
-            {
-                NAME: 'Saving ' + element_object.name + ' result',
-                SET_FACT: {
-                    element_object.name: self.rap_ansible_variable('async_result_status')
-                },
-                'when': jid + IS_DEFINED
-            },
-            {
-                NAME: 'Saving ' + element_object.name + ' result',
-                SET_FACT: {
-                    element_object.name: self.rap_ansible_variable('async_result_status_list')
-                },
-                'when': results_var + IS_DEFINED
-            }
-        ]
-        return tasks
-
-    def get_extra_tasks_for_delete(self, task_name, path):
+    def get_extra_tasks_for_delete(self, type, task_name, path):
         ansible_tasks_for_create = []
-        ansible_tasks_for_create.append({
-            'set_fact': {
-                task_name + '_list': self.rap_ansible_variable(
-                    task_name + '_list' + " | default([])") + " + [ \"{{ item.id }}\" ]"},
-            'loop': self.rap_ansible_variable(task_name + '.results | flatten(levels=1) '),
-            # 'when': task_name + '.results' + IS_DEFINED
-            'when': 'item.id ' + IS_DEFINED
-        })
-        ansible_tasks_for_create.append({
-            'set_fact': {
-                task_name + '_list': {task_name + '_ids': self.rap_ansible_variable(task_name + '_list')}},
-            'when': task_name + '_list' + IS_DEFINED
-        })
-        ansible_tasks_for_create.append({
-            LINEINFILE: {
-                PATH: path,
-                'line': '' + task_name + '_delete' + ': ' + self.rap_ansible_variable(task_name + '.id')},
-            'when': task_name + '.id' + IS_DEFINED
-        })
-        ansible_tasks_for_create.append({
-            LINEINFILE: {
-                PATH: path,
-                'line': self.rap_ansible_variable(task_name + '_list' + ' | to_nice_yaml')},
-            'when': task_name + '_list' + IS_DEFINED
-        })
-        ansible_tasks_for_create.append({
-            'fail': {'msg': 'Variable ' + task_name + ' is undefined! So it will not be deleted'},
-            'when': task_name + '_list is undefined and ' + task_name + '.id is undefined',
-            'ignore_errors': True})
+        (_, _, node_type) = utils.tosca_type_parse(type)
+        node_type = utils.snake_case(node_type)
+        # TODO: fix this chaos
+        if type == 'openstack.nodes.FloatingIp': # temporary solutions
+            ansible_tasks_for_create.append({
+                'set_fact': {task_name + '_dict': {'floating_ip_address': self.rap_ansible_variable(
+                    'item.floating_ip.floating_ip_address'),
+                    'server': self.rap_ansible_variable('item.floating_ip.port_details.device_id'),
+                    'purge': 'yes',
+                    'state': 'absent'}},
+                'with_items': self.rap_ansible_variable(task_name + ".results"),
+                'when': task_name + IS_DEFINED,
+                'register': 'tmp'
+            })
+            ansible_tasks_for_create.append({
+                'set_fact': {
+                    task_name + '_dicts': self.rap_ansible_variable(
+                        task_name + '_dicts | default([]) + [item.ansible_facts.' + task_name + '_dict]')
+                },
+                'with_items': self.rap_ansible_variable("tmp.results"),
+                'when': task_name + '_dict' + IS_DEFINED
+            })
+            ansible_tasks_for_create.append({
+                LINEINFILE: {
+                    PATH: path,
+                    'line': task_name + '_dicts:\n' + self.rap_ansible_variable(task_name + '_dicts | to_nice_yaml')},
+                'when': task_name + '_dicts' + IS_DEFINED,
+            })
+        elif type == 'amazon.nodes.Key': # temporary solutions
+            # amazon ec2 has very BAD return values - there is no id in return value for ec2_key module
+            ansible_tasks_for_create.append({
+                LINEINFILE: {
+                    PATH: path,
+                    'line': '' + task_name + '_delete' + ': ' + self.rap_ansible_variable(
+                        task_name + '.' + node_type + '.name')},
+                'when': task_name + '.' + node_type + '.name' + IS_DEFINED
+            })
+        else:
+            ansible_tasks_for_create.append({
+                'set_fact': {
+                    task_name + '_list': self.rap_ansible_variable(
+                        task_name + '_list' + " | default([])") + " + [ \"{{ item.id }}\" ]"},
+                'loop': self.rap_ansible_variable(task_name + '.results | flatten(levels=1) '),
+                'when': 'item.id ' + IS_DEFINED
+            })
+            ansible_tasks_for_create.append({ # temporary solutions
+                'set_fact': {
+                    task_name + '_list': self.rap_ansible_variable(
+                        task_name + '_list' + " | default([])") + " + [ \"{{ item." + node_type + "_ids[0] }}\" ]"},
+                'loop': self.rap_ansible_variable(task_name + '.results | flatten(levels=1) '),
+                'when': 'item.' + node_type + '_ids' + IS_DEFINED
+            })
+            ansible_tasks_for_create.append({
+                'set_fact': {
+                    task_name + '_list': {task_name + '_ids': self.rap_ansible_variable(task_name + '_list')}},
+                'when': task_name + '_list' + IS_DEFINED
+            })
+            ansible_tasks_for_create.append({
+                LINEINFILE: {
+                    PATH: path,
+                    'line': '' + task_name + '_delete' + ': ' + self.rap_ansible_variable(task_name + '.id')},
+                'when': task_name + '.id' + IS_DEFINED
+            })
+            # amazon ec2 has very BAD return values - we need to search where is id of current node
+            ansible_tasks_for_create.append({
+                LINEINFILE: {
+                    PATH: path,
+                    'line': '' + task_name + '_delete' + ': ' + self.rap_ansible_variable(
+                        task_name + '.' + node_type + '_id')},
+                'when': task_name + '.' + node_type + '_id' + IS_DEFINED
+            })
+            for elem in node_type.split('_'): # temporary solutions
+                ansible_tasks_for_create.append({
+                    LINEINFILE: {
+                        PATH: path,
+                        'line': '' + task_name + '_delete' + ': ' + self.rap_ansible_variable(
+                            task_name + '.' + elem + '.id')},
+                    'when': task_name + '.' + elem + '.id' + IS_DEFINED
+                })
+            ansible_tasks_for_create.append({
+                LINEINFILE: {
+                    PATH: path,
+                    'line': self.rap_ansible_variable(task_name + '_list' + ' | to_nice_yaml')},
+                'when': task_name + '_list' + IS_DEFINED
+            })
+            ansible_tasks_for_create.append({
+                'fail': {'msg': 'Variable ' + task_name + ' is undefined! So it will not be deleted'},
+                'when': task_name + '_list is undefined and ' + task_name + '.id is undefined',
+                'ignore_errors': True})
         return ansible_tasks_for_create
 
     def get_artifact_extension(self):
@@ -611,3 +647,14 @@ class AnsibleConfigurationTool(ConfigurationTool):
             })
         return ansible_tasks
 
+    def prepare_for_run(self):
+        prepare_for_run()
+
+    def parallel_run(self, ansible_play, name, op, q, cluster_name):
+        if self.provider == 'amazon':
+            amazon_plugins_path = os.path.join(utils.get_project_root_path(), '.ansible/plugins/modules/cloud/amazon')
+            if "ANSIBLE_LIBRARY" not in os.environ:
+                os.environ["ANSIBLE_LIBRARY"] = amazon_plugins_path
+            elif amazon_plugins_path not in os.environ["ANSIBLE_LIBRARY"]:
+                os.environ["ANSIBLE_LIBRARY"] += os.pathsep + amazon_plugins_path
+        parallel_run_ansible(ansible_play, name, op, q, cluster_name)

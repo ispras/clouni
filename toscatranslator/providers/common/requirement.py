@@ -1,6 +1,7 @@
+from toscatranslator.common import utils
 from toscatranslator.common.tosca_reserved_keys import REQUIREMENT_DEFAULT_PARAMS, RELATIONSHIP, \
     NAME_SUFFIX, ID_SUFFIX, NAME, ID, NODE_FILTER, CAPABILITIES, PROPERTIES, GET_FUNCTIONS, PARAMETERS, SOURCE, \
-    VALUE, EXECUTOR
+    VALUE, EXECUTOR, NODE
 
 import json, six, copy, sys, logging
 
@@ -35,6 +36,7 @@ class ProviderRequirement (object):
         :return:
         """
         # NOTE: only node_filter supported
+        node_data = self.data.get(NODE)
         data = self.data.get(NODE_FILTER)
         if data is None:
             logging.error("The \'%s\' requirement support only \'node_filter\' parameter "
@@ -42,12 +44,17 @@ class ProviderRequirement (object):
             sys.exit(1)
         capabilities = data.get(CAPABILITIES, []) # is the list as the requirements
         properties = data.get(PROPERTIES, [])
+
         if not isinstance(capabilities, list):
             logging.error("The value \'%s\' must be of type list" % (json.dumps(capabilities)))
             sys.exit(1)
         if not isinstance(properties, list):
             logging.error("The value \'%s\' must be of type list" % (json.dumps(properties)))
-
+            sys.exit(1)
+        if node_data is not None: # TODO: change it later with get_attribute
+            (_, _, typename) = utils.tosca_type_parse(self.definition.get(NODE))
+            typename = utils.snake_case(typename)
+            properties += [{'id': "{{ " + node_data + "_delete }}"}]
         raw_params = {}
         for requires in self.requires:
             for prop in properties:

@@ -1,182 +1,118 @@
-- name: Create OpenStack component openstack cluster
+- name: 'Delete OpenStack component openstack cluster: server_kube_master_server:delete'
   hosts: localhost
   tasks:
-  - os_image_facts: {}
-    register: facts_result
-  - set_fact:
-      target_objects: '{{ facts_result["ansible_facts"]["openstack_image"] }}'
-    register: tmp_value
-  - set_fact:
-      target_objects_2510: '{{ target_objects }}'
-  - set_fact:
-      input_facts: '{{ target_objects_2510 }}'
-  - set_fact:
-      input_args_8623:
-      - - name
-        - properties
-      - type: ubuntu
-        distribution: xenial
-        version: 16.04
-  - set_fact:
-      input_args: '{{ input_args_8623 }}'
-  - include: artifacts/contains.yaml
-  - set_fact:
-      name: '{{ matched_object["name"] }}'
-    register: tmp_value
-  - set_fact:
-      name_7751: '{{ name }}'
-  - file:
-      path: '{{ playbook_dir }}/id_vars_qwerty.yaml'
-      state: absent
-  - file:
-      path: '{{ playbook_dir }}/id_vars_qwerty.yaml'
-      state: touch
-  - name: Create OpenStack component volume
-    os_volume:
-      display_name: disk_c
-      size: 10
-    register: disk_c_volume
-  - set_fact:
-      disk_c_volume_list: '{{ disk_c_volume_list | default([]) }} + [ "{{ item.id
-        }}" ]'
-    loop: '{{ disk_c_volume.results | flatten(levels=1)  }}'
-    when: item.id  is defined
-  - set_fact:
-      disk_c_volume_list:
-        disk_c_volume_ids: '{{ disk_c_volume_list }}'
-    when: disk_c_volume_list is defined
-  - lineinfile:
-      path: '{{ playbook_dir }}/id_vars_qwerty.yaml'
-      line: 'disk_c_volume_delete: {{ disk_c_volume.id }}'
-    when: disk_c_volume.id is defined
-  - lineinfile:
-      path: '{{ playbook_dir }}/id_vars_qwerty.yaml'
-      line: '{{ disk_c_volume_list | to_nice_yaml }}'
-    when: disk_c_volume_list is defined
-  - fail:
-      msg: Variable disk_c_volume is undefined! So it will not be deleted
-    when: disk_c_volume_list is undefined and disk_c_volume.id is undefined
-    ignore_errors: true
-  - name: Create OpenStack component volume
-    os_volume:
-      display_name: disk_d
-      size: 10
-    register: disk_d_volume
-  - set_fact:
-      disk_d_volume_list: '{{ disk_d_volume_list | default([]) }} + [ "{{ item.id
-        }}" ]'
-    loop: '{{ disk_d_volume.results | flatten(levels=1)  }}'
-    when: item.id  is defined
-  - set_fact:
-      disk_d_volume_list:
-        disk_d_volume_ids: '{{ disk_d_volume_list }}'
-    when: disk_d_volume_list is defined
-  - lineinfile:
-      path: '{{ playbook_dir }}/id_vars_qwerty.yaml'
-      line: 'disk_d_volume_delete: {{ disk_d_volume.id }}'
-    when: disk_d_volume.id is defined
-  - lineinfile:
-      path: '{{ playbook_dir }}/id_vars_qwerty.yaml'
-      line: '{{ disk_d_volume_list | to_nice_yaml }}'
-    when: disk_d_volume_list is defined
-  - fail:
-      msg: Variable disk_d_volume is undefined! So it will not be deleted
-    when: disk_d_volume_list is undefined and disk_d_volume.id is undefined
-    ignore_errors: true
-  - os_flavor_facts: {}
-    register: node_filter_facts_raw
-  - set_fact:
-      input_facts: '{{ node_filter_facts_raw["ansible_facts"]["openstack_flavors"]
-        }}'
-  - set_fact:
-      input_args:
-        vcpus: 1
-        disk: 10.0
-        ram: 1024.0
-  - include: artifacts/equals.yaml
-  - set_fact:
-      id_6786: '{{ matched_object["id"] }}'
-  - name: Create OpenStack component server
+  - include_vars: /mnt/d/source/repos/pyth/ispraas/clouni/id_vars_test.yaml
+  - name: Delete OpenStack component server
     os_server:
-      boot_from_volume: false
-      reuse_ips: true
-      config_drive: false
-      name: server_kube_master
-      flavor: '{{ id_6786 }}'
-      image: '{{ name_7751 }}'
-      volumes:
-      - parameters:
-          size: 10
-          display_name: disk_d
-        source:
-          node_filter: volume
-        executor: ''
-        value: id
-    register: server_kube_master_server
-  - set_fact:
-      server_kube_master_server_list: '{{ server_kube_master_server_list | default([])
-        }} + [ "{{ item.id }}" ]'
-    loop: '{{ server_kube_master_server.results | flatten(levels=1)  }}'
-    when: item.id  is defined
-  - set_fact:
-      server_kube_master_server_list:
-        server_kube_master_server_ids: '{{ server_kube_master_server_list }}'
-    when: server_kube_master_server_list is defined
-  - lineinfile:
-      path: '{{ playbook_dir }}/id_vars_qwerty.yaml'
-      line: 'server_kube_master_server_delete: {{ server_kube_master_server.id }}'
-    when: server_kube_master_server.id is defined
-  - lineinfile:
-      path: '{{ playbook_dir }}/id_vars_qwerty.yaml'
-      line: '{{ server_kube_master_server_list | to_nice_yaml }}'
-    when: server_kube_master_server_list is defined
-  - fail:
-      msg: Variable server_kube_master_server is undefined! So it will not be deleted
-    when: server_kube_master_server_list is undefined and server_kube_master_server.id
-      is undefined
-    ignore_errors: true
-  - name: Create OpenStack component floating ip
-    os_floating_ip:
-      server: server_kube_master
-    register: server_kube_master_floating_ip
-  - set_fact:
-      host_ip: '{{ server_kube_master_floating_ip.floating_ip.floating_ip_address
-        }}'
-    register: temp_value
-  - add_host:
-      hostname: '{{ host_ip }}'
-      ansible_user: ubuntu
-    register: temp_value
-  - shell: ssh-keyscan {{ host_ip }},`dig +short {{ host_ip }}`
-    register: host_key
-  - known_hosts:
-      path: ~/.ssh/known_hosts
-      name: '{{ host_ip }}'
-      key: '{{ host_key.stdout }}'
-    register: temp_value
-  - set_fact:
-      server_kube_master_floating_ip_list: '{{ server_kube_master_floating_ip_list
-        | default([]) }} + [ "{{ item.id }}" ]'
-    loop: '{{ server_kube_master_floating_ip.results | flatten(levels=1)  }}'
-    when: item.id  is defined
-  - set_fact:
-      server_kube_master_floating_ip_list:
-        server_kube_master_floating_ip_ids: '{{ server_kube_master_floating_ip_list
-          }}'
-    when: server_kube_master_floating_ip_list is defined
-  - lineinfile:
-      path: '{{ playbook_dir }}/id_vars_qwerty.yaml'
-      line: 'server_kube_master_floating_ip_delete: {{ server_kube_master_floating_ip.id
-        }}'
-    when: server_kube_master_floating_ip.id is defined
-  - lineinfile:
-      path: '{{ playbook_dir }}/id_vars_qwerty.yaml'
-      line: '{{ server_kube_master_floating_ip_list | to_nice_yaml }}'
-    when: server_kube_master_floating_ip_list is defined
-  - fail:
-      msg: Variable server_kube_master_floating_ip is undefined! So it will not be
-        deleted
-    when: server_kube_master_floating_ip_list is undefined and server_kube_master_floating_ip.id
-      is undefined
-    ignore_errors: true
-
+      name: '{{ server_kube_master_server_delete }}'
+      state: absent
+    when: server_kube_master_server_delete is defined
+    register: server_kube_master_server_var
+  - set_fact: server_kube_master_server='{{ server_kube_master_server_var }}'
+    when: server_kube_master_server_var.changed
+  - name: Delete OpenStack component server
+    os_server:
+      name: '{{ item }}'
+      state: absent
+    when: server_kube_master_server_ids is defined
+    loop: '{{ server_kube_master_server_ids | flatten(levels=1) }}'
+    register: server_kube_master_server_var
+  - set_fact: server_kube_master_server='{{ server_kube_master_server_var }}'
+    when: server_kube_master_server_var.changed
+  - name: Delete OpenStack component server
+    os_server: '{{ item }}'
+    loop: '{{ server_kube_master_server_dicts }}'
+    when: server_kube_master_server_dicts is defined
+    register: server_kube_master_server_var
+  - set_fact: server_kube_master_server='{{ server_kube_master_server_var }}'
+    when: server_kube_master_server_var.changed
+- name: 'Delete OpenStack component openstack cluster: server_kube_master_keypair:delete'
+  hosts: localhost
+  tasks:
+  - include_vars: /mnt/d/source/repos/pyth/ispraas/clouni/id_vars_test.yaml
+  - name: Delete OpenStack component keypair
+    os_keypair:
+      name: '{{ server_kube_master_keypair_delete }}'
+      state: absent
+    when: server_kube_master_keypair_delete is defined
+    register: server_kube_master_keypair_var
+  - set_fact: server_kube_master_keypair='{{ server_kube_master_keypair_var }}'
+    when: server_kube_master_keypair_var.changed
+  - name: Delete OpenStack component keypair
+    os_keypair:
+      name: '{{ item }}'
+      state: absent
+    when: server_kube_master_keypair_ids is defined
+    loop: '{{ server_kube_master_keypair_ids | flatten(levels=1) }}'
+    register: server_kube_master_keypair_var
+  - set_fact: server_kube_master_keypair='{{ server_kube_master_keypair_var }}'
+    when: server_kube_master_keypair_var.changed
+  - name: Delete OpenStack component keypair
+    os_keypair: '{{ item }}'
+    loop: '{{ server_kube_master_keypair_dicts }}'
+    when: server_kube_master_keypair_dicts is defined
+    register: server_kube_master_keypair_var
+  - set_fact: server_kube_master_keypair='{{ server_kube_master_keypair_var }}'
+    when: server_kube_master_keypair_var.changed
+- name: 'Delete OpenStack component openstack cluster: disk_c_volume:delete'
+  hosts: localhost
+  tasks:
+  - include_vars: /mnt/d/source/repos/pyth/ispraas/clouni/id_vars_test.yaml
+  - name: Delete OpenStack component volume
+    os_volume:
+      name: '{{ disk_c_volume_delete }}'
+      state: absent
+    when: disk_c_volume_delete is defined
+    register: disk_c_volume_var
+  - set_fact: disk_c_volume='{{ disk_c_volume_var }}'
+    when: disk_c_volume_var.changed
+  - name: Delete OpenStack component volume
+    os_volume:
+      name: '{{ item }}'
+      state: absent
+    when: disk_c_volume_ids is defined
+    loop: '{{ disk_c_volume_ids | flatten(levels=1) }}'
+    register: disk_c_volume_var
+  - set_fact: disk_c_volume='{{ disk_c_volume_var }}'
+    when: disk_c_volume_var.changed
+  - name: Delete OpenStack component volume
+    os_volume: '{{ item }}'
+    loop: '{{ disk_c_volume_dicts }}'
+    when: disk_c_volume_dicts is defined
+    register: disk_c_volume_var
+  - set_fact: disk_c_volume='{{ disk_c_volume_var }}'
+    when: disk_c_volume_var.changed
+- name: 'Delete OpenStack component openstack cluster: disk_d_volume:delete'
+  hosts: localhost
+  tasks:
+  - include_vars: /mnt/d/source/repos/pyth/ispraas/clouni/id_vars_test.yaml
+  - name: Delete OpenStack component volume
+    os_volume:
+      name: '{{ disk_d_volume_delete }}'
+      state: absent
+    when: disk_d_volume_delete is defined
+    register: disk_d_volume_var
+  - set_fact: disk_d_volume='{{ disk_d_volume_var }}'
+    when: disk_d_volume_var.changed
+  - name: Delete OpenStack component volume
+    os_volume:
+      name: '{{ item }}'
+      state: absent
+    when: disk_d_volume_ids is defined
+    loop: '{{ disk_d_volume_ids | flatten(levels=1) }}'
+    register: disk_d_volume_var
+  - set_fact: disk_d_volume='{{ disk_d_volume_var }}'
+    when: disk_d_volume_var.changed
+  - name: Delete OpenStack component volume
+    os_volume: '{{ item }}'
+    loop: '{{ disk_d_volume_dicts }}'
+    when: disk_d_volume_dicts is defined
+    register: disk_d_volume_var
+  - set_fact: disk_d_volume='{{ disk_d_volume_var }}'
+    when: disk_d_volume_var.changed
+- name: Renew id_vars_example.yaml
+  hosts: localhost
+  tasks:
+  - file:
+      path: /mnt/d/source/repos/pyth/ispraas/clouni/id_vars_test.yaml
+      state: absent

@@ -164,7 +164,7 @@ node_types:
         type: scalar-unit.time
         required: false
     artifacts:
-      filename:
+      filename: # TODO artifacts supports
         type: openstack.artifacts.Deployment.Image
         required: false
 
@@ -181,7 +181,7 @@ node_types:
         type: string
         required: false
     artifacts:
-      public_key_file:
+      public_key_file: # TODO artifacts supports
         type: openstack.artifacts.File
         required: false
 
@@ -360,8 +360,6 @@ node_types:
       direction:
         type: string
         default: ingress
-        constraints:
-          - valid_values: [ egress, ingress ]
       ethertype:
         type: string
         default: IPv4
@@ -396,7 +394,7 @@ node_types:
     properties:
       auto_ip:
         type: boolean
-        required: false
+        default: false
       boot_from_volume:
         type: boolean
         default: false
@@ -485,7 +483,7 @@ node_types:
          capability: openstack.capabilities.Node
          node: openstack.nodes.Port
          relationship: openstack.relationships.DependsOn
-         occurrences: [0, UNBOUNDED]
+         occurrences: [ 0, UNBOUNDED ]
       - security_groups:
           capability: openstack.capabilities.Node
           node: openstack.nodes.SecurityGroup
@@ -654,7 +652,7 @@ relationship_types:
 ##########################################################################
 artifact_types:
   openstack.artifacts.File:
-    derived_from: toscsa.artifacts.File
+    derived_from: tosca.artifacts.File
 
   openstack.artifacts.Deployment.Image:
     derived_from: tosca.artifacts.Deployment.Image

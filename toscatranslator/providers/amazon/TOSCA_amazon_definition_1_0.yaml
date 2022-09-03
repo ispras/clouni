@@ -42,6 +42,9 @@ data_types:
       device_index:
         type: integer
         required: false
+      interfaces:
+        type: list
+        required: false
       groups:
         type: list
         required: false
@@ -75,8 +78,6 @@ data_types:
         required: false
       ports:
         type: list
-        entry_schema:
-          type: integer
         required: false
       cidr_ip:
         type: string
@@ -223,6 +224,22 @@ node_types:
         type: string
         required: false
 
+  amazon.nodes.Key: # ec2_key
+    derived_from: amazon.nodes.Root
+    properties:
+      name:
+        type: string
+        required: true
+      key_type:
+        type: string
+        required: false
+      key_material:
+        type: string
+        required: false
+      profile:
+        type: string
+        required: false
+
   amazon.nodes.Instance: # ec2_instance, ec2_instance_facts
     derived_from: amazon.nodes.Root
     properties:
@@ -238,28 +255,35 @@ node_types:
       instance_id: # not used when create
         type: string
         required: false
-      instance_type:
-        type: string
-        default: t2.micro
-      key_name:
-        type: string
-        required: false
       public_ip_address: # not used when create
         type: string
         required: false
       tags:
         type: map
         required: false
+      vpc_subnet_id:
+        type: string
+        required: false
     capabilities:
       bind:
         type: amazon.capabilities.network.Bindable
         occurrences: [ 0, UNBOUNDED ]
     requirements:
+      - key_name:
+          capability: amazon.capabilities.Node
+          node: amazon.nodes.Key
+          relationship: amazon.relationships.DependsOn
+          occurrences: [ 0, 1 ]
+      - instance_type:
+          capability: amazon.capabilities.Node
+          node: amazon.nodes.instanceType
+          relationship: amazon.relationships.DependsOn
+          occurrences: [ 1, 1 ]
       - image_id:
           capability: amazon.capabilities.Node
           node: amazon.nodes.Ami
           relationship: amazon.relationships.DependsOn
-          occurrences: [ 0, 1 ]
+          occurrences: [ 1, 1 ]
       - network: # network_interfaces after create, network_interfaces in facts
           capability: amazon.capabilities.Node
           node: amazon.nodes.Eni
@@ -275,6 +299,27 @@ node_types:
           node: amazon.nodes.VpcSubnet
           relationship: amazon.relationships.DependsOn
           occurrences: [ 0, 1 ]
+
+  amazon.nodes.instanceType: # ec2_instance_type_facts
+    derived_from: amazon.nodes.Root
+    properties:
+      storage:
+        type: scalar-unit.size
+        required: false
+      vcpus:
+        type: integer
+        required: false
+      memory:
+        type: scalar-unit.size
+        required: false
+      name:
+        type: string
+        required: false
+      apiname:
+        type: string
+        required: true
+
+      # there are a lot of other params, if you know how to support it - please insert
 
   amazon.nodes.Group: # ec2_group, ec2_group_facts
     derived_from: amazon.nodes.Root
@@ -301,11 +346,11 @@ node_types:
     requirements:
       - vpc_id:
           capability: amazon.capabilities.Node
-          node: amazon.nodes.VirtualPrivateCloud
+          node: amazon.nodes.VpcNet
           relationship: amazon.relationships.DependsOn
           occurrences: [ 0, 1 ]
 
-  amazon.nodes.Vpc: # ec2_vpc_net, ec2_vpc_net_facts
+  amazon.nodes.VpcNet: # ec2_vpc_net, ec2_vpc_net_facts
     derived_from: amazon.nodes.Root
     properties:
       cidr_block:
@@ -319,8 +364,12 @@ node_types:
         required: true
       tags:
         type: map
+        required: false
       vpc_id: # not used when create, after create id
         type: string
+        required: false
+      internet_gateway:
+        type: boolean
         required: false
 
   amazon.nodes.VpcSubnet: # ec2_vpc_subnet, ec2_vpc_subnet_facts
@@ -337,10 +386,11 @@ node_types:
         required: false
       tags:
         type: map
+        required: false
     requirements:
       - vpc_id: # after create id
           capability: amazon.capabilities.Node
-          node: amazon.nodes.VirtualPrivateCloud
+          node: amazon.nodes.VpcNet
           relationship: amazon.relationships.DependsOn
           occurrences: [ 1, 1 ]
 

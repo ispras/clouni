@@ -157,8 +157,6 @@ node_types:
     interfaces:
       Standard:
         type: tosca.interfaces.node.lifecycle.Standard
-      Prepare:
-        type: tosca.interfaces.node.Prepare
 
   tosca.nodes.Compute:
     description: >
@@ -851,8 +849,6 @@ interface_types:
   tosca.interfaces.node.lifecycle.Standard:
     description: This lifecycle interface defines the essential, normative operations that TOSCA nodes may support.
     derived_from: tosca.interfaces.Root
-    preconfigure:
-      description: Standard lifecycle preconfigure operation.
     create:
       description: Standard lifecycle create operation.
     configure:
@@ -889,16 +885,6 @@ interface_types:
       description: >
         Operation to notify source some property or attribute of the
         target changed
-
-  tosca.interfaces.node.Prepare:
-    description: >
-      The lifecycle interfaces define the essential, normative operations that must be executed before Node is created
-    derived_from: tosca.interfaces.Root
-    preconfigure:
-      description: Operation to pre-configure the node.
-    configure:
-      description: Operation to configure the node.
-
 
 ##########################################################################
  # Artifact Type.

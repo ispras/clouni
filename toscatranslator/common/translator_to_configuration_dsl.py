@@ -16,8 +16,8 @@ import json, os, sys, yaml
 REQUIRED_CONFIGURATION_PARAMS = (TOSCA_ELEMENTS_DEFINITION_FILE, DEFAULT_ARTIFACTS_DIRECTORY, TOSCA_ELEMENTS_MAP_FILE)
 
 
-def translate(template_file, validate_only, provider, configuration_tool, cluster_name, is_delete=False, a_file=True,
-              extra=None, log_level='info'):
+def translate(template_file, validate_only, provider, configuration_tool, cluster_name, is_delete=False,
+              a_file=True, extra=None, log_level='info', host_ip_parameter='public_address', public_key_path='~/.ssh/id_rsa.pub', debug=False):
     """
     Main function, is called by different shells, i.e. bash, Ansible module, grpc
     :param template_file: filename of TOSCA template or TOSCA template data if a_file is False
@@ -119,13 +119,13 @@ def translate(template_file, validate_only, provider, configuration_tool, cluste
     logging.info("Default TOSCA template map file to be used \'%s\'" % json.dumps(default_map_files))
 
     # Parse and generate new TOSCA service template with only provider specific TOSCA types from normative types
-    tosca = ProviderToscaTemplate(tosca_parser_template_object, provider, cluster_name,
-                                  common_map_files=default_map_files)
+    tosca = ProviderToscaTemplate(tosca_parser_template_object, provider, configuration_tool, cluster_name,
+                                  host_ip_parameter, public_key_path, is_delete, common_map_files=default_map_files)
 
     # To see intermediate provider specific template do -> print(tosca.__repr__())
     # print(tosca.__repr__())
     # Init configuration tool class
-    tool = get_configuration_tool_class(configuration_tool)()
+    tool = get_configuration_tool_class(configuration_tool)(tosca.provider)
 
     default_artifacts_directory = config.get_section(config.MAIN_SECTION).get(DEFAULT_ARTIFACTS_DIRECTORY)
 
@@ -139,8 +139,9 @@ def translate(template_file, validate_only, provider, configuration_tool, cluste
         executor = art.get(EXECUTOR)
         if bool(executor) and executor != configuration_tool:
             art_list = [ art ]
-            new_arts = generate_artifacts(art_list, default_artifacts_directory)
-            tosca.artifacts.extend(new_arts)
+            configuration_class = get_configuration_tool_class(art['executor'])(tosca.provider)
+            _, new_art = utils.generate_artifacts(configuration_class, art_list, default_artifacts_directory)
+            tosca.artifacts.append(new_art)
         else:
             tool_artifacts.append(art)
 
@@ -148,26 +149,7 @@ def translate(template_file, validate_only, provider, configuration_tool, cluste
         extra = {}
     extra_full = utils.deep_update_dict(extra, tosca.extra_configuration_tool_params.get(configuration_tool, {}))
 
-    configuration_content = tool.to_dsl(tosca.provider, tosca.provider_nodes_queue, tosca.cluster_name, is_delete,
-                                        tool_artifacts, default_artifacts_directory,
-                                        inputs=tosca.inputs, outputs=tosca.outputs, extra=extra_full)
-
+    configuration_content = tool.to_dsl(tosca.provider_operations, tosca.reversed_provider_operations, tosca.cluster_name, is_delete,
+                                        artifacts=tool_artifacts, target_directory=default_artifacts_directory,
+                                        inputs=tosca.inputs, outputs=tosca.outputs, extra=extra_full, debug=debug)
     return configuration_content
-
-
-def generate_artifacts(new_artifacts, directory):
-    """
-    From the info of new artifacts generate files which execute
-    :param new_artifacts: list of dicts containing (value, source, parameters, executor, name, configuration_tool)
-    :return: None
-    """
-    r_artifacts = []
-    for art in new_artifacts:
-        filename = os.path.join(directory, art[NAME])
-        configuration_class = get_configuration_tool_class(art[EXECUTOR])()
-        if not configuration_class:
-            sys.exit(1)
-        configuration_class.create_artifact(filename, art)
-        r_artifacts.append(filename)
-
-    return r_artifacts
