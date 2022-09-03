@@ -80,7 +80,7 @@ tosca.nodes.Compute:
           value: "{self[name]}_port_0"
         - parameter: openstack.nodes.Server.properties.nics
           value:
-          - port-name: "{self[name]}_port_0"
+            - port-name: "{self[name]}_port_0"
       public_address:
         - parameter: openstack.nodes.FloatingIp.requirements
           value:
@@ -411,10 +411,31 @@ tosca.nodes.Compute:
             value: "start=1 end={self[value]} format=%d"
           - parameter: openstack.nodes.Server.properties.name
             value: "{self[name]}_\\{\\{ item \\}\\}"
-    requirements.local_storage:
-      error: true
-      reason: Bad description in TOSCA Profile YAML v1.0
     interfaces: openstack.nodes.Server.interfaces
+#  - requirements.local_storage.node: TODO: ТАК НАДО
+#      parameter: openstack.nodes.Server.requirements
+#      value:
+#        - parameter: volumes
+#          value: "{self[value]}_volume"
+    requirements.local_storage.node:
+      parameter: openstack.nodes.Server.requirements.volumes
+      value: "{self[value]}_volume"
+
+tosca.nodes.BlockStorage:
+  - properties:
+      size:
+        - parameter: openstack.nodes.Volume.properties.size
+          value:
+            source: transform_units
+            executor: python
+            parameters:
+              source_value: "{self[value]}"
+              target_unit: GiB
+              is_only_numb: true
+              is_floor_to_int: true
+            value: default_tmp
+  - parameter: openstack.nodes.Volume.properties.display_name
+    value: "{self[name]}"
 
 tosca.nodes.network.Network:
   - interfaces: openstack.nodes.Network.interfaces

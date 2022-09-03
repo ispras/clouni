@@ -1,0 +1,118 @@
+- name: 'Delete OpenStack component openstack cluster: server_kube_master_server:delete'
+  hosts: localhost
+  tasks:
+  - include_vars: /mnt/d/source/repos/pyth/ispraas/clouni/id_vars_test.yaml
+  - name: Delete OpenStack component server
+    os_server:
+      name: '{{ server_kube_master_server_delete }}'
+      state: absent
+    when: server_kube_master_server_delete is defined
+    register: server_kube_master_server_var
+  - set_fact: server_kube_master_server='{{ server_kube_master_server_var }}'
+    when: server_kube_master_server_var.changed
+  - name: Delete OpenStack component server
+    os_server:
+      name: '{{ item }}'
+      state: absent
+    when: server_kube_master_server_ids is defined
+    loop: '{{ server_kube_master_server_ids | flatten(levels=1) }}'
+    register: server_kube_master_server_var
+  - set_fact: server_kube_master_server='{{ server_kube_master_server_var }}'
+    when: server_kube_master_server_var.changed
+  - name: Delete OpenStack component server
+    os_server: '{{ item }}'
+    loop: '{{ server_kube_master_server_dicts }}'
+    when: server_kube_master_server_dicts is defined
+    register: server_kube_master_server_var
+  - set_fact: server_kube_master_server='{{ server_kube_master_server_var }}'
+    when: server_kube_master_server_var.changed
+- name: 'Delete OpenStack component openstack cluster: server_kube_master_keypair:delete'
+  hosts: localhost
+  tasks:
+  - include_vars: /mnt/d/source/repos/pyth/ispraas/clouni/id_vars_test.yaml
+  - name: Delete OpenStack component keypair
+    os_keypair:
+      name: '{{ server_kube_master_keypair_delete }}'
+      state: absent
+    when: server_kube_master_keypair_delete is defined
+    register: server_kube_master_keypair_var
+  - set_fact: server_kube_master_keypair='{{ server_kube_master_keypair_var }}'
+    when: server_kube_master_keypair_var.changed
+  - name: Delete OpenStack component keypair
+    os_keypair:
+      name: '{{ item }}'
+      state: absent
+    when: server_kube_master_keypair_ids is defined
+    loop: '{{ server_kube_master_keypair_ids | flatten(levels=1) }}'
+    register: server_kube_master_keypair_var
+  - set_fact: server_kube_master_keypair='{{ server_kube_master_keypair_var }}'
+    when: server_kube_master_keypair_var.changed
+  - name: Delete OpenStack component keypair
+    os_keypair: '{{ item }}'
+    loop: '{{ server_kube_master_keypair_dicts }}'
+    when: server_kube_master_keypair_dicts is defined
+    register: server_kube_master_keypair_var
+  - set_fact: server_kube_master_keypair='{{ server_kube_master_keypair_var }}'
+    when: server_kube_master_keypair_var.changed
+- name: 'Delete OpenStack component openstack cluster: disk_c_volume:delete'
+  hosts: localhost
+  tasks:
+  - include_vars: /mnt/d/source/repos/pyth/ispraas/clouni/id_vars_test.yaml
+  - name: Delete OpenStack component volume
+    os_volume:
+      name: '{{ disk_c_volume_delete }}'
+      state: absent
+    when: disk_c_volume_delete is defined
+    register: disk_c_volume_var
+  - set_fact: disk_c_volume='{{ disk_c_volume_var }}'
+    when: disk_c_volume_var.changed
+  - name: Delete OpenStack component volume
+    os_volume:
+      name: '{{ item }}'
+      state: absent
+    when: disk_c_volume_ids is defined
+    loop: '{{ disk_c_volume_ids | flatten(levels=1) }}'
+    register: disk_c_volume_var
+  - set_fact: disk_c_volume='{{ disk_c_volume_var }}'
+    when: disk_c_volume_var.changed
+  - name: Delete OpenStack component volume
+    os_volume: '{{ item }}'
+    loop: '{{ disk_c_volume_dicts }}'
+    when: disk_c_volume_dicts is defined
+    register: disk_c_volume_var
+  - set_fact: disk_c_volume='{{ disk_c_volume_var }}'
+    when: disk_c_volume_var.changed
+- name: 'Delete OpenStack component openstack cluster: disk_d_volume:delete'
+  hosts: localhost
+  tasks:
+  - include_vars: /mnt/d/source/repos/pyth/ispraas/clouni/id_vars_test.yaml
+  - name: Delete OpenStack component volume
+    os_volume:
+      name: '{{ disk_d_volume_delete }}'
+      state: absent
+    when: disk_d_volume_delete is defined
+    register: disk_d_volume_var
+  - set_fact: disk_d_volume='{{ disk_d_volume_var }}'
+    when: disk_d_volume_var.changed
+  - name: Delete OpenStack component volume
+    os_volume:
+      name: '{{ item }}'
+      state: absent
+    when: disk_d_volume_ids is defined
+    loop: '{{ disk_d_volume_ids | flatten(levels=1) }}'
+    register: disk_d_volume_var
+  - set_fact: disk_d_volume='{{ disk_d_volume_var }}'
+    when: disk_d_volume_var.changed
+  - name: Delete OpenStack component volume
+    os_volume: '{{ item }}'
+    loop: '{{ disk_d_volume_dicts }}'
+    when: disk_d_volume_dicts is defined
+    register: disk_d_volume_var
+  - set_fact: disk_d_volume='{{ disk_d_volume_var }}'
+    when: disk_d_volume_var.changed
+- name: Renew id_vars_example.yaml
+  hosts: localhost
+  tasks:
+  - file:
+      path: /mnt/d/source/repos/pyth/ispraas/clouni/id_vars_test.yaml
+      state: absent

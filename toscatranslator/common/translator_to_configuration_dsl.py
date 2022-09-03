@@ -122,6 +122,8 @@ def translate(template_file, validate_only, provider, configuration_tool, cluste
     tosca = ProviderToscaTemplate(tosca_parser_template_object, provider, configuration_tool, cluster_name,
                                   host_ip_parameter, public_key_path, is_delete, common_map_files=default_map_files)
 
+    # To see intermediate provider specific template do -> print(tosca.__repr__())
+    # print(tosca.__repr__())
     # Init configuration tool class
     tool = get_configuration_tool_class(configuration_tool)(tosca.provider)
 

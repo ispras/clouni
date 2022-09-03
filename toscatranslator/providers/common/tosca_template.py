@@ -608,6 +608,18 @@ class ProviderToscaTemplate(object):
                                     INPUTS: []
                                 }
 
+    def __repr__(self):
+        s = "tosca_definitions_version: tosca_simple_yaml_1_0\n\n" + "topology_template:\n" + "  node_templates:\n"
+        if len(self.node_templates) == 0:
+            return s
+
+        for (k, v) in self.node_templates[0].templates.items():
+            s += "    - " + k + ":\n        "
+            one = yaml.dump(v)
+            one = one.replace('\n', '\n        ')
+            s += one + "\n"
+        return s
+
     def _get_full_defintion(self, definition, def_type, ready_set):
         if def_type in ready_set:
             return definition, def_type in self.software_types

@@ -72,6 +72,15 @@ class TestAnsibleOpenStackOutput (unittest.TestCase, TestAnsibleProvider):
         file_diff_path = os.path.join('examples', 'tosca-network-and-port-example-ansible-delete-openstack.yaml')
         self.diff_files(file_output_path, file_diff_path)
 
+    def test_volume_validation(self):
+        file_path = os.path.join('examples', 'tosca-volume-example.yaml')
+        file_output = os.path.join('examples', 'tosca-volume-output.yaml')
+        shell.main(
+            ['--template-file', file_path, '--cluster-name', 'test', '--provider', self.PROVIDER, '--output-file',
+             file_output, '--delete', '--debug'])
+        file_diff_path = os.path.join('examples', 'tosca-volume-correct.yaml')
+        self.diff_files(file_output, file_diff_path)
+
     def test_network_with_compute(self):
         file_path = os.path.join('examples', 'tosca-network-and-server-example.yaml')
         template = self.read_template(file_path)
